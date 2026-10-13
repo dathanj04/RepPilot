@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createInvitationAction } from "@/lib/actions";
+import { CATERING_PROVIDERS } from "@/lib/domain/catalog";
 
 export function InvitationForm({
   accounts,
@@ -42,6 +43,25 @@ export function InvitationForm({
         <label className="text-sm">Expected attendees<input name="expectedAttendees" type="number" min={1} defaultValue={8} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
         <label className="text-sm">Estimated budget ($)<input name="budget" type="number" min={0} step="0.01" className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
       </div>
+      <section className="rounded-2xl bg-[#F5F7FA] p-4 ring-1 ring-slate-200">
+        <h2 className="font-semibold text-[#10263E]">Catering options</h2>
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {CATERING_PROVIDERS.filter((provider) => provider.live).map((provider) => (
+            <a
+              key={provider.id}
+              href={provider.url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex min-h-14 flex-col items-center justify-center rounded-xl bg-[#10263E] px-4 py-3 text-center text-white"
+            >
+              <span className="text-sm font-semibold">{provider.label}</span>
+              <span className="mt-1 text-xs text-white/70">External ordering site</span>
+            </a>
+          ))}
+        </div>
+        <p className="mt-3 text-xs leading-5 text-[#66758B]">Ordering opens the provider’s website in a new tab. RepPilot does not place or pay for the order automatically.</p>
+        <p className="mt-2 text-xs leading-5 text-[#66758B]">You can schedule the lunch first and record order details later from the lunch details page.</p>
+      </section>
       <label className="text-sm">Link expires in
         <select name="expiryHours" defaultValue="48" className="mt-1 h-11 w-full rounded-xl border px-3">
           <option value="24">24 hours</option>
