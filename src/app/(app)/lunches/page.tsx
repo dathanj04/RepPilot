@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { requireAppUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatWhen } from "@/lib/format";
+import { PageFrame } from "@/components/ui/page";
 
 export const instant = false;
 export const metadata = { title: "Lunches" };
@@ -22,32 +23,55 @@ export default async function LunchesPage() {
       orderBy: { slotStartsAt: "desc" },
     }),
   ]);
+  const now = new Date();
+  const upcoming = lunches.filter((lunch) => lunch.slotStartsAt >= now && (lunch.status === "SCHEDULED" || lunch.status === "CHANGE_REQUESTED"));
+  const confirmed = lunches.filter((lunch) => lunch.slotStartsAt >= now && lunch.status === "CONFIRMED");
+  const completed = lunches.filter((lunch) => lunch.status === "COMPLETED" || (lunch.slotStartsAt < now && lunch.status !== "CANCELED"));
+  const sections = [
+    ["Waiting on the office", invitations.map((invitation) => ({
+      id: invitation.id,
+      href: `/accounts/${invitation.accountId}?tab=lunches`,
+      title: invitation.account.name,
+      detail: `${invitation.slots.length} offered times`,
+    }))],
+    ["Upcoming", upcoming.map(card)],
+    ["Confirmed", confirmed.map(card)],
+    ["Completed", completed.map(card)],
+  ] as const;
+
   return (
-    <div className="mx-auto max-w-3xl space-y-4 px-4 py-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Lunches</h1>
-        <Link href="/lunches/new" className="rounded-xl bg-[#10263E] px-3 py-2 text-sm text-white">Schedule</Link>
+    <PageFrame
+      title="Lunches"
+      subtitle="Invitations, upcoming visits, confirmations, and completed meals stay in separate lists."
+      action={<Link href="/lunches/new" className="inline-flex h-11 items-center rounded-xl bg-[#10263E] px-4 text-sm font-medium text-white">Schedule</Link>}
+    >
+      <div className="grid gap-4 lg:grid-cols-2">
+        {sections.map(([title, items]) => (
+          <section key={title} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+            <h2 className="font-semibold text-[#10263E]">{title}</h2>
+            {items.length === 0 ? <p className="mt-2 text-sm text-[#66758B]">Nothing in this list.</p> : null}
+            <ul className="mt-3 space-y-2">
+              {items.map((item) => (
+                <li key={item.id}>
+                  <Link href={item.href} className="block rounded-xl bg-[#F5F7FA] px-3 py-3">
+                    <p className="font-medium">{item.title}</p>
+                    <p className="text-sm text-[#66758B]">{item.detail}</p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
       </div>
-      <section>
-        <h2 className="mb-2 text-sm font-semibold">Waiting on the office</h2>
-        {invitations.length === 0 ? <p className="text-sm text-[#66758B]">No open invitations.</p> : null}
-        {invitations.map((invitation) => (
-          <Link key={invitation.id} href={`/accounts/${invitation.accountId}?tab=lunches`} className="mb-2 block rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-            <p className="font-medium">{invitation.account.name}</p>
-            <p className="text-sm text-[#66758B]">{invitation.slots.length} offered times</p>
-          </Link>
-        ))}
-      </section>
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold">Scheduled and past</h2>
-        {lunches.map((lunch) => (
-          <Link key={lunch.id} href={`/lunches/${lunch.id}`} className="block rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-            <p className="font-medium">{lunch.account.name}</p>
-            <p className="text-sm text-[#66758B]">{formatWhen(lunch.slotStartsAt, user.timezone)}</p>
-            <p className="text-xs capitalize">{lunch.status.replaceAll("_", " ").toLowerCase()} · order {lunch.order?.status.replaceAll("_", " ").toLowerCase()}</p>
-          </Link>
-        ))}
-      </section>
-    </div>
+    </PageFrame>
   );
+
+  function card(lunch: (typeof lunches)[number]) {
+    return {
+      id: lunch.id,
+      href: `/lunches/${lunch.id}`,
+      title: lunch.account.name,
+      detail: `${formatWhen(lunch.slotStartsAt, user.timezone)} · ${lunch.status.replaceAll("_", " ").toLowerCase()}`,
+    };
+  }
 }

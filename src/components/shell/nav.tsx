@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Map,
   MoreHorizontal,
+  Route,
   Shield,
   UtensilsCrossed,
   Wallet,
@@ -25,6 +26,7 @@ const ICONS = {
   lunches: UtensilsCrossed,
   spending: Wallet,
   admin: Shield,
+  route: Route,
 };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };

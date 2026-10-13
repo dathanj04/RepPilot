@@ -19,7 +19,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/calendar", label: "Calendar", icon: "calendar" },
     { href: "/tasks", label: "Tasks", icon: "tasks" },
     { href: "/lunches", label: "Lunches", icon: "lunches" },
-    { href: "/route", label: "Route", icon: "today" },
+    { href: "/route", label: "Route", icon: "route" },
     { href: "/spending", label: "Spending", icon: "spending" },
   ];
   if (canViewTeam(user.roleKey)) items.push({ href: "/manager", label: "Team", icon: "admin" });
@@ -29,7 +29,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   items.push({ href: "/more", label: "More", icon: "more" });
 
   return (
-    <div className="min-h-dvh bg-[#F5F7FA] text-[#14243A]">
+    <div className="h-dvh overflow-hidden bg-[#F5F7FA] text-[#14243A]">
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col bg-[#10263E] text-white md:flex">
         <Link href="/today" className="px-5 pt-6 pb-2">
           <p className="text-lg font-semibold tracking-tight">RepPilot AI</p>
@@ -42,8 +42,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           </button>
         </form>
       </aside>
-      <div className="md:pl-64">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur">
+      <div className="flex h-dvh flex-col md:pl-64">
+        <header className="z-30 flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur">
           <div>
             <p className="text-sm font-semibold text-[#10263E]">{user.organizationName}</p>
             <p className="text-xs text-[#66758B]">{user.name}</p>
@@ -58,7 +58,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             Demonstration organization. Offices, lunches, and spending are fictional.
           </p>
         ) : null}
-        <div className="pb-20 md:pb-0">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto pb-16 md:pb-0">{children}</div>
       </div>
       <BottomNav unread={unread} />
     </div>

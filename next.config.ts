@@ -8,6 +8,7 @@ const cursorPreviewOrigins = ["**.agent.cvm.dev", "**.cursorvm.com"];
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  devIndicators: false,
   partialPrefetching: true,
   allowedDevOrigins: cursorPreviewOrigins,
   // The dev React debug channel waits on the HMR socket. If that socket

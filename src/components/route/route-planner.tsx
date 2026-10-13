@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { saveRouteAction, suggestRouteAction } from "@/lib/actions";
 
 type Stop = {
@@ -10,7 +11,7 @@ type Stop = {
   straightLineMiles: number | null;
 };
 
-export function RoutePlanner({ saved }: { saved: { name: string; reason: string; id: string }[] }) {
+export function RoutePlanner({ saved, offices }: { saved: { name: string; reason: string; id: string }[]; offices: { id: string; name: string }[] }) {
   const [stops, setStops] = useState<Stop[]>([]);
   const [note, setNote] = useState("");
   const [message, setMessage] = useState("");
@@ -39,9 +40,26 @@ export function RoutePlanner({ saved }: { saved: { name: string; reason: string;
 
   return (
     <div className="space-y-4">
-      <button className="h-12 w-full rounded-xl bg-[#10263E] font-medium text-white" type="button" disabled={pending} onClick={suggest}>
-        {pending ? "Working…" : "Suggest stops from my records"}
-      </button>
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+        <button className="h-12 rounded-xl bg-[#10263E] font-medium text-white" type="button" disabled={pending} onClick={suggest}>
+          {pending ? "Working…" : "Suggest stops from my records"}
+        </button>
+        <form className="flex gap-2" onSubmit={(event) => {
+          event.preventDefault();
+          const data = new FormData(event.currentTarget);
+          const accountId = String(data.get("accountId") || "");
+          const office = offices.find((item) => item.id === accountId);
+          if (!office || stops.some((stop) => stop.accountId === office.id)) return;
+          setStops((current) => [...current, { accountId: office.id, name: office.name, reasons: ["Added manually"], straightLineMiles: null }]);
+          event.currentTarget.reset();
+        }}>
+          <select name="accountId" aria-label="Add an office" className="h-12 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3" required>
+            <option value="">Add an office</option>
+            {offices.map((office) => <option key={office.id} value={office.id}>{office.name}</option>)}
+          </select>
+          <button className="h-12 rounded-xl bg-white px-4 text-sm font-medium ring-1 ring-slate-200" type="submit">Add</button>
+        </form>
+      </div>
       {note ? <p className="text-sm text-[#66758B]">{note}</p> : null}
       {message ? <p className="rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-slate-200">{message}</p> : null}
       {stops.length > 0 ? (
@@ -61,12 +79,12 @@ export function RoutePlanner({ saved }: { saved: { name: string; reason: string;
                   </ul>
                 </div>
                 <div className="grid gap-1">
-                  <button type="button" className="text-xs underline" onClick={() => move(index, -1)} disabled={index === 0}>Up</button>
-                  <button type="button" className="text-xs underline" onClick={() => move(index, 1)} disabled={index === stops.length - 1}>Down</button>
-                  <button type="button" className="text-xs text-[#D94B4B] underline" onClick={() => setStops((current) => current.filter((item) => item.accountId !== stop.accountId))}>Remove</button>
+                  <button type="button" className="h-8 rounded-lg px-2 text-xs font-medium ring-1 ring-slate-200 disabled:opacity-40" onClick={() => move(index, -1)} disabled={index === 0}>Up</button>
+                  <button type="button" className="h-8 rounded-lg px-2 text-xs font-medium ring-1 ring-slate-200 disabled:opacity-40" onClick={() => move(index, 1)} disabled={index === stops.length - 1}>Down</button>
+                  <button type="button" className="h-8 rounded-lg px-2 text-xs font-medium text-[#D94B4B] ring-1 ring-slate-200" onClick={() => setStops((current) => current.filter((item) => item.accountId !== stop.accountId))}>Remove</button>
                 </div>
               </div>
-              <a className="mt-2 inline-block text-sm underline" href={`/accounts/${stop.accountId}`}>Open account</a>
+              <Link className="mt-2 inline-flex h-9 items-center text-sm font-medium text-[#10263E]" href={`/accounts/${stop.accountId}`}>Open account</Link>
             </li>
           ))}
         </ol>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { MapContainer, TileLayer, CircleMarker, Polygon, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -84,6 +84,8 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
   const [zoom, setZoom] = useState(10);
   const [focus, setFocus] = useState<[number, number] | null>(null);
   const [locationNote, setLocationNote] = useState<string | null>(null);
+  const [googleFailed, setGoogleFailed] = useState(false);
+  const failGoogle = useCallback(() => setGoogleFailed(true), []);
 
   const specialties = [...new Set(accounts.map((account) => account.specialty))];
   const filtered = accounts.filter((account) => {
@@ -118,9 +120,96 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
     );
   }
 
+  const list = (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="space-y-2 border-b border-slate-200 p-3">
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search offices"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-[#F5F7FA] px-3 text-sm"
+          aria-label="Search offices"
+        />
+        <div className="flex flex-wrap gap-2">
+          <FilterChip active={tone === "all"} onClick={() => setTone("all")}>All</FilterChip>
+          {MARKER_TONES.map((item) => (
+            <FilterChip key={item.id} active={tone === item.id} onClick={() => setTone(item.id)}>
+              <span className="mr-1 inline-block size-2 rounded-full" style={{ background: item.color }} />
+              {item.label}
+            </FilterChip>
+          ))}
+          <FilterChip active={followUpOnly} onClick={() => setFollowUpOnly((value) => !value)}>Follow-up due</FilterChip>
+          {specialties.map((item) => (
+            <FilterChip key={item} active={specialty === item} onClick={() => setSpecialty(specialty === item ? "all" : item)}>{item}</FilterChip>
+          ))}
+          {[5, 15, 30].map((miles) => (
+            <FilterChip key={miles} active={maxMiles === miles} onClick={() => setMaxMiles(maxMiles === miles ? null : miles)}>
+              Within {miles} mi
+            </FilterChip>
+          ))}
+        </div>
+      </div>
+      <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+        {filtered.length === 0 ? <li className="rounded-2xl bg-[#F5F7FA] p-4 text-sm">No offices match these filters.</li> : null}
+        {filtered.map((account) => (
+          <li key={account.id}>
+            <button
+              type="button"
+              className={`w-full rounded-2xl p-3 text-left ring-1 ${selectedId === account.id ? "bg-[#E7F8F3] ring-[#19B78A]" : "bg-white ring-slate-200"}`}
+              onClick={() => {
+                setSelectedId(account.id);
+                setMode("map");
+                if (account.lat != null && account.lng != null) setFocus([account.lat, account.lng]);
+              }}
+            >
+              <p className="font-medium text-[#10263E]">{account.name}</p>
+              <p className="text-sm text-[#66758B]">{account.specialty} · {account.city}</p>
+              <p className="mt-1 text-xs text-[#66758B]">Last visit {account.lastVisit ?? "not yet"}</p>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
+  const canvas = googleFailed || !googleMapsKey ? (
+    <MapContainer center={center} zoom={10} className="h-full w-full" zoomControl={false}>
+      <TileLayer attribution='&copy; OpenStreetMap' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <MapEvents onZoom={setZoom} />
+      <Recenter center={focus} />
+      {boundary ? <Polygon positions={boundary} pathOptions={{ color: "#19B78A", weight: 2, fillOpacity: 0.05 }} /> : null}
+      {here ? <CircleMarker center={[here.lat, here.lng]} radius={8} pathOptions={{ color: "#10263E", fillColor: "#19B78A", fillOpacity: 1 }} /> : null}
+      {groups.map((group) =>
+        group.members.length > 1 ? (
+          <CircleMarker
+            key={group.id}
+            center={[group.lat, group.lng]}
+            radius={18}
+            pathOptions={{ color: "#10263E", fillColor: "#10263E", fillOpacity: 0.9 }}
+            eventHandlers={{ click: () => { setZoom(13); setFocus([group.lat, group.lng]); } }}
+          >
+            <Tooltip permanent direction="center" className="!border-0 !bg-transparent !shadow-none !text-white">{group.members.length}</Tooltip>
+          </CircleMarker>
+        ) : (
+          <CircleMarker
+            key={group.id}
+            center={[group.lat, group.lng]}
+            radius={selectedId === group.members[0]?.id ? 12 : 9}
+            pathOptions={{ color: "#fff", weight: 2, fillColor: COLORS[group.members[0]!.tone], fillOpacity: 1 }}
+            eventHandlers={{ click: () => setSelectedId(group.members[0]!.id) }}
+          />
+        ),
+      )}
+    </MapContainer>
+  ) : (
+    <GoogleCanvas accounts={filtered} selectedId={selectedId} onSelect={setSelectedId} apiKey={googleMapsKey} center={focus ?? center} onFail={failGoogle} />
+  );
+
   return (
-    <div className="relative h-[calc(100dvh-8.5rem)] md:h-[calc(100dvh-3.5rem)]">
-      <div className="absolute inset-x-3 top-3 z-20 space-y-2">
+    <div className="flex h-full min-h-[32rem]">
+      <aside className="hidden w-[22rem] shrink-0 border-r border-slate-200 bg-white md:flex md:flex-col">{list}</aside>
+      <div className="relative min-w-0 flex-1">
+      <div className="absolute inset-x-3 top-3 z-20 space-y-2 rounded-2xl bg-white/95 p-2 shadow-sm md:hidden">
         <div className="flex gap-2">
           <input
             value={query}
@@ -153,68 +242,21 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
         </div>
       </div>
 
-      {mode === "list" ? (
-        <div className="h-full overflow-y-auto px-3 pt-28 pb-4">
-          {filtered.length === 0 ? <p className="rounded-2xl bg-white p-4 text-sm">No offices match these filters.</p> : null}
-          <ul className="space-y-2">
-            {filtered.map((account) => (
-              <li key={account.id}>
-                <button type="button" className="w-full rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200" onClick={() => { setSelectedId(account.id); setMode("map"); if (account.lat != null && account.lng != null) setFocus([account.lat, account.lng]); }}>
-                  <p className="font-medium">{account.name}</p>
-                  <p className="text-sm text-[#66758B]">{account.specialty} · {account.city}</p>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : googleMapsKey ? (
-        <GoogleCanvas accounts={filtered} selectedId={selectedId} onSelect={setSelectedId} apiKey={googleMapsKey} center={focus ?? center} />
-      ) : (
-        <MapContainer center={center} zoom={10} className="h-full w-full" zoomControl={false}>
-          <TileLayer attribution='&copy; OpenStreetMap &copy; CARTO' url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
-          <MapEvents onZoom={setZoom} />
-          <Recenter center={focus} />
-          {boundary ? <Polygon positions={boundary} pathOptions={{ color: "#19B78A", weight: 2, fillOpacity: 0.05 }} /> : null}
-          {here ? <CircleMarker center={[here.lat, here.lng]} radius={8} pathOptions={{ color: "#10263E", fillColor: "#19B78A", fillOpacity: 1 }} /> : null}
-          {groups.map((group) =>
-            group.members.length > 1 ? (
-              <CircleMarker
-                key={group.id}
-                center={[group.lat, group.lng]}
-                radius={18}
-                pathOptions={{ color: "#10263E", fillColor: "#10263E", fillOpacity: 0.9 }}
-                eventHandlers={{ click: () => { setZoom(13); setFocus([group.lat, group.lng]); } }}
-              >
-                <Tooltip permanent direction="center" className="!border-0 !bg-transparent !shadow-none !text-white">{group.members.length}</Tooltip>
-              </CircleMarker>
-            ) : (
-              <CircleMarker
-                key={group.id}
-                center={[group.lat, group.lng]}
-                radius={selectedId === group.members[0]?.id ? 12 : 9}
-                pathOptions={{ color: "#fff", weight: 2, fillColor: COLORS[group.members[0]!.tone], fillOpacity: 1 }}
-                eventHandlers={{ click: () => setSelectedId(group.members[0]!.id) }}
-              />
-            ),
-          )}
-        </MapContainer>
-      )}
+      {mode === "list" ? <div className="relative z-0 h-full bg-white pt-28 md:hidden">{list}</div> : <div className="relative z-0 h-full isolate">{canvas}</div>}
 
-      <div className="absolute right-3 bottom-3 z-20 flex flex-col gap-2">
+      <div className="absolute right-3 bottom-24 z-20 flex flex-col gap-2 md:bottom-3">
         <button type="button" className="h-11 rounded-xl bg-white px-3 text-sm font-medium shadow-sm ring-1 ring-slate-200" onClick={locate}>
           My location
         </button>
       </div>
-      {!googleMapsKey ? (
-        <p className="absolute bottom-16 left-3 z-20 max-w-[16rem] rounded-xl bg-white/95 px-3 py-2 text-[11px] text-[#66758B] shadow-sm">
-          Google Maps key is not configured. This territory uses OpenStreetMap. Distances are straight-line, not driving distance.
-          {locationNote ? ` ${locationNote}` : ""}
-          {missingLocation ? ` ${missingLocation} offices have no coordinates.` : ""}
-        </p>
-      ) : null}
+      <p className="pointer-events-none absolute top-3 left-3 z-20 hidden max-w-sm rounded-xl bg-white/95 px-3 py-2 text-[11px] text-[#66758B] shadow-sm md:block">
+        {googleMapsKey && !googleFailed ? "Google Maps" : "OpenStreetMap"} · straight-line distance only
+        {locationNote ? ` · ${locationNote}` : ""}
+        {missingLocation ? ` · ${missingLocation} offices have no coordinates` : ""}
+      </p>
 
       {selected ? (
-        <div className="absolute inset-x-0 bottom-0 z-30 rounded-t-3xl bg-white p-4 shadow-2xl ring-1 ring-slate-200">
+        <div className="absolute inset-x-0 bottom-0 z-50 max-h-[70dvh] overflow-y-auto rounded-t-3xl bg-white p-4 pb-6 shadow-2xl ring-1 ring-slate-200 md:inset-x-auto md:right-4 md:bottom-4 md:max-h-[80dvh] md:w-[22rem] md:rounded-3xl">
           <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-200" />
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -241,6 +283,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
           </div>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }
@@ -253,19 +296,26 @@ function FilterChip({ active, children, onClick }: { active: boolean; children: 
   );
 }
 
-function GoogleCanvas({ accounts, apiKey, center, onSelect, selectedId }: { accounts: MapAccount[]; apiKey: string; center: [number, number]; onSelect: (id: string) => void; selectedId: string | null }) {
-  const [failed, setFailed] = useState(false);
+function GoogleCanvas({ accounts, apiKey, center, onSelect, selectedId, onFail }: { accounts: MapAccount[]; apiKey: string; center: [number, number]; onSelect: (id: string) => void; selectedId: string | null; onFail: () => void }) {
+  const [ready, setReady] = useState(false);
   useEffect(() => {
+    const win = window as unknown as { gm_authFailure?: () => void };
+    win.gm_authFailure = () => onFail();
     const id = "google-maps-sdk";
-    if (document.getElementById(id)) return;
+    const existing = document.getElementById(id);
+    if (existing) {
+      setReady(true);
+      return;
+    }
     const script = document.createElement("script");
     script.id = id;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}`;
     script.async = true;
-    script.onerror = () => setFailed(true);
+    script.onerror = () => onFail();
+    script.onload = () => setReady(true);
     document.head.appendChild(script);
-  }, [apiKey]);
-  if (failed) return <p className="p-6 text-sm">Google Maps failed to load. Remove the key to use the OpenStreetMap fallback.</p>;
+  }, [apiKey, onFail]);
+  if (!ready) return <div className="grid h-full place-items-center bg-[#F5F7FA] text-sm text-[#66758B]">Loading Google Maps…</div>;
   return <GoogleMapInner accounts={accounts} center={center} onSelect={onSelect} selectedId={selectedId} />;
 }
 

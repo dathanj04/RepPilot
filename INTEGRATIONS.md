@@ -4,11 +4,24 @@ An integration is described as live only when credentials exist and a request su
 
 ## Google Maps, Places, Geocoding, Routes
 
-`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` loads the Maps JavaScript API on the territory map. Without it, Leaflet draws an OpenStreetMap-style basemap and the same office markers.
+The territory map is interactive without a Google key. It uses Leaflet and OpenStreetMap tiles, office markers, filters, a selected-office card, Check In, and a Directions link. Straight-line miles are labeled as straight-line miles. Driving time is never invented.
 
-Directions open Google Maps with the office coordinates or address. The app does not call the Routes API yet, so it does not show a driving time. Straight-line distance is labeled as straight-line distance.
+When `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is a real browser key, the same screen loads the Maps JavaScript API instead. Placeholder values such as `API KEY REQUIRED` are ignored so Google’s error tile does not replace the map.
 
-Places and Geocoding are not called. Offices are stored from the form, CSV import, or seed data.
+`GOOGLE_MAPS_API_KEY` is reserved for server-side Routes, Places, and Geocoding. Those calls are not made in this build.
+
+### Google Cloud setup
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/) and select or create a project.
+2. Enable billing for that project. Maps Platform will not serve tiles without it.
+3. Enable **Maps JavaScript API** for the browser map.
+4. Enable **Routes API** only if you later want driving times. Leave it off until the app calls it.
+5. Enable **Geocoding API** and **Places API** only when you want address lookup. They are unused today.
+6. Create an API key for the browser. Restrict it to **HTTP referrers** that match your preview and production origins, and restrict the API to Maps JavaScript API.
+7. Create a separate server key for Routes later. Restrict it by IP or to the Routes API. Do not put that key in `NEXT_PUBLIC_` variables.
+8. Put the browser key in `.env` as `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`. Restart the dev server. Do not commit the key.
+
+Directions still open `https://www.google.com/maps/dir/` with the office coordinates. That link does not need an API key.
 
 ## Gemini
 

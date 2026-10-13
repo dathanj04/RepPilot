@@ -6,6 +6,7 @@ import { classifyAccount, daysBetween } from "@/lib/domain/markers";
 import { formatDay } from "@/lib/format";
 import type { MapAccount } from "@/components/map/territory-map";
 import { TerritoryMapLoader } from "@/components/map/map-loader";
+import { googleMapsBrowserKey } from "@/lib/maps-config";
 
 export const instant = false;
 export const metadata = { title: "Map" };
@@ -57,7 +58,7 @@ export default async function MapPage() {
     <TerritoryMapLoader
       accounts={pins}
       boundary={boundary}
-      googleMapsKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
+      googleMapsKey={googleMapsBrowserKey()}
       center={first ? [first.lat!, first.lng!] : [33.15, -96.82]}
     />
   );

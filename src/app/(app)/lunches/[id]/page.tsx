@@ -12,6 +12,7 @@ import { exceptionAction, handoffAction, recordOrderAction } from "@/lib/actions
 import { EXCEPTION_LIMIT, LEGALITY_FOOTER } from "@/lib/domain/policy";
 import { canReviewCompliance } from "@/lib/permissions";
 import { revealToken } from "@/lib/services/links";
+import { PageFrame } from "@/components/ui/page";
 
 export const instant = false;
 
@@ -61,20 +62,25 @@ export default async function LunchDetailPage({
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 px-4 py-5">
-      <p className="text-xs text-[#66758B]"><Link href={`/accounts/${lunch.accountId}`}>← {lunch.account.name}</Link></p>
-      <h1 className="text-2xl font-semibold">Educational lunch</h1>
-      {notice ? <p className="rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-slate-200">{notice}</p> : null}
-      <p>{formatWhen(lunch.slotStartsAt, lunch.timezone)}</p>
-      <p className="text-sm capitalize text-[#66758B]">{lunch.status.replaceAll("_", " ").toLowerCase()} · {lunch.confirmedAt ? `Confirmed ${formatWhen(lunch.confirmedAt, lunch.timezone)}` : "Not confirmed by the office"}</p>
-      <p className="text-sm">{lunch.purpose}</p>
-      <section className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-        <h2 className="font-semibold">Reminders</h2>
-        <ul className="mt-2 space-y-1 text-sm">
+    <PageFrame title="Lunch order" subtitle={`${lunch.account.name} · ${formatWhen(lunch.slotStartsAt, lunch.timezone)}`} action={<Link href={`/accounts/${lunch.accountId}`} className="inline-flex h-11 items-center rounded-xl px-4 text-sm font-medium ring-1 ring-slate-200">Office</Link>}>
+    <div className="grid gap-4 lg:grid-cols-2">
+      <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 lg:col-span-2">
+        {notice ? <p className="mb-2 rounded-xl bg-[#F5F7FA] px-3 py-2 text-sm">{notice}</p> : null}
+        <p className="font-medium text-[#10263E]">{formatWhen(lunch.slotStartsAt, lunch.timezone)}</p>
+        <p className="text-sm capitalize text-[#66758B]">{lunch.status.replaceAll("_", " ").toLowerCase()} · {lunch.confirmedAt ? `Confirmed ${formatWhen(lunch.confirmedAt, lunch.timezone)}` : "Not confirmed by the office"}</p>
+        <p className="mt-1 text-sm">{lunch.purpose}</p>
+        <p className="mt-2 text-sm">Attendance: {lunch.confirmedAttendees != null ? `${lunch.confirmedAttendees} confirmed` : `${lunch.expectedAttendees} expected`} · Spend on file: {formatCents(amountCents)}</p>
+      </section>
+      <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+        <h2 className="font-semibold text-[#10263E]">Reminder timeline</h2>
+        <ol className="mt-3 space-y-3 border-l-2 border-[#19B78A] pl-4 text-sm">
           {lunch.reminders.map((reminder) => (
-            <li key={reminder.id}>{reminder.kind.replaceAll("_", " ").toLowerCase()} · {reminder.status.toLowerCase()} · {formatWhen(reminder.scheduledFor, lunch.timezone)}</li>
+            <li key={reminder.id}>
+              <p className="font-medium capitalize">{reminder.kind.replaceAll("_", " ").toLowerCase()}</p>
+              <p className="text-[#66758B]">{reminder.status.toLowerCase()} · {formatWhen(reminder.scheduledFor, lunch.timezone)}</p>
+            </li>
           ))}
-        </ul>
+        </ol>
         <p className="mt-2 text-xs text-[#66758B]">A missing 48-hour confirmation does not cancel the lunch.</p>
         {confirmPath ? <Link className="text-sm underline" href={confirmPath}>Office confirmation link</Link> : null}
       </section>
@@ -178,6 +184,7 @@ export default async function LunchDetailPage({
         ) : null}
       </section>
     </div>
+    </PageFrame>
   );
 }
 

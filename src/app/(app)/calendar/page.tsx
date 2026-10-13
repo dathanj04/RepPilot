@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { eachDayOfInterval, endOfMonth, format, getDay, isSameDay, startOfMonth } from "date-fns";
 import { connection } from "next/server";
 import { requireAppUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatWhen } from "@/lib/format";
+import { PageFrame } from "@/components/ui/page";
 
 export const instant = false;
 export const metadata = { title: "Calendar" };
@@ -28,42 +30,86 @@ export default async function CalendarPage() {
   const googleReady = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
   const microsoftReady = Boolean(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET);
 
+  const monthStart = startOfMonth(now);
+  const days = eachDayOfInterval({ start: monthStart, end: endOfMonth(now) });
+  const lead = getDay(monthStart);
+
   return (
-    <div className="mx-auto max-w-3xl space-y-4 px-4 py-5">
-      <h1 className="text-2xl font-semibold">Calendar</h1>
-      <section className="rounded-2xl bg-white p-4 text-sm ring-1 ring-slate-200">
-        <h2 className="font-semibold">Connections</h2>
-        <p className="mt-2">Google Calendar: {statusLabel(connections.find((item) => item.provider === "google")?.status, googleReady)}</p>
-        <p>Microsoft 365: {statusLabel(connections.find((item) => item.provider === "microsoft")?.status, microsoftReady)}</p>
-        <p className="mt-2 text-xs text-[#66758B]">
-          RepPilot keeps an internal schedule for lunches you authorize. External calendars stay disconnected until OAuth credentials are configured and a connection is tested. Busy time from an unconnected calendar is not read.
-        </p>
-      </section>
-      <section>
-        <h2 className="text-sm font-semibold">Scheduled lunches</h2>
-        {events.length === 0 ? <p className="mt-2 text-sm text-[#66758B]">No internal events yet.</p> : null}
-        <ul className="mt-2 space-y-2">
-          {events.map((event) => (
-            <li key={event.id} className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-              <p className="font-medium">{event.title}</p>
-              <p className="text-sm text-[#66758B]">{formatWhen(event.startsAt, user.timezone)} · {event.syncState}</p>
-              {event.lunchBookingId ? <Link className="text-sm underline" href={`/lunches/${event.lunchBookingId}`}>Open lunch</Link> : null}
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section>
-        <h2 className="text-sm font-semibold">Follow-ups with dates</h2>
-        <ul className="mt-2 space-y-2">
-          {tasks.map((task) => (
-            <li key={task.id} className="rounded-xl bg-white p-3 text-sm ring-1 ring-slate-200">
-              <p className="font-medium">{task.title}</p>
-              <p className="text-[#66758B]">{task.dueDate ? formatWhen(task.dueDate, user.timezone) : ""}{task.account ? ` · ${task.account.name}` : ""}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </div>
+    <PageFrame title="Calendar" subtitle="Internal lunches and follow-ups live here. External calendars stay separate until a connection is tested.">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.8fr)]">
+        <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-semibold text-[#10263E]">{format(now, "MMMM yyyy")}</h2>
+            <div className="flex gap-3 text-xs text-[#66758B]">
+              <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-[#19B78A]" /> Internal</span>
+              <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-[#F3B544]" /> Follow-up</span>
+              <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-[#7C8BA1]" /> External</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-[#66758B]">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <div key={day} className="py-1">{day}</div>)}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: lead }, (_, index) => <div key={`pad-${index}`} />)}
+            {days.map((day) => {
+              const dayEvents = events.filter((event) => isSameDay(event.startsAt, day));
+              const dayTasks = tasks.filter((task) => task.dueDate && isSameDay(task.dueDate, day));
+              return (
+                <div key={day.toISOString()} className={`min-h-16 min-w-0 overflow-hidden rounded-xl p-1 text-xs md:min-h-20 ${isSameDay(day, now) ? "bg-[#E7F8F3]" : "bg-[#F5F7FA]"}`}>
+                  <p className="px-1 font-medium text-[#10263E]">{format(day, "d")}</p>
+                  <div className="mt-1 flex flex-wrap gap-1 px-1 md:hidden" aria-hidden="true">
+                    {dayEvents.slice(0, 3).map((event) => (
+                      <span key={event.id} className={`size-1.5 rounded-full ${event.provider === "internal" || event.syncState === "internal" ? "bg-[#19B78A]" : "bg-[#7C8BA1]"}`} />
+                    ))}
+                    {dayTasks.slice(0, 2).map((task) => (
+                      <span key={task.id} className="size-1.5 rounded-full bg-[#F3B544]" />
+                    ))}
+                  </div>
+                  {dayEvents.slice(0, 2).map((event) => (
+                    <p key={event.id} className={`mt-1 hidden truncate rounded-md px-1 py-0.5 md:block ${event.provider === "internal" || event.syncState === "internal" ? "bg-[#19B78A]/20 text-[#06281f]" : "bg-[#7C8BA1]/20 text-[#10263E]"}`}>{event.title}</p>
+                  ))}
+                  {dayTasks.slice(0, 1).map((task) => (
+                    <p key={task.id} className="mt-1 hidden truncate rounded-md bg-[#F3B544]/30 px-1 py-0.5 md:block">{task.title}</p>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+        <div className="space-y-4">
+          <section className="rounded-2xl bg-white p-4 text-sm shadow-sm ring-1 ring-slate-200">
+            <h2 className="font-semibold text-[#10263E]">External calendars</h2>
+            <p className="mt-2">Google Calendar: {statusLabel(connections.find((item) => item.provider === "google")?.status, googleReady)}</p>
+            <p>Microsoft 365: {statusLabel(connections.find((item) => item.provider === "microsoft")?.status, microsoftReady)}</p>
+            <p className="mt-2 text-xs text-[#66758B]">Busy time from an unconnected calendar is not read. The month grid only shows RepPilot records plus events already stored from a tested connection.</p>
+          </section>
+          <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+            <h2 className="font-semibold text-[#10263E]">Internal schedule</h2>
+            {events.length === 0 ? <p className="mt-2 text-sm text-[#66758B]">No internal events yet.</p> : null}
+            <ul className="mt-2 space-y-2">
+              {events.map((event) => (
+                <li key={event.id} className="rounded-xl bg-[#F5F7FA] p-3">
+                  <p className="font-medium">{event.title}</p>
+                  <p className="text-sm text-[#66758B]">{formatWhen(event.startsAt, user.timezone)} · {event.provider === "internal" || event.syncState === "internal" ? "Internal" : `${event.provider} · ${event.syncState}`}</p>
+                  {event.lunchBookingId ? <Link className="mt-1 inline-flex h-9 items-center text-sm font-medium text-[#10263E]" href={`/lunches/${event.lunchBookingId}`}>Open lunch</Link> : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+            <h2 className="font-semibold text-[#10263E]">Follow-ups with dates</h2>
+            <ul className="mt-2 space-y-2">
+              {tasks.map((task) => (
+                <li key={task.id} className="rounded-xl bg-[#F5F7FA] p-3 text-sm">
+                  <p className="font-medium">{task.title}</p>
+                  <p className="text-[#66758B]">{task.dueDate ? formatWhen(task.dueDate, user.timezone) : ""}{task.account ? ` · ${task.account.name}` : ""}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+      </div>
+    </PageFrame>
   );
 }
 

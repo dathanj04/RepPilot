@@ -9,6 +9,7 @@ import { labelFor, ACTIVITIES, CONTACT_ROLES } from "@/lib/domain/catalog";
 import { directionsUrl } from "@/lib/domain/distance";
 import { revealToken } from "@/lib/services/links";
 import { BriefButton, DraftButton } from "@/components/accounts/account-tools";
+import { PageFrame } from "@/components/ui/page";
 
 export const instant = false;
 
@@ -41,14 +42,15 @@ export default async function AccountPage({
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${account.street}, ${account.city}, ${account.state} ${account.zip}`)}`;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-5">
+    <PageFrame
+      title={account.name}
+      subtitle={`${account.street}, ${account.city}, ${account.state} ${account.zip} · ${account.specialty} · ${account.providerCount} providers`}
+      action={<Link href={`/accounts/${account.id}/check-in`} className="inline-flex h-12 items-center rounded-xl bg-[#19B78A] px-5 font-semibold text-[#06281f]">Check in</Link>}
+    >
       {saved ? <p className="mb-3 rounded-xl bg-[#E7F8F3] px-3 py-2 text-sm">Check-in saved to this account.</p> : null}
       {notice ? <p className="mb-3 rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-slate-200">{notice}</p> : null}
       {account.isDemo ? <p className="mb-3 text-xs text-[#66758B]">Fictional demonstration office.</p> : null}
-      <h1 className="text-2xl font-semibold">{account.name}</h1>
-      <p className="text-sm text-[#66758B]">{account.street}, {account.city}, {account.state} {account.zip}</p>
-      <p className="text-sm">{account.specialty} · {account.providerCount} providers</p>
-      <div className="mt-4 grid grid-cols-3 gap-2">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         <Action href={`tel:${account.phone ?? ""}`} label="Call" disabled={!account.phone} />
         <Action href={`mailto:${account.email ?? ""}`} label="Email" disabled={!account.email} />
         <Action href={directions} label="Directions" external />
@@ -65,22 +67,45 @@ export default async function AccountPage({
       </div>
       <div className="mt-4">
         {tab === "overview" ? (
-          <div className="space-y-3">
-            <BriefButton accountId={account.id} load={accountBriefAction} />
-            <DraftButton accountId={account.id} />
-            <Card>
-              <p>Primary contact: {account.contacts.find((contact) => contact.isPrimary)?.name ?? "Not on file"}</p>
-              <p>Last visit: {account.lastVisitAt ? formatDay(account.lastVisitAt, user.timezone) : "Not yet visited"}</p>
-              <p>Next follow-up: {account.nextFollowUpAt ? formatDay(account.nextFollowUpAt, user.timezone) : "None"}</p>
-              <p>Hours: {account.officeHours ?? "Not recorded"}</p>
-              <p>Referral communication preference: {account.referralCommunicationPreference ?? "Not recorded"}</p>
-              <p className="text-xs text-[#66758B]">RepPilot does not track referral volume.</p>
-            </Card>
-            <ul className="space-y-2">
-              {account.tasks.map((task) => (
-                <li key={task.id} className="rounded-xl bg-white p-3 text-sm ring-1 ring-slate-200">{task.title}{task.dueDate ? ` · ${formatDay(task.dueDate, user.timezone)}` : ""}</li>
-              ))}
-            </ul>
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            <div className="space-y-3">
+              <Card>
+                <h2 className="font-semibold text-[#10263E]">Office profile</h2>
+                <p className="mt-2">Primary contact: {account.contacts.find((contact) => contact.isPrimary)?.name ?? "Not on file"}</p>
+                <p>Last visit: {account.lastVisitAt ? formatDay(account.lastVisitAt, user.timezone) : "Not yet visited"}</p>
+                <p>Next follow-up: {account.nextFollowUpAt ? formatDay(account.nextFollowUpAt, user.timezone) : "None"}</p>
+                <p>Hours: {account.officeHours ?? "Not recorded"}</p>
+                <p>Phone: {account.phone ?? "Not on file"}</p>
+                <p>Referral communication preference: {account.referralCommunicationPreference ?? "Not recorded"}</p>
+                <p className="text-xs text-[#66758B]">RepPilot does not track referral volume.</p>
+              </Card>
+              <Card>
+                <h2 className="font-semibold text-[#10263E]">Upcoming follow-ups</h2>
+                {account.tasks.length === 0 ? <p className="mt-2 text-[#66758B]">No open follow-ups.</p> : null}
+                <ul className="mt-2 space-y-2">
+                  {account.tasks.map((task) => (
+                    <li key={task.id} className="rounded-xl bg-[#F5F7FA] p-3">{task.title}{task.dueDate ? ` · ${formatDay(task.dueDate, user.timezone)}` : ""}</li>
+                  ))}
+                </ul>
+              </Card>
+            </div>
+            <div className="space-y-3">
+              <BriefButton accountId={account.id} load={accountBriefAction} />
+              <DraftButton accountId={account.id} />
+              <Card>
+                <h2 className="font-semibold text-[#10263E]">Recent history</h2>
+                {account.interactions.length === 0 ? <p className="mt-2 text-[#66758B]">No visits yet.</p> : null}
+                <ul className="mt-2 space-y-2">
+                  {account.interactions.slice(0, 3).map((interaction) => (
+                    <li key={interaction.id} className="rounded-xl bg-[#F5F7FA] p-3">
+                      <p className="text-xs text-[#66758B]">{formatWhen(interaction.occurredAt, user.timezone)}</p>
+                      <p className="font-medium capitalize">{interaction.type.replaceAll("_", " ")}</p>
+                      <p>{interaction.summary || "No summary."}</p>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </div>
           </div>
         ) : null}
         {tab === "contacts" ? (
@@ -164,8 +189,8 @@ export default async function AccountPage({
           </div>
         ) : null}
       </div>
-      <Link href={`/accounts/${account.id}/edit`} className="mt-6 inline-block text-sm underline">Edit office</Link>
-    </div>
+      <Link href={`/accounts/${account.id}/edit`} className="mt-6 inline-flex h-11 items-center rounded-xl px-4 text-sm font-medium ring-1 ring-slate-200">Edit office</Link>
+    </PageFrame>
   );
 }
 
