@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { fromZonedTime } from "date-fns-tz";
 import { prisma } from "./db";
-import { getSession } from "./session";
+import { clearPreviewSession, getSession, publishPreviewSession } from "./session";
 import { getCurrentUser } from "./auth";
 import { canManageOrg, canReviewCompliance, appUrl } from "./permissions";
 import { saveCheckIn, updateCheckIn } from "./services/checkins";
@@ -68,12 +68,18 @@ export async function loginAction(formData: FormData) {
   session.organizationId = membership.organizationId;
   session.roleKey = membership.role.key;
   await session.save();
+  await publishPreviewSession({
+    userId: user.id,
+    organizationId: membership.organizationId,
+    roleKey: membership.role.key,
+  });
   redirect(membership.role.key === "PLATFORM_ADMIN" ? "/platform" : "/today");
 }
 
 export async function logoutAction() {
   const session = await getSession();
   session.destroy();
+  await clearPreviewSession();
   redirect("/login");
 }
 
