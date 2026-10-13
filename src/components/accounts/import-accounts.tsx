@@ -18,7 +18,7 @@ export function ImportAccounts() {
           const result = await importAccountsAction(data);
           if ("error" in result && result.error) setMessage(result.error);
           else if ("created" in result) {
-            const problems = result.errors.length ? ` ${result.errors.join(" ")}` : "";
+            const problems = result.errors?.length ? ` ${result.errors.join(" ")}` : "";
             setMessage(`Imported ${result.created} office${result.created === 1 ? "" : "s"}.${problems}`);
           }
         });

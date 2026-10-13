@@ -42,6 +42,14 @@ function slugify(value: string) {
   return base || "organization";
 }
 
+export async function loginFormAction(
+  _previous: { error: string } | null,
+  formData: FormData,
+) {
+  const result = await loginAction(formData);
+  return result ?? { error: "Sign-in did not complete." };
+}
+
 export async function loginAction(formData: FormData) {
   await ensureRoles();
   const email = String(formData.get("email") || "").trim().toLowerCase();
@@ -67,6 +75,14 @@ export async function logoutAction() {
   const session = await getSession();
   session.destroy();
   redirect("/login");
+}
+
+export async function signupFormAction(
+  _previous: { error: string } | null,
+  formData: FormData,
+) {
+  const result = await signupAction(formData);
+  return result ?? { error: "The account was not created." };
 }
 
 export async function signupAction(formData: FormData) {

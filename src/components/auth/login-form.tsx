@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
-import { loginAction } from "@/lib/actions";
+import { loginFormAction } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,26 +16,12 @@ const DEMOS = [
 ];
 
 export function LoginForm() {
-  const [error, setError] = useState<string | null>(null);
+  const [state, formAction, pending] = useActionState(loginFormAction, null);
   const [email, setEmail] = useState(DEMOS[0]?.[2] ?? "");
   const [password, setPassword] = useState("RepPilot-demo-2026");
-  const [pending, setPending] = useState(false);
 
   return (
-    <form
-      className="space-y-4"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        setPending(true);
-        setError(null);
-        const data = new FormData(event.currentTarget);
-        const result = await loginAction(data);
-        if (result?.error) {
-          setError(result.error);
-          setPending(false);
-        }
-      }}
-    >
+    <form action={formAction} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input id="email" name="email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} className="h-12" required />
@@ -44,7 +30,7 @@ export function LoginForm() {
         <Label htmlFor="password">Password</Label>
         <Input id="password" name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className="h-12" required />
       </div>
-      {error ? <p className="text-sm text-[#D94B4B]">{error}</p> : null}
+      {state?.error ? <p className="text-sm text-[#D94B4B]">{state.error}</p> : null}
       <Button type="submit" className="h-12 w-full bg-[#19B78A] text-[#06281f] hover:bg-[#15a37b]" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}
       </Button>
