@@ -1,0 +1,775 @@
+// RepPilot AI — tenant-scoped PostgreSQL schema.
+// Money is stored as integer cents. Secure links store SHA-256 hashes, never raw tokens.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  name               String
+  passwordHash       String
+  phone              String?
+  timezone           String   @default("America/Chicago")
+  title              String?
+  notificationPrefs  Json     @default("{\"inApp\":true,\"emailOperational\":true}")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  memberships          OrganizationMembership[]
+  territoryAssignments TerritoryAssignment[]
+  accountAssignments   AccountAssignment[]
+  interactions         AccountInteraction[]
+  notes                AccountNote[]
+  tasks                FollowUpTask[]
+  routes               DailyRoute[]
+  calendarConnections  CalendarConnection[]
+  invitations          LunchInvitation[]
+  lunchBookings        LunchBooking[]            @relation("LunchRepresentative")
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+  aiInteractions       AIInteraction[]
+  exceptionRequests    PolicyExceptionRequest[]  @relation("ExceptionRequester")
+  calendarEvents       CalendarEventMapping[]
+
+  @@index([email])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String
+  scope       String
+  memberships OrganizationMembership[]
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  timezone  String   @default("America/Chicago")
+  branding  Json     @default("{}")
+  settings  Json     @default("{}")
+  isDemo    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships       OrganizationMembership[]
+  territories       Territory[]
+  accounts          Account[]
+  policies          MealPolicy[]
+  invitations       LunchInvitation[]
+  lunchBookings     LunchBooking[]
+  spendingEntries   OfficeSpendingEntry[]
+  subscription      Subscription?
+  notifications     Notification[]
+  deliveries        NotificationDelivery[]
+  auditLogs         AuditLog[]
+  aiInteractions    AIInteraction[]
+  aiUsage           AIUsageRecord[]
+  crmConnections    ExternalCRMConnection[]
+  secureLinks       SecureLinkToken[]
+  routes            DailyRoute[]
+  calendarEvents    CalendarEventMapping[]
+  evaluations       PolicyEvaluation[]
+  exceptions        PolicyExceptionRequest[]
+  approvals         Approval[]
+  orders            CateringOrder[]
+
+  @@index([slug])
+}
+
+model OrganizationMembership {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  roleId         String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [roleId], references: [id])
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId, roleId])
+}
+
+model Subscription {
+  id                String   @id @default(cuid())
+  organizationId    String   @unique
+  plan              String
+  status            String
+  priceMonthlyCents Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model Territory {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  boundary       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignments  TerritoryAssignment[]
+  accounts     Account[]
+
+  @@index([organizationId])
+}
+
+model TerritoryAssignment {
+  id          String   @id @default(cuid())
+  territoryId String
+  userId      String
+  createdAt   DateTime @default(now())
+
+  territory Territory @relation(fields: [territoryId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([territoryId, userId])
+}
+
+model Account {
+  id                                String    @id @default(cuid())
+  organizationId                    String
+  territoryId                       String?
+  name                              String
+  officeType                        String    @default("Clinic")
+  specialty                         String
+  street                            String
+  city                              String
+  state                             String
+  zip                               String
+  latitude                          Float?
+  longitude                         Float?
+  phone                             String?
+  email                             String?
+  fax                               String?
+  website                           String?
+  status                            String    @default("ACTIVE")
+  providerCount                     Int       @default(1)
+  officeHours                       String?
+  generalNotes                      String?
+  referralCommunicationPreference   String?
+  lastVisitAt                       DateTime?
+  nextFollowUpAt                    DateTime?
+  isDemo                            Boolean   @default(false)
+  createdAt                         DateTime  @default(now())
+  updatedAt                         DateTime  @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  territory    Territory?           @relation(fields: [territoryId], references: [id], onDelete: SetNull)
+  contacts     AccountContact[]
+  assignments  AccountAssignment[]
+  notes        AccountNote[]
+  interactions AccountInteraction[]
+  tasks        FollowUpTask[]
+  invitations  LunchInvitation[]
+  lunches      LunchBooking[]
+  orders       CateringOrder[]
+  spending     OfficeSpendingEntry[]
+  routeStops   RouteStop[]
+  secureLinks  SecureLinkToken[]
+
+  @@index([organizationId])
+  @@index([organizationId, name])
+  @@index([organizationId, latitude, longitude])
+  @@index([organizationId, lastVisitAt])
+  @@index([organizationId, nextFollowUpAt])
+}
+
+model AccountContact {
+  id             String   @id @default(cuid())
+  organizationId String
+  accountId      String
+  name           String
+  roleLabel      String
+  email          String?
+  phone          String?
+  isPrimary      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, accountId])
+}
+
+model AccountAssignment {
+  id             String   @id @default(cuid())
+  organizationId String
+  accountId      String
+  userId         String
+  createdAt      DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, userId])
+  @@index([organizationId, userId])
+}
+
+model AccountNote {
+  id             String   @id @default(cuid())
+  organizationId String
+  accountId      String
+  authorId       String
+  body           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, accountId, createdAt])
+}
+
+model AccountInteraction {
+  id                   String    @id @default(cuid())
+  organizationId       String
+  accountId            String
+  userId               String
+  type                 String
+  outcome              String?
+  summary              String    @default("")
+  completedActivities  String[]  @default([])
+  occurredAt           DateTime
+  latitude             Float?
+  longitude            Float?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  account      Account                  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  user         User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  participants InteractionParticipant[]
+  tasks        FollowUpTask[]
+
+  @@index([organizationId, accountId, occurredAt])
+  @@index([organizationId, userId, occurredAt])
+}
+
+model InteractionParticipant {
+  id            String  @id @default(cuid())
+  interactionId String
+  contactId     String?
+  name          String
+  roleLabel     String
+
+  interaction AccountInteraction @relation(fields: [interactionId], references: [id], onDelete: Cascade)
+
+  @@index([interactionId])
+}
+
+model FollowUpTask {
+  id              String    @id @default(cuid())
+  organizationId  String
+  accountId       String?
+  ownerId         String
+  interactionId   String?
+  lunchBookingId  String?
+  title           String
+  description     String?
+  dueDate         DateTime?
+  priority        String    @default("NORMAL")
+  status          String    @default("OPEN")
+  source          String    @default("manual")
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  account     Account?            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  owner       User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  interaction AccountInteraction? @relation(fields: [interactionId], references: [id], onDelete: SetNull)
+  lunch       LunchBooking?       @relation(fields: [lunchBookingId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, ownerId, status, dueDate])
+  @@index([organizationId, accountId, status])
+}
+
+model DailyRoute {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  routeDate      DateTime
+  status         String   @default("saved")
+  summary        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stops        RouteStop[]
+
+  @@index([organizationId, userId, routeDate])
+}
+
+model RouteStop {
+  id        String @id @default(cuid())
+  routeId   String
+  accountId String
+  position  Int
+  reason    String
+
+  route   DailyRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  account Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([routeId, position])
+}
+
+model CalendarConnection {
+  id                    String   @id @default(cuid())
+  organizationId        String
+  userId                String
+  provider              String
+  status                String
+  externalAccountEmail  String?
+  credentialCiphertext  String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([organizationId])
+}
+
+model CalendarEventMapping {
+  id              String   @id @default(cuid())
+  organizationId  String
+  userId          String
+  provider        String   @default("internal")
+  externalEventId String?
+  lunchBookingId  String?
+  taskId          String?
+  title           String
+  startsAt        DateTime
+  endsAt          DateTime
+  syncState       String   @default("internal")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, userId, startsAt])
+  @@index([lunchBookingId])
+}
+
+model LunchInvitation {
+  id               String    @id @default(cuid())
+  organizationId   String
+  accountId        String
+  createdById      String
+  purpose          String
+  status           String    @default("ACTIVE")
+  recipientName    String?
+  recipientEmail   String?
+  expiresAt        DateTime
+  selectedSlotId   String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      Account              @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdBy    User                 @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  slots        InvitationTimeSlot[]
+  booking      LunchBooking?
+  secureLinks  SecureLinkToken[]
+
+  @@index([organizationId, status, expiresAt])
+  @@index([accountId])
+}
+
+model InvitationTimeSlot {
+  id            String   @id @default(cuid())
+  invitationId  String
+  startsAt      DateTime
+  endsAt        DateTime
+  status        String   @default("offered")
+
+  invitation LunchInvitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  @@index([invitationId, startsAt])
+}
+
+model LunchBooking {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  accountId             String
+  representativeId      String
+  invitationId          String?   @unique
+  slotStartsAt          DateTime
+  slotEndsAt            DateTime
+  status                String
+  purpose               String
+  expectedAttendees     Int
+  confirmedAttendees    Int?
+  confirmedAt           DateTime?
+  confirmedByName       String?
+  timezone              String
+  notes                 String?
+  mealPreferences       String?
+  deliveryInstructions  String?
+  estimatedBudgetCents  Int?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account        Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  representative User                  @relation("LunchRepresentative", fields: [representativeId], references: [id], onDelete: Cascade)
+  invitation     LunchInvitation?      @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+  reminders      LunchReminder[]
+  confirmation   LunchConfirmation?
+  changeRequests LunchChangeRequest[]
+  order          CateringOrder?
+  spending       OfficeSpendingEntry[]
+  tasks          FollowUpTask[]
+  secureLinks    SecureLinkToken[]
+
+  @@index([organizationId, representativeId, slotStartsAt])
+  @@index([organizationId, status, slotStartsAt])
+  @@index([accountId, slotStartsAt])
+}
+
+model LunchReminder {
+  id              String    @id @default(cuid())
+  organizationId  String
+  bookingId       String
+  kind            String
+  scheduledFor    DateTime
+  status          String    @default("SCHEDULED")
+  idempotencyKey  String    @unique
+  sentAt          DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  booking LunchBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledFor])
+  @@index([bookingId])
+}
+
+model LunchConfirmation {
+  id             String    @id @default(cuid())
+  bookingId      String    @unique
+  confirmedAt    DateTime?
+  attendeeCount  Int?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  booking LunchBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+model LunchChangeRequest {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  bookingId           String
+  message             String
+  requestedAttendees  Int?
+  status              String   @default("open")
+  createdAt           DateTime @default(now())
+
+  booking LunchBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+}
+
+model CateringOrder {
+  id                     String    @id @default(cuid())
+  organizationId         String
+  bookingId              String    @unique
+  accountId              String
+  vendor                 String?
+  status                 String    @default("NOT_STARTED")
+  estimatedAmountCents   Int?
+  finalAmountCents       Int?
+  confirmedAttendees     Int?
+  targetDeliveryAt       DateTime?
+  placedAt               DateTime?
+  orderReference         String?
+  deliveryInstructions   String?
+  groupOrderUrl          String?
+  externalHandoffAt      DateTime?
+  handoffVendor          String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  booking      LunchBooking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  account      Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  receipts     OrderReceipt[]
+
+  @@index([organizationId, accountId])
+  @@index([organizationId, status])
+}
+
+model OrderReceipt {
+  id          String   @id @default(cuid())
+  orderId     String
+  note        String?
+  reference   String?
+  amountCents Int?
+  createdAt   DateTime @default(now())
+
+  order CateringOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model OfficeSpendingEntry {
+  id             String   @id @default(cuid())
+  organizationId String
+  accountId      String
+  orderId        String?
+  bookingId      String?
+  kind           String
+  amountCents    Int
+  attendeeCount  Int?
+  perPersonCents Int?
+  vendor         String?
+  occurredOn     DateTime
+  policyStatus   String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  booking      LunchBooking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, accountId, occurredOn])
+  @@index([organizationId, kind, occurredOn])
+}
+
+model MealPolicy {
+  id                           String   @id @default(cuid())
+  organizationId               String
+  name                         String
+  version                      String
+  active                       Boolean  @default(false)
+  perPersonCapCents            Int
+  entertainmentAllowed         Boolean  @default(false)
+  referralLinkedMealsAllowed   Boolean  @default(false)
+  exceptionsPermitted          Boolean  @default(true)
+  educationalPurposeRequired   Boolean  @default(true)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rules        PolicyRule[]
+
+  @@index([organizationId, active])
+}
+
+model PolicyRule {
+  id          String  @id @default(cuid())
+  policyId    String
+  code        String
+  description String
+  severity    String
+  overridable Boolean @default(false)
+
+  policy MealPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+}
+
+model PolicyEvaluation {
+  id             String   @id @default(cuid())
+  organizationId String
+  bookingId      String?
+  orderId        String?
+  policyId       String?
+  result         String
+  findings       Json
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, bookingId])
+}
+
+model PolicyExceptionRequest {
+  id             String   @id @default(cuid())
+  organizationId String
+  bookingId      String?
+  orderId        String?
+  requestedById  String
+  reason         String
+  status         String
+  prohibited     Boolean  @default(false)
+  reviewedById   String?
+  reviewNote     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requestedBy  User         @relation("ExceptionRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+}
+
+model Approval {
+  id             String   @id @default(cuid())
+  organizationId String
+  subjectType    String
+  subjectId      String
+  gate           String
+  status         String
+  decidedById    String?
+  note           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, subjectType, subjectId])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  actorId        String?
+  action         String
+  entityType     String
+  entityId       String
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, entityType, entityId])
+}
+
+model AIInteraction {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  purpose        String
+  provider       String
+  inputExcerpt   String
+  outputJson     Json?
+  accepted       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, purpose, createdAt])
+}
+
+model AIUsageRecord {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  provider       String
+  model          String
+  feature        String
+  success        Boolean
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+}
+
+model ExternalCRMConnection {
+  id             String   @id @default(cuid())
+  organizationId String
+  provider       String
+  status         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  mappings     ExternalRecordMapping[]
+
+  @@unique([organizationId, provider])
+}
+
+model ExternalRecordMapping {
+  id             String   @id @default(cuid())
+  organizationId String
+  connectionId   String
+  localType      String
+  localId        String
+  externalId     String
+  syncStatus     String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  connection ExternalCRMConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, localType, localId])
+  @@index([organizationId, localType, localId])
+}
+
+model Notification {
+  id             String    @id @default(cuid())
+  organizationId String
+  userId         String
+  title          String
+  body           String
+  kind           String
+  href           String?
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
+
+model NotificationDelivery {
+  id                 String    @id @default(cuid())
+  organizationId     String
+  channel            String
+  toAddress          String?
+  subject            String
+  htmlBody           String
+  textBody           String
+  status             String
+  idempotencyKey     String    @unique
+  providerMessageId  String?
+  error              String?
+  sentAt             DateTime?
+  createdAt          DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+}
+
+model SecureLinkToken {
+  id               String    @id @default(cuid())
+  organizationId   String
+  purpose          String
+  tokenHash        String    @unique
+  tokenCiphertext  String
+  accountId        String?
+  invitationId     String?
+  bookingId        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      Account?         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  invitation   LunchInvitation? @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  booking      LunchBooking?    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, purpose])
+  @@index([invitationId])
+  @@index([bookingId])
+}
