@@ -52,10 +52,11 @@ export function InvitationForm({
               href={provider.url}
               target="_blank"
               rel="noreferrer"
-              className="flex min-h-14 flex-col items-center justify-center rounded-xl bg-[#10263E] px-4 py-3 text-center text-white"
+              className="flex min-h-16 flex-col items-center justify-center rounded-xl bg-[#10263E] px-4 py-3 text-center text-white"
             >
               <span className="text-sm font-semibold">{provider.label}</span>
-              <span className="mt-1 text-xs text-white/70">External ordering site</span>
+              <span className="mt-1 text-xs font-medium text-[#19B78A] underline break-all">{provider.url}</span>
+              <span className="mt-1 text-[11px] text-white/70">External ordering site</span>
             </a>
           ))}
         </div>
