@@ -16,6 +16,14 @@ export function ServiceWorkerRegister() {
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
+    const host = window.location.hostname;
+    const previewHost = host.endsWith(".agent.cvm.dev") || host.endsWith(".cursorvm.com");
+    if (!previewHost) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (const registration of registrations) void registration.unregister();
+      }).catch(() => undefined);
+      return;
+    }
     const token = previewToken();
     let cancelled = false;
     navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).then(async (registration) => {

@@ -10,10 +10,16 @@ describe("preview host detection", () => {
     expect(isCursorPreviewHost("localhost")).toBe(false);
   });
 
-  it("treats a request as preview only when a preview host is present", () => {
+  it("treats a request as preview only when every presented host is a Cursor preview host", () => {
     const production = (name: string) => (name === "host" ? "reppilot.example" : null);
-    const preview = (name: string) => (name === "x-forwarded-host" ? "pod.agent.cvm.dev" : "reppilot.example");
+    const spoofed = (name: string) => (name === "x-forwarded-host" ? "pod.agent.cvm.dev" : "reppilot.example");
+    const preview = (name: string) => {
+      if (name === "host") return "pod.agent.cvm.dev";
+      if (name === "x-forwarded-host") return "pod.cursorvm.com";
+      return null;
+    };
     expect(isPreviewRequest(production)).toBe(false);
+    expect(isPreviewRequest(spoofed)).toBe(false);
     expect(isPreviewRequest(preview)).toBe(true);
   });
 });

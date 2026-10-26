@@ -7,6 +7,7 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env.DATABASE_URL ?? "",
+    // Neon migrations need the direct (non-pooler) URL. Runtime uses DATABASE_URL.
+    url: process.env.DIRECT_URL || process.env.DATABASE_URL || "",
   },
 });

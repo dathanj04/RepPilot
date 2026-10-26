@@ -31,7 +31,13 @@ Account briefs are built from the last stored visit and open tasks. They link ba
 
 ## Email
 
-`deliverEmail` posts to Resend when `RESEND_API_KEY` and a recipient exist. Otherwise it writes `NotificationDelivery` with status `logged_demo`. Idempotency keys stop a second send of the same reminder or invitation. Templates in `src/lib/email/templates.ts` include HTML and plain text.
+`deliverEmail` posts to Resend when `RESEND_API_KEY` and a recipient exist. A local missing key writes `NotificationDelivery` with status `logged_demo`. Staging and production throw instead of logging a fake send, and the reminder stays scheduled. A `sent` row, plus Resend's `Idempotency-Key`, stops a retry from sending twice. A crashed `sending` row can be claimed again after two minutes. Templates in `src/lib/email/templates.ts` include HTML and plain text.
+
+`npm run email:test` sends one message to `TEST_EMAIL_TO` after you set `RESEND_API_KEY` and `EMAIL_FROM`. It refuses `@example.com`, `@example-health.test`, and `@reppilot.demo`. It does not read clinic addresses from the database.
+
+Hosted scheduling is the Vercel cron in `vercel.json`, every 15 minutes, calling `/api/cron/reminders`. The route still requires `Authorization: Bearer $CRON_SECRET`.
+
+Sentry receives server errors when `SENTRY_DSN` is set. `GET /api/health` checks Postgres. `ALERT_WEBHOOK_URL` receives the same operational failures as JSON if you want a Slack or paging webhook before Sentry alerts are configured in the Sentry project.
 
 Invitation, seven-day, and 48-hour messages identify the representative and organization. There is no marketing list.
 

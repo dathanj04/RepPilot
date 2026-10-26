@@ -3,15 +3,26 @@ import { sessionOptions, type SessionData } from "./session-options";
 
 export const previewCookieName = "reppilot_preview";
 
-export function isCursorPreviewHost(value: string | null | undefined) {
-  if (!value) return false;
+function hostnameOf(value: string | null | undefined) {
+  if (!value) return "";
   const first = value.split(",")[0]?.trim().toLowerCase() ?? "";
-  const host = first.replace(/^[a-z][a-z0-9+.-]*:\/\//, "").split("/")[0]?.split(":")[0] ?? "";
+  return first.replace(/^[a-z][a-z0-9+.-]*:\/\//, "").split("/")[0]?.split(":")[0] ?? "";
+}
+
+export function isCursorPreviewHost(value: string | null | undefined) {
+  const host = hostnameOf(value);
+  if (!host) return false;
   return host.endsWith(".agent.cvm.dev") || host.endsWith(".cursorvm.com");
 }
 
+// Every host the client presents must be a Cursor preview host. A production
+// Host paired with a spoofed x-forwarded-host does not enable the workaround.
 export function isPreviewRequest(get: (name: string) => string | null | undefined) {
-  return ["x-forwarded-host", "origin", "host"].some((name) => isCursorPreviewHost(get(name)));
+  const presented = ["host", "x-forwarded-host", "origin"]
+    .map((name) => get(name))
+    .filter((value): value is string => Boolean(value?.trim()));
+  if (presented.length === 0) return false;
+  return presented.every((value) => isCursorPreviewHost(value));
 }
 
 export function bearerSeal(authorization: string | null | undefined) {

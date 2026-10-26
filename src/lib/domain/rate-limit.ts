@@ -1,3 +1,4 @@
+// Algorithm fixture for unit tests. Live clinic links use consumeSharedRateLimit.
 const buckets = new Map<string, { count: number; resetAt: number }>();
 
 export function rateLimit(

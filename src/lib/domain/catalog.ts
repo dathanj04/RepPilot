@@ -74,6 +74,9 @@ export const MARKER_TONES = [
 
 export type MarkerTone = (typeof MARKER_TONES)[number]["id"];
 
+export const CATERING_ORDER_NOTE = "Ordering opens the provider’s website in a new tab. RepPilot does not place or pay for the order automatically.";
+export const CATERING_LATER_NOTE = "You can schedule the lunch first and record order details later from the lunch details page.";
+
 export const CATERING_PROVIDERS = [
   {
     id: "ezcater",

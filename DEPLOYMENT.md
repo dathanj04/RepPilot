@@ -14,9 +14,42 @@ The app is a Next.js server application. It needs a long-lived Node server or a 
 
 ## Vercel
 
-This project can be deployed on Vercel with a managed Postgres database. Set the environment variables in the project settings. Point a Vercel Cron at `/api/cron/reminders` and send the bearer secret. `prisma generate` runs on `postinstall`.
+`vercel.json` schedules `GET /api/cron/reminders` every 15 minutes. Vercel sends `Authorization: Bearer $CRON_SECRET` when `CRON_SECRET` is set on that environment. Sub-daily crons require a Vercel plan that allows them. The Today page still processes due reminders for the signed-in organization; the cron is the hosted worker.
 
-Generated Prisma files are gitignored, so the install step has to be able to run `prisma generate`.
+Do not deploy or change DNS until the staging pass is approved. Preparing the project is separate from launching it.
+
+### Environment separation
+
+Use one Vercel project with Production and Preview, or two projects if you want a long-lived staging URL before a production domain exists.
+
+| Vercel environment | `APP_ENV` | Database | Domain, after approval |
+| --- | --- | --- | --- |
+| Preview | `staging` | Neon `staging` | `staging.yourdomain` |
+| Production | `production` | Neon `production` | `app.yourdomain` |
+
+Set these in the Vercel environment, not in git: `DATABASE_URL`, `DIRECT_URL`, `SESSION_PASSWORD`, `TOKEN_ENCRYPTION_KEY`, `CRON_SECRET`, `APP_URL`, `NEXT_PUBLIC_APP_URL`, `APP_ENV`, `RESEND_API_KEY`, `EMAIL_FROM`, `SENTRY_DSN`. Use different session, token, and cron secrets per environment. Leave `NEXT_PUBLIC_DEMO_LOGIN` unset. Do not add a seed command to the build.
+
+`APP_URL` and `NEXT_PUBLIC_APP_URL` must be the https origin of that environment. Session cookies are `Secure` when `NODE_ENV` is production, which Vercel sets for both Preview and Production.
+
+Build command: `npm run build`. Install runs `prisma generate`. Run `npm run db:migrate:deploy` as a release step with `DIRECT_URL` for that environment before traffic moves. Health check: `GET /api/health`. It returns 503 when Postgres is unreachable and does not include secrets.
+
+### Custom domain
+
+When you approve DNS, add the domain in Vercel and create the CNAME or A record Vercel shows. Point staging first. Leave production DNS unchanged until staging sign-in, check-in, reminder, and catering checks pass on https.
+
+## Dependency review (26 Oct 2026)
+
+`npm audit` reported 13 advisories before the upgrade pass. Classification:
+
+| Package | Severity | Where it runs | Action |
+| --- | --- | --- | --- |
+| `vitest`, `tinypool`, `@vitest/mocker` | critical / moderate | Test runner only | Upgrade `vitest` to 5.x |
+| `prisma`, `@prisma/config`, `deepmerge-ts` | high | Prisma CLI at migrate/generate, not request handling | Upgrade Prisma to 7.10.1 and override `deepmerge-ts` to 8.x |
+| `mysql2` | high | Prisma CLI MySQL driver. The app uses `pg` | Override to 3.24.x. No MySQL connection is opened |
+| `zod` nested under `shadcn` | high | Component CLI. App code already uses zod 4.6.7 | Upgrade `shadcn` and move it to devDependencies |
+| `body-parser`, `undici`, `fast-uri` | high / moderate | `shadcn` CLI and Prisma dev tooling | Override to patched versions. They are not imported by app routes |
+
+The Cursor preview bearer is accepted only when `host`, `x-forwarded-host`, and `origin` are all Cursor preview hosts. A production host with a spoofed forwarded host is rejected. Production pages unregister the preview service worker.
 
 ## What is not production-hardened here
 
@@ -24,7 +57,7 @@ Generated Prisma files are gitignored, so the install step has to be able to run
 - No Google or Microsoft OAuth callback routes.
 - No PostGIS proximity index.
 - Reminder processing on page load is extra, not the only worker you should trust at volume.
-- Rate limiting for clinic links is in-memory and resets when the process restarts.
+- Clinic-link rate limits are stored in Postgres (`RateLimitBucket`) so more than one server shares them.
 - There is no formal HIPAA assessment, penetration test, or compliance certification.
 
 Treat a successful local test as evidence that the coded workflow runs, not as a certification.

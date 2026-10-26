@@ -33,6 +33,12 @@ export async function processDueReminders(
     }) => { subject: string; html: string; text: string };
   },
 ) {
+  const staleBefore = new Date(now.getTime() - 15 * 60 * 1000);
+  await db.lunchReminder.updateMany({
+    where: { status: "SENDING", updatedAt: { lt: staleBefore } },
+    data: { status: "SCHEDULED" },
+  });
+
   const due = await db.lunchReminder.findMany({
     where: { status: "SCHEDULED", scheduledFor: { lte: now } },
     include: {
@@ -91,7 +97,7 @@ export async function processDueReminders(
         reminder.kind === "NONRESPONSE_24H"
           ? booking.representative.email
           : booking.account.email;
-      await deps.send({
+      const delivery = await deps.send({
         organizationId: booking.organizationId,
         to: to ?? null,
         subject: rendered.subject,
@@ -117,6 +123,12 @@ export async function processDueReminders(
                 href: `/lunches/${booking.id}`,
               },
       });
+      const deliveryStatus = delivery && typeof delivery === "object" && "status" in delivery ? String(delivery.status) : "";
+      if (deliveryStatus === "failed") throw new Error("Email delivery failed");
+      if (deliveryStatus === "sending") {
+        results.push({ id: reminder.id, status: "in_progress" });
+        continue;
+      }
       await db.lunchReminder.update({
         where: { id: reminder.id },
         data: { status: "SENT", sentAt: now },

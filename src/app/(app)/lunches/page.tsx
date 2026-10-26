@@ -4,6 +4,7 @@ import { requireAppUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatWhen } from "@/lib/format";
 import { PageFrame } from "@/components/ui/page";
+import { CATERING_LATER_NOTE, CATERING_ORDER_NOTE, CATERING_PROVIDERS } from "@/lib/domain/catalog";
 
 export const instant = false;
 export const metadata = { title: "Lunches" };
@@ -45,6 +46,26 @@ export default async function LunchesPage() {
       subtitle="Invitations, upcoming visits, confirmations, and completed meals stay in separate lists."
       action={<Link href="/lunches/new" className="inline-flex h-11 items-center rounded-xl bg-[#10263E] px-4 text-sm font-medium text-white">Schedule</Link>}
     >
+      <section className="mb-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+        <h2 className="font-semibold text-[#10263E]">Catering options</h2>
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {CATERING_PROVIDERS.filter((provider) => provider.live).map((provider) => (
+            <a
+              key={provider.id}
+              href={provider.url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex min-h-16 flex-col items-center justify-center rounded-xl bg-[#10263E] px-4 py-3 text-center text-white"
+            >
+              <span className="text-sm font-semibold">{provider.label}</span>
+              <span className="mt-1 text-xs font-medium text-[#19B78A] underline break-all">{provider.url}</span>
+              <span className="mt-1 text-[11px] text-white/70">External ordering site</span>
+            </a>
+          ))}
+        </div>
+        <p className="mt-3 text-xs leading-5 text-[#66758B]">{CATERING_ORDER_NOTE}</p>
+        <p className="mt-2 text-xs leading-5 text-[#66758B]">{CATERING_LATER_NOTE}</p>
+      </section>
       <div className="grid gap-4 lg:grid-cols-2">
         {sections.map(([title, items]) => (
           <section key={title} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">

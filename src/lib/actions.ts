@@ -15,7 +15,7 @@ import { extractCheckIn } from "./ai/gemini";
 import { buildAccountBrief, draftFollowUpEmail } from "./domain/briefing";
 import { deliverEmail } from "./email/send";
 import { renderInvitationEmail } from "./email/templates";
-import { rateLimit } from "./domain/rate-limit";
+import { consumeSharedRateLimit } from "./domain/rate-limit-store";
 import { recommendStops } from "./domain/routing";
 import { parseOrgSettings } from "./org-settings";
 
@@ -776,9 +776,9 @@ export async function clinicRespondAction(payload: {
   message?: string;
   name?: string;
 }) {
-  const ipLimit = rateLimit(`public:${payload.token.slice(0, 8)}`, 20, 60_000);
-  if (!ipLimit.ok) return { error: "Too many attempts. Wait a minute and try again." };
   const { hashToken } = await import("./domain/tokens");
+  const ipLimit = await consumeSharedRateLimit(prisma, `public:${hashToken(payload.token).slice(0, 24)}`, 20, 60_000);
+  if (!ipLimit.ok) return { error: "Too many attempts. Wait a minute and try again." };
   const { acceptInvitationSlot, confirmLunch, requestLunchChange } = await import("./services/lunches");
   const tokenHash = hashToken(payload.token);
   const now = new Date();

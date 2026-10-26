@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createInvitationAction } from "@/lib/actions";
-import { CATERING_PROVIDERS } from "@/lib/domain/catalog";
+import { CATERING_LATER_NOTE, CATERING_ORDER_NOTE, CATERING_PROVIDERS } from "@/lib/domain/catalog";
 
 export function InvitationForm({
   accounts,
@@ -60,8 +60,8 @@ export function InvitationForm({
             </a>
           ))}
         </div>
-        <p className="mt-3 text-xs leading-5 text-[#66758B]">Ordering opens the provider’s website in a new tab. RepPilot does not place or pay for the order automatically.</p>
-        <p className="mt-2 text-xs leading-5 text-[#66758B]">You can schedule the lunch first and record order details later from the lunch details page.</p>
+        <p className="mt-3 text-xs leading-5 text-[#66758B]">{CATERING_ORDER_NOTE}</p>
+        <p className="mt-2 text-xs leading-5 text-[#66758B]">{CATERING_LATER_NOTE}</p>
       </section>
       <label className="text-sm">Link expires in
         <select name="expiryHours" defaultValue="48" className="mt-1 h-11 w-full rounded-xl border px-3">

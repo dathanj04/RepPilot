@@ -14,7 +14,20 @@ const roles = [
   { key: "PLATFORM_ADMIN", name: "Platform administrator", description: "RepPilot platform operations", scope: "platform" },
 ];
 
+function assertSeedAllowed() {
+  const env = process.env.APP_ENV || process.env.VERCEL_ENV || "";
+  if (env === "production") {
+    throw new Error("Demo seed is disabled when APP_ENV or VERCEL_ENV is production.");
+  }
+  const databaseUrl = process.env.DATABASE_URL || "";
+  const local = /@(localhost|127\.0\.0\.1)(:|\/)/.test(databaseUrl);
+  if (!local && process.env.ALLOW_DEMO_SEED !== "true") {
+    throw new Error("Demo seed only runs against localhost. Set ALLOW_DEMO_SEED=true only for a disposable demo branch.");
+  }
+}
+
 async function main() {
+  assertSeedAllowed();
   const passwordHash = await hash(PASSWORD, 10);
   for (const role of roles) {
     await prisma.role.upsert({

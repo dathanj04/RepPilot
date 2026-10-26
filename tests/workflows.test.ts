@@ -8,6 +8,7 @@ import { recordCateringOrder, requestPolicyException } from "../src/lib/services
 import { processDueReminders } from "../src/lib/services/reminders";
 import { renderReminderEmail } from "../src/lib/email/templates";
 import { issueSecureLink } from "../src/lib/services/links";
+import { consumeSharedRateLimit } from "../src/lib/domain/rate-limit-store";
 
 const prisma = createPrisma(process.env.DATABASE_URL_TEST || process.env.DATABASE_URL || "");
 const now = new Date("2026-10-13T15:00:00.000Z");
@@ -263,5 +264,58 @@ describe("workflow persistence", () => {
     expect(exception.request.status).toBe("prohibited");
     const order = await prisma.cateringOrder.findUniqueOrThrow({ where: { bookingId: booking.id } });
     expect(order.status).toBe("NOT_STARTED");
+  });
+
+  it("sends one reminder when two workers race and retries a stale claim", async () => {
+    const { orgA, user, accountA } = await fixture();
+    const booking = await prisma.lunchBooking.create({
+      data: {
+        organizationId: orgA.id,
+        accountId: accountA.id,
+        representativeId: user.id,
+        slotStartsAt: new Date("2026-10-16T17:00:00.000Z"),
+        slotEndsAt: new Date("2026-10-16T18:00:00.000Z"),
+        status: "SCHEDULED",
+        purpose: "Educational overview.",
+        expectedAttendees: 3,
+        timezone: "America/Chicago",
+      },
+    });
+    const reminder = await prisma.lunchReminder.create({
+      data: {
+        organizationId: orgA.id,
+        bookingId: booking.id,
+        kind: "SEVEN_DAY",
+        scheduledFor: new Date("2026-10-12T17:00:00.000Z"),
+        status: "SCHEDULED",
+        idempotencyKey: `reminder:${booking.id}:SEVEN_DAY:race`,
+      },
+    });
+    const sent: string[] = [];
+    const run = () =>
+      processDueReminders(prisma, now, {
+        appUrl: "http://127.0.0.1:43123",
+        render: renderReminderEmail,
+        send: async (email) => {
+          sent.push(email.idempotencyKey);
+        },
+      });
+    await Promise.all([run(), run()]);
+    expect(sent).toEqual([reminder.idempotencyKey]);
+
+    await prisma.$executeRaw`UPDATE "LunchReminder" SET status = 'SENDING', "updatedAt" = ${new Date("2026-10-01T00:00:00.000Z")} WHERE id = ${reminder.id}`;
+    await run();
+    expect(sent).toEqual([reminder.idempotencyKey, reminder.idempotencyKey]);
+    const stored = await prisma.lunchReminder.findUniqueOrThrow({ where: { id: reminder.id } });
+    expect(stored.status).toBe("SENT");
+  });
+
+  it("stores the public-token rate limit in postgres", async () => {
+    const key = `test-public:${Date.now()}`;
+    const first = new Date("2026-10-26T17:00:00.000Z");
+    expect((await consumeSharedRateLimit(prisma, key, 2, 60_000, first)).ok).toBe(true);
+    expect((await consumeSharedRateLimit(prisma, key, 2, 60_000, new Date(first.getTime() + 10))).ok).toBe(true);
+    expect((await consumeSharedRateLimit(prisma, key, 2, 60_000, new Date(first.getTime() + 20))).ok).toBe(false);
+    expect((await consumeSharedRateLimit(prisma, key, 2, 60_000, new Date(first.getTime() + 60_001))).ok).toBe(true);
   });
 });
