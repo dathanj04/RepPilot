@@ -297,16 +297,12 @@ function FilterChip({ active, children, onClick }: { active: boolean; children: 
 }
 
 function GoogleCanvas({ accounts, apiKey, center, onSelect, selectedId, onFail }: { accounts: MapAccount[]; apiKey: string; center: [number, number]; onSelect: (id: string) => void; selectedId: string | null; onFail: () => void }) {
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(() => typeof document !== "undefined" && Boolean(document.getElementById("google-maps-sdk")));
   useEffect(() => {
     const win = window as unknown as { gm_authFailure?: () => void };
     win.gm_authFailure = () => onFail();
     const id = "google-maps-sdk";
-    const existing = document.getElementById(id);
-    if (existing) {
-      setReady(true);
-      return;
-    }
+    if (document.getElementById(id)) return;
     const script = document.createElement("script");
     script.id = id;
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}`;

@@ -1,13 +1,14 @@
 import { getIronSession } from "iron-session";
 import { cookies, headers } from "next/headers";
 import { sessionOptions, type SessionData } from "./session-options";
-import { bearerSeal, isCursorPreviewHost, previewCookieName, sealSession, unsealSession } from "./session-seal";
+import { bearerSeal, isPreviewRequest, previewCookieName, sealSession, unsealSession } from "./session-seal";
 
 export async function getSession() {
   const store = await cookies();
   const session = await getIronSession<SessionData>(store, sessionOptions);
   if (!session.userId) {
     const headerStore = await headers();
+    if (!isPreviewRequest((name) => headerStore.get(name))) return session;
     const data = await unsealSession(bearerSeal(headerStore.get("authorization")));
     if (data) {
       session.userId = data.userId;
@@ -25,7 +26,7 @@ export async function getSession() {
 // forwards.
 export async function publishPreviewSession(data: SessionData) {
   const headerStore = await headers();
-  const preview = [headerStore.get("x-forwarded-host"), headerStore.get("origin"), headerStore.get("host")].some(isCursorPreviewHost);
+  const preview = isPreviewRequest((name) => headerStore.get(name));
   if (!preview) return;
   const store = await cookies();
   store.set(previewCookieName, await sealSession(data), {

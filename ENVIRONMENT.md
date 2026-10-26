@@ -11,6 +11,7 @@ Copy `.env.example` to `.env`. Do not commit `.env`.
 | `CRON_SECRET` | For cron | Bearer token for `/api/cron/reminders` |
 | `APP_URL` | Yes | Absolute origin used inside emails and copied links |
 | `NEXT_PUBLIC_APP_URL` | Yes | Same origin for the browser |
+| `NEXT_PUBLIC_DEMO_LOGIN` | No | Set to `true` only on a private demo. Production leaves it unset so seeded passwords are not rendered |
 | `GEMINI_API_KEY` | No | Enables Gemini extraction and briefing polish |
 | `GEMINI_MODEL` | No | Defaults to `gemini-2.5-flash` |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | No | Enables the Google Maps JavaScript map |

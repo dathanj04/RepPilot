@@ -10,6 +10,10 @@ export function isCursorPreviewHost(value: string | null | undefined) {
   return host.endsWith(".agent.cvm.dev") || host.endsWith(".cursorvm.com");
 }
 
+export function isPreviewRequest(get: (name: string) => string | null | undefined) {
+  return ["x-forwarded-host", "origin", "host"].some((name) => isCursorPreviewHost(get(name)));
+}
+
 export function bearerSeal(authorization: string | null | undefined) {
   if (!authorization || !authorization.toLowerCase().startsWith("bearer ")) return undefined;
   const token = authorization.slice(authorization.indexOf(" ") + 1).trim();

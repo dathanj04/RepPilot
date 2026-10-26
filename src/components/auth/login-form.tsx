@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+const demoLogin = process.env.NEXT_PUBLIC_DEMO_LOGIN === "true";
+
 const DEMOS = [
   ["Alex Davis", "Representative", "alex.davis@example-health.test"],
   ["Jordan Lee", "Manager", "jordan.lee@example-health.test"],
@@ -17,8 +19,8 @@ const DEMOS = [
 
 export function LoginForm() {
   const [state, formAction, pending] = useActionState(loginFormAction, null);
-  const [email, setEmail] = useState(DEMOS[0]?.[2] ?? "");
-  const [password, setPassword] = useState("RepPilot-demo-2026");
+  const [email, setEmail] = useState(demoLogin ? (DEMOS[0]?.[2] ?? "") : "");
+  const [password, setPassword] = useState(demoLogin ? "RepPilot-demo-2026" : "");
 
   return (
     <form action={formAction} className="space-y-4">
@@ -34,7 +36,7 @@ export function LoginForm() {
       <Button type="submit" className="h-12 w-full bg-[#19B78A] text-[#06281f] hover:bg-[#15a37b]" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}
       </Button>
-      <div className="space-y-2 pt-2">
+      {demoLogin ? <div className="space-y-2 pt-2">
         <p className="text-xs font-medium text-[#66758B]">Fictional demo accounts. Password RepPilot-demo-2026</p>
         <div className="grid gap-2">
           {DEMOS.map(([name, role, address]) => (
@@ -52,7 +54,7 @@ export function LoginForm() {
             </button>
           ))}
         </div>
-      </div>
+      </div> : null}
       <p className="text-sm text-[#66758B]">
         New organization? <Link className="font-medium text-[#10263E] underline" href="/signup">Create one</Link>
       </p>

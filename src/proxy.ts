@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getIronSession, nextProxyCookies } from "iron-session";
 import { sessionOptions, type SessionData } from "@/lib/session-options";
-import { bearerSeal, unsealSession } from "@/lib/session-seal";
+import { bearerSeal, isPreviewRequest, unsealSession } from "@/lib/session-seal";
 
 const PUBLIC_PATH = [/^\/login$/, /^\/signup$/, /^\/i\//, /^\/l\//, /^\/o\//, /^\/api\/cron/];
 
@@ -16,7 +16,9 @@ export async function proxy(request: NextRequest) {
     sessionOptions,
   );
   if (!session.userId) {
-    const preview = await unsealSession(bearerSeal(request.headers.get("authorization")));
+    const preview = isPreviewRequest((name) => request.headers.get(name))
+      ? await unsealSession(bearerSeal(request.headers.get("authorization")))
+      : null;
     if (!preview) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
