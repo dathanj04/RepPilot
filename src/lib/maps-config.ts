@@ -14,7 +14,13 @@ export function googleMapsBrowserKey() {
   return key;
 }
 
-export function googleRoutesConfigured() {
+/** Server key for Geocoding, Places, and Routes. Never send this value to the browser. */
+export function googleMapsServerKey() {
   const key = process.env.GOOGLE_MAPS_API_KEY?.trim() ?? "";
-  return key.length >= 20 && !PLACEHOLDERS.has(key.toLowerCase());
+  if (key.length < 20 || PLACEHOLDERS.has(key.toLowerCase())) return "";
+  return key;
+}
+
+export function googleRoutesConfigured() {
+  return Boolean(googleMapsServerKey());
 }

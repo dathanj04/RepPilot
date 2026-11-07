@@ -17,7 +17,7 @@ The variable list is maintained in `ENVIRONMENT_VARIABLES.md`. Copy `.env.exampl
 | `GEMINI_API_KEY` | No | Enables Gemini extraction and briefing polish |
 | `GEMINI_MODEL` | No | Defaults to `gemini-2.5-flash` |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | No | Enables the Google Maps JavaScript map |
-| `GOOGLE_MAPS_API_KEY` | No | Reserved for server-side Routes, Places, and Geocoding |
+| `GOOGLE_MAPS_API_KEY` | No | Server key for Geocoding, Places API (New), and Routes. Absent key leaves those calls unmade |
 | `RESEND_API_KEY` | Required on staging and production | Sends email. A local missing key logs `logged_demo`. Staging and production refuse to mark a reminder sent without it |
 | `EMAIL_FROM` | Required with Resend | Verified from address, for example `RepPilot <notifications@yourdomain.com>` |
 | `TEST_EMAIL_TO` | For the transport test | Inbox you control. `npm run email:test` refuses seeded office domains |

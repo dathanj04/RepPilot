@@ -20,7 +20,11 @@ export default async function MapPage() {
   const [accounts, tasks, territory] = await Promise.all([
     prisma.account.findMany({
       where: { organizationId: user.organizationId },
-      include: { contacts: { where: { isPrimary: true }, take: 1 } },
+      include: {
+        contacts: { where: { isPrimary: true }, take: 1 },
+        territory: { select: { name: true } },
+        assignments: { include: { user: { select: { name: true } } }, take: 1 },
+      },
       orderBy: { name: "asc" },
     }),
     prisma.followUpTask.findMany({
@@ -51,6 +55,9 @@ export default async function MapPage() {
     daysSince: account.lastVisitAt ? daysBetween(now, account.lastVisitAt) : null,
     nextFollowUp: account.nextFollowUpAt ? formatDay(account.nextFollowUpAt, user.timezone) : null,
     contact: account.contacts[0]?.name ?? null,
+    status: account.status,
+    territory: account.territory?.name ?? null,
+    owner: account.assignments[0]?.user.name ?? null,
   }));
   const boundary = polygonFrom(territory?.boundary);
   const first = pins.find((pin) => pin.lat != null && pin.lng != null);

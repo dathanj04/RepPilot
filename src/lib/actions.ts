@@ -20,6 +20,7 @@ import { recommendStops } from "./domain/routing";
 import { isProfileTimezone } from "./domain/accounts";
 import { findDuplicateAccount } from "./services/accounts";
 import { parseOrgSettings } from "./org-settings";
+import { geocodeAddress } from "./maps/google";
 
 const ROLES = [
   ["REP", "Representative", "Field representative", "organization"],
@@ -175,6 +176,38 @@ export async function saveAccountAction(formData: FormData) {
   if (duplicate) {
     redirect(`/accounts/${duplicate.id}?notice=An office with this name and address is already in your organization.`);
   }
+  let geocodeNotice = "";
+  let geocodeStatus: "ok" | "not_found" | "error" | null = null;
+  const needsPoint = data.latitude == null || data.longitude == null || Number.isNaN(data.latitude) || Number.isNaN(data.longitude);
+  if (needsPoint) {
+    data.latitude = null;
+    data.longitude = null;
+    const geocoded = await geocodeAddress(`${data.street}, ${data.city}, ${data.state} ${data.zip}`);
+    if (geocoded.status === "ok") {
+      data.latitude = geocoded.value.lat;
+      data.longitude = geocoded.value.lng;
+      geocodeStatus = "ok";
+    } else if (geocoded.status === "not_found") {
+      geocodeStatus = "not_found";
+      geocodeNotice = "Saved without map coordinates. Google Geocoding had no rooftop match for that address.";
+    } else if (geocoded.status === "error") {
+      geocodeStatus = "error";
+      geocodeNotice = "Saved without map coordinates. Geocoding did not return a location.";
+    }
+  }
+  async function logGeocode(entityId: string) {
+    if (!geocodeStatus) return;
+    await prisma.auditLog.create({
+      data: {
+        organizationId: user.organizationId,
+        actorId: user.id,
+        action: "maps.geocode",
+        entityType: "Account",
+        entityId,
+        metadata: { status: geocodeStatus },
+      },
+    });
+  }
   if (id) {
     const existing = await prisma.account.findFirst({ where: { id, organizationId: user.organizationId } });
     if (!existing) redirect("/accounts?notice=That office was not found.");
@@ -189,8 +222,9 @@ export async function saveAccountAction(formData: FormData) {
         metadata: { name: data.name },
       },
     });
+    await logGeocode(id);
     revalidatePath(`/accounts/${id}`);
-    redirect(`/accounts/${id}`);
+    redirect(geocodeNotice ? `/accounts/${id}?notice=${encodeURIComponent(geocodeNotice)}` : `/accounts/${id}`);
   }
   const account = await prisma.account.create({
     data: { ...data, organizationId: user.organizationId, status: "ACTIVE" },
@@ -208,8 +242,9 @@ export async function saveAccountAction(formData: FormData) {
       metadata: { name: data.name },
     },
   });
+  await logGeocode(account.id);
   revalidatePath("/accounts");
-  redirect(`/accounts/${account.id}`);
+  redirect(geocodeNotice ? `/accounts/${account.id}?notice=${encodeURIComponent(geocodeNotice)}` : `/accounts/${account.id}`);
 }
 
 export async function updateProfileAction(formData: FormData) {
@@ -650,7 +685,7 @@ export async function saveRouteAction(payload: { accountIds: string[]; reasons: 
       userId: user.id,
       routeDate: new Date(),
       status: "saved",
-      summary: "Saved by the representative. Driving times are not estimated here.",
+      summary: "Saved stop order. Drive time is not stored on the route. Check drive time when you need a Google Routes duration.",
       stops: {
         create: payload.accountIds.map((accountId, index) => ({
           accountId,
@@ -702,10 +737,7 @@ export async function suggestRouteAction(origin: { lat: number; lng: number } | 
       ...item,
       name: accounts.find((account) => account.id === item.accountId)?.name ?? "Office",
     })),
-    routesApi: Boolean(process.env.GOOGLE_MAPS_API_KEY),
-    note: process.env.GOOGLE_MAPS_API_KEY
-      ? "Google Routes is configured. This list is still ordered from your records; open navigation for driving time."
-      : "Driving times need the Google Routes API. Distances below are straight-line.",
+    note: "Stops come from your records. Straight-line miles are not drive time. Use Check drive time after Google Routes is configured.",
   };
 }
 

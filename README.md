@@ -61,7 +61,7 @@ The app listens on [http://127.0.0.1:43123](http://127.0.0.1:43123).
 ## Honest limits
 
 - Google Maps JavaScript is used only when `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is set. Otherwise the map is OpenStreetMap through Leaflet. Straight-line miles are labeled as straight-line miles.
-- Google Routes is not called. Route order is computed from records, not drive time.
+- Places search, address geocoding, and Routes drive time run only when `GOOGLE_MAPS_API_KEY` is set. A missing key or a missing duration leaves those fields blank.
 - Gemini is used only when `GEMINI_API_KEY` is set. Otherwise a deterministic parser fills the check-in draft.
 - Email is sent through Resend only when `RESEND_API_KEY` is set. Otherwise the message is stored as `logged_demo`.
 - Google Calendar and Microsoft 365 are not connected. Lunches are stored on an internal calendar.

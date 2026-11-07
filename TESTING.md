@@ -10,7 +10,7 @@ npx eslint src tests --max-warnings 0
 
 ## Domain tests
 
-`src/lib/domain/domain.test.ts` covers marker priority, straight-line distance, policy blocks, spending separation, reminder math, invitation expiry, extraction without invented activities, briefing numbers, and route reasons. These tests do not need Postgres.
+`src/lib/domain/domain.test.ts` covers marker priority, straight-line distance, policy blocks, spending separation, reminder math, invitation expiry, extraction without invented activities, briefing numbers, and route reasons. `src/lib/maps/provider.test.ts` covers geocode precision, dropped Places addresses, Routes durations, and appointment-gap warnings. These tests do not need Postgres or a Google key.
 
 ## Workflow tests
 
@@ -31,4 +31,4 @@ The test database must already have the migrations applied (`npx prisma migrate 
 
 Browser coverage of login, the map, a saved check-in, a clinic confirmation, and an order record is part of development verification. There is no Playwright suite in this repository yet.
 
-A missing Google Maps key is covered by the Leaflet fallback in the map component. Disconnecting Gemini is covered by the deterministic extractor tests. Calendar and CRM disconnects are visible on the Calendar and Admin screens because their rows stay `not_connected`.
+A missing Google Maps browser key is covered by the Leaflet fallback in the map component. A missing server key is covered by the provider returning `not_configured` before any duration or place is shown. Disconnecting Gemini is covered by the deterministic extractor tests. Calendar and CRM disconnects are visible on the Calendar and Admin screens because their rows stay `not_connected`.

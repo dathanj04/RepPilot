@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { MapContainer, TileLayer, CircleMarker, Polygon, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { MARKER_TONES, type MarkerTone } from "@/lib/domain/catalog";
 import { directionsUrl, formatStraightLine, straightLineMiles } from "@/lib/domain/distance";
+import { addDiscoveredAccountAction, searchPlacesAction } from "@/lib/maps/actions";
 
 export type MapAccount = {
   id: string;
@@ -22,6 +24,9 @@ export type MapAccount = {
   daysSince: number | null;
   nextFollowUp: string | null;
   contact: string | null;
+  status: string;
+  territory: string | null;
+  owner: string | null;
 };
 
 type Props = {
@@ -77,6 +82,11 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
   const [query, setQuery] = useState("");
   const [tone, setTone] = useState<MarkerTone | "all">("all");
   const [specialty, setSpecialty] = useState("all");
+  const [city, setCity] = useState("all");
+  const [zip, setZip] = useState("all");
+  const [territory, setTerritory] = useState("all");
+  const [owner, setOwner] = useState("all");
+  const [status, setStatus] = useState("all");
   const [followUpOnly, setFollowUpOnly] = useState(false);
   const [maxMiles, setMaxMiles] = useState<number | null>(null);
   const [here, setHere] = useState<{ lat: number; lng: number } | null>(null);
@@ -88,11 +98,21 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
   const failGoogle = useCallback(() => setGoogleFailed(true), []);
 
   const specialties = [...new Set(accounts.map((account) => account.specialty))];
+  const cities = [...new Set(accounts.map((account) => account.city))].sort();
+  const zips = [...new Set(accounts.map((account) => account.zip))].sort();
+  const territories = [...new Set(accounts.map((account) => account.territory).filter((value): value is string => Boolean(value)))].sort();
+  const owners = [...new Set(accounts.map((account) => account.owner).filter((value): value is string => Boolean(value)))].sort();
+  const statuses = [...new Set(accounts.map((account) => account.status))].sort();
   const filtered = accounts.filter((account) => {
-    const text = `${account.name} ${account.city} ${account.specialty}`.toLowerCase();
+    const text = `${account.name} ${account.city} ${account.zip} ${account.specialty}`.toLowerCase();
     if (query && !text.includes(query.toLowerCase())) return false;
     if (tone !== "all" && account.tone !== tone) return false;
     if (specialty !== "all" && account.specialty !== specialty) return false;
+    if (city !== "all" && account.city !== city) return false;
+    if (zip !== "all" && account.zip !== zip) return false;
+    if (territory !== "all" && account.territory !== territory) return false;
+    if (owner !== "all" && account.owner !== owner) return false;
+    if (status !== "all" && account.status !== status) return false;
     if (followUpOnly && account.tone !== "follow_up" && account.tone !== "overdue") return false;
     if (maxMiles != null && here && account.lat != null && account.lng != null) {
       if (straightLineMiles(here, { lat: account.lat, lng: account.lng }) > maxMiles) return false;
@@ -148,6 +168,14 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
             </FilterChip>
           ))}
         </div>
+        <div className="grid grid-cols-2 gap-2">
+          <SelectFilter label="City" value={city} onChange={setCity} options={cities} />
+          <SelectFilter label="ZIP" value={zip} onChange={setZip} options={zips} />
+          <SelectFilter label="Territory" value={territory} onChange={setTerritory} options={territories} />
+          <SelectFilter label="Owner" value={owner} onChange={setOwner} options={owners} />
+          <SelectFilter label="Status" value={status} onChange={setStatus} options={statuses} />
+        </div>
+        <PlacesSearch here={here} />
       </div>
       <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
         {filtered.length === 0 ? <li className="rounded-2xl bg-[#F5F7FA] p-4 text-sm">No offices match these filters.</li> : null}
@@ -250,7 +278,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
         </button>
       </div>
       <p className="pointer-events-none absolute top-3 left-3 z-20 hidden max-w-sm rounded-xl bg-white/95 px-3 py-2 text-[11px] text-[#66758B] shadow-sm md:block">
-        {googleMapsKey && !googleFailed ? "Google Maps" : "OpenStreetMap"} · straight-line distance only
+        {googleMapsKey && !googleFailed ? "Google Maps" : "OpenStreetMap"} · pin distance is straight-line until Routes returns a drive time
         {locationNote ? ` · ${locationNote}` : ""}
         {missingLocation ? ` · ${missingLocation} offices have no coordinates` : ""}
       </p>
@@ -288,6 +316,91 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
   );
 }
 
+function SelectFilter({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: string[] }) {
+  return (
+    <label className="text-xs text-[#66758B]">
+      {label}
+      <select value={value} onChange={(event) => onChange(event.target.value)} aria-label={label} className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-[#14243A]">
+        <option value="all">All</option>
+        {options.map((option) => (
+          <option key={option} value={option}>{option}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function PlacesSearch({ here }: { here: { lat: number; lng: number } | null }) {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [places, setPlaces] = useState<Awaited<ReturnType<typeof searchPlacesAction>>["places"]>([]);
+  const [pending, setPending] = useState(false);
+
+  async function search() {
+    setPending(true);
+    setMessage(null);
+    const result = await searchPlacesAction(query, here);
+    setPlaces(result.places);
+    setMessage(result.message);
+    setPending(false);
+  }
+
+  return (
+    <div className="rounded-xl bg-[#F5F7FA] p-2">
+      <p className="text-xs font-medium text-[#10263E]">Find offices with Google Places</p>
+      <div className="mt-2 flex gap-2">
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Pediatric clinic, Frisco TX"
+          aria-label="Places search"
+          className="h-10 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-sm"
+        />
+        <button type="button" className="h-10 rounded-lg bg-[#10263E] px-3 text-xs font-medium text-white disabled:opacity-50" disabled={pending} onClick={() => void search()}>
+          {pending ? "Searching" : "Search"}
+        </button>
+      </div>
+      {message ? <p className="mt-2 text-xs text-[#66758B]">{message}</p> : null}
+      <ul className="mt-2 space-y-2">
+        {places.map((place) => (
+          <li key={`${place.name}-${place.zip}-${place.street}`} className="rounded-lg bg-white p-2 text-sm ring-1 ring-slate-200">
+            <p className="font-medium">{place.name}</p>
+            <p className="text-xs text-[#66758B]">{place.street}, {place.city}, {place.state} {place.zip}</p>
+            <form
+              className="mt-2 flex gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const formData = new FormData(event.currentTarget);
+                setPending(true);
+                void addDiscoveredAccountAction(formData).then((result) => {
+                  setPending(false);
+                  if ("error" in result && result.error) {
+                    setMessage(result.error);
+                    return;
+                  }
+                  router.push(`/accounts/${result.accountId}`);
+                  router.refresh();
+                });
+              }}
+            >
+              <input type="hidden" name="name" value={place.name} />
+              <input type="hidden" name="street" value={place.street} />
+              <input type="hidden" name="city" value={place.city} />
+              <input type="hidden" name="state" value={place.state} />
+              <input type="hidden" name="zip" value={place.zip} />
+              <input type="hidden" name="latitude" value={place.lat} />
+              <input type="hidden" name="longitude" value={place.lng} />
+              <input name="specialty" required aria-label={`Specialty for ${place.name}`} placeholder="Specialty" className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 px-2 text-xs" />
+              <button type="submit" className="h-9 rounded-lg bg-[#19B78A] px-2 text-xs font-semibold text-[#06281f]">Add</button>
+            </form>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function FilterChip({ active, children, onClick }: { active: boolean; children: React.ReactNode; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} className={`h-9 shrink-0 rounded-full px-3 text-xs font-medium ${active ? "bg-[#10263E] text-white" : "bg-white text-[#14243A] ring-1 ring-slate-200"}`}>
@@ -315,22 +428,42 @@ function GoogleCanvas({ accounts, apiKey, center, onSelect, selectedId, onFail }
   return <GoogleMapInner accounts={accounts} center={center} onSelect={onSelect} selectedId={selectedId} />;
 }
 
+type GoogleMapsNamespace = {
+  maps: {
+    Map: new (node: HTMLElement, options: object) => { setCenter: (value: object) => void };
+    Marker: new (options: object) => { setMap: (map: null) => void; addListener: (event: string, handler: () => void) => void };
+    Size: new (width: number, height: number) => object;
+  };
+};
+
 function GoogleMapInner({ accounts, center, onSelect, selectedId }: { accounts: MapAccount[]; center: [number, number]; onSelect: (id: string) => void; selectedId: string | null }) {
-  const [node, setNode] = useState<HTMLDivElement | null>(null);
+  const nodeRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<InstanceType<GoogleMapsNamespace["maps"]["Map"]> | null>(null);
+  const markersRef = useRef<Array<{ setMap: (map: null) => void }>>([]);
   useEffect(() => {
-    const maps = (window as unknown as { google?: { maps: { Map: new (node: HTMLElement, options: object) => { setCenter: (value: object) => void }; Marker: new (options: object) => { addListener: (event: string, handler: () => void) => void } } } }).google;
+    const maps = (window as unknown as { google?: GoogleMapsNamespace }).google;
+    const node = nodeRef.current;
     if (!node || !maps) return;
-    const map = new maps.maps.Map(node, { center: { lat: center[0], lng: center[1] }, zoom: 11, disableDefaultUI: true, zoomControl: true });
+    if (!mapRef.current) {
+      mapRef.current = new maps.maps.Map(node, { center: { lat: center[0], lng: center[1] }, zoom: 11, disableDefaultUI: true, zoomControl: true, mapTypeControl: false });
+    }
+    mapRef.current.setCenter({ lat: center[0], lng: center[1] });
+    markersRef.current.forEach((marker) => marker.setMap(null));
+    markersRef.current = [];
     for (const account of accounts) {
       if (account.lat == null || account.lng == null) continue;
       const marker = new maps.maps.Marker({
         position: { lat: account.lat, lng: account.lng },
-        map,
-        title: account.name,
-        label: selectedId === account.id ? "•" : undefined,
+        map: mapRef.current,
+        title: `${account.name} · ${account.specialty}`,
+        icon: {
+          url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"><circle cx="14" cy="14" r="${selectedId === account.id ? 10 : 8}" fill="${COLORS[account.tone]}" stroke="white" stroke-width="2"/></svg>`)}`,
+          scaledSize: new maps.maps.Size(28, 28),
+        },
       });
       marker.addListener("click", () => onSelect(account.id));
+      markersRef.current.push(marker);
     }
-  }, [node, accounts, center, onSelect, selectedId]);
-  return <div ref={setNode} className="h-full w-full" />;
+  }, [accounts, center, onSelect, selectedId]);
+  return <div ref={nodeRef} className="h-full w-full" />;
 }

@@ -65,7 +65,7 @@ export function AccountForm({
         Office notes
         <textarea name="generalNotes" defaultValue={account?.generalNotes ?? ""} className="mt-1 w-full rounded-xl border border-slate-200 p-3" rows={3} placeholder="No patient information." />
       </label>
-      <p className="text-xs text-[#66758B]">Without a geocoding key, add latitude and longitude to place the office on the map.</p>
+      <p className="text-xs text-[#66758B]">Leave latitude and longitude blank to geocode the address when a server Google Maps key is set. Without that key, type the coordinates yourself. A blank result is not filled with a guess.</p>
       <button className="h-12 rounded-xl bg-[#10263E] font-medium text-white" type="submit">Save office</button>
     </form>
   );

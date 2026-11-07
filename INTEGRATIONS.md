@@ -4,24 +4,29 @@ An integration is described as live only when credentials exist and a request su
 
 ## Google Maps, Places, Geocoding, Routes
 
-The territory map is interactive without a Google key. It uses Leaflet and OpenStreetMap tiles, office markers, filters, a selected-office card, Check In, and a Directions link. Straight-line miles are labeled as straight-line miles. Driving time is never invented.
+The territory map works without a Google key. It uses Leaflet and OpenStreetMap tiles, office markers colored by visit status, filters for city, ZIP, territory, owner, and status, a selected-office card, Check In, and a Directions link. Straight-line miles stay labeled as straight-line miles.
 
-When `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is a real browser key, the same screen loads the Maps JavaScript API instead. Placeholder values such as `API KEY REQUIRED` are ignored so Google’s error tile does not replace the map.
+When `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is a real browser key, the same screen loads the Maps JavaScript API. Placeholder values are ignored so Google’s error tile does not replace the map. Pins use the same visit colors. The browser key is restricted to map tiles. It is not used for Places, Geocoding, or Routes.
 
-`GOOGLE_MAPS_API_KEY` is reserved for server-side Routes, Places, and Geocoding. Those calls are not made in this build.
+`GOOGLE_MAPS_API_KEY` is a separate server key. The app calls Google only when that value is present:
+
+- **Geocoding API** when an office is saved without latitude and longitude. Only `ROOFTOP` and `RANGE_INTERPOLATED` matches are stored. An approximate city centroid is rejected, and the office is saved without a pin.
+- **Places API (New)** text search from My Territory. Results without a street, city, state, and ZIP are dropped. Nothing is saved until the representative types a specialty and presses Add. Duplicate name, street, and ZIP inside the organization are blocked.
+- **Routes API** from Route Planner after Check drive time. The stop order the representative set is sent as-is, including upcoming lunches as fixed times. Duration is shown only when Google returns `duration` on the route and every leg. If that duration differs from `staticDuration`, the screen says current traffic changed it. A failed or unconfigured call leaves drive time blank.
+
+Each successful or failed server call writes an audit row (`maps.geocode`, `maps.places`, `maps.routes`) with a status and, for Places, a result count. The row does not store the query, the address, or the Google payload. Places search is limited to 20 calls per representative per 10 minutes. Drive-time checks are limited to 30 per 10 minutes.
 
 ### Google Cloud setup
 
 1. Open [Google Cloud Console](https://console.cloud.google.com/) and select or create a project.
 2. Enable billing for that project. Maps Platform will not serve tiles without it.
 3. Enable **Maps JavaScript API** for the browser map.
-4. Enable **Routes API** only if you later want driving times. Leave it off until the app calls it.
-5. Enable **Geocoding API** and **Places API** only when you want address lookup. They are unused today.
-6. Create an API key for the browser. Restrict it to **HTTP referrers** that match your preview and production origins, and restrict the API to Maps JavaScript API.
-7. Create a separate server key for Routes later. Restrict it by IP or to the Routes API. Do not put that key in `NEXT_PUBLIC_` variables.
-8. Put the browser key in `.env` as `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`. Restart the dev server. Do not commit the key.
+4. Enable **Geocoding API**, **Places API (New)**, and **Routes API** for the server key.
+5. Create a browser API key. Restrict it to **HTTP referrers** for your preview and production origins, and restrict the API to Maps JavaScript API.
+6. Create a separate server key. Restrict it to Geocoding API, Places API (New), and Routes API. Do not put that key in a `NEXT_PUBLIC_` variable.
+7. Put the browser key in `.env` as `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` and the server key as `GOOGLE_MAPS_API_KEY`. Restart the dev server. Do not commit either key.
 
-Directions still open `https://www.google.com/maps/dir/` with the office coordinates. That link does not need an API key.
+Directions and multi-stop navigation open `https://www.google.com/maps/dir/` with the office coordinates. That link does not need an API key and does not create a drive-time claim inside RepPilot.
 
 ## Gemini
 

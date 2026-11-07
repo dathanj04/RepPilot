@@ -20,7 +20,16 @@ Not in this phase: OAuth login, multifactor authentication, medical-office staff
 
 ## Phase 2 — Google Maps and territories
 
-Partial. The territory map loads Google Maps when a browser key is set, and otherwise uses Leaflet with a labeled straight-line distance. Directions open Google Maps. Places, Geocoding, and Routes are not called. Drive times are not invented.
+Implemented behind the Google key, with an honest empty state when the key is absent.
+
+- Territory map with visit-colored pins, city, ZIP, territory, owner, and status filters, and a selected-office card.
+- Google Maps JavaScript when `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is set. Otherwise Leaflet and OpenStreetMap.
+- Places text search that adds an office only after the representative confirms a specialty. Incomplete Google addresses are discarded.
+- Geocoding on save when coordinates are blank. Approximate matches are not stored.
+- Route planner: record-based suggestions, manual order, straight-line reorder (labeled as straight-line), Google Routes drive time only when the API returns it, appointment-gap warnings, and a Google Maps handoff for the saved order.
+- Audit rows and per-user rate limits for the server map calls. Responses are not cached as licensed place content.
+
+Still later: traffic-aware reordering, drawing a territory polygon on the map, and storing a drive time on the saved route row. The saved route keeps the stop order and tells the reader to check drive time again.
 
 ## Phase 3 — Calendar and approval-gated invitations
 

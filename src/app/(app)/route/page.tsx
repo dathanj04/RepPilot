@@ -20,17 +20,22 @@ export default async function RoutePage() {
     prisma.account.findMany({
       where: { organizationId: user.organizationId, status: "ACTIVE" },
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, latitude: true, longitude: true },
     }),
   ]);
 
   return (
     <PageFrame
       title="Route"
-      subtitle={`Build the order yourself or start from overdue follow-ups and scheduled lunches. Google Routes is ${googleRoutesConfigured() ? "configured" : "not configured"}, so this screen does not invent driving times.`}
+      subtitle={
+        googleRoutesConfigured()
+          ? "Suggest stops from your records, then check drive time. A duration appears only after Google Routes returns one. Confirmed lunch times are not reordered."
+          : "Suggest stops from your records and open them in Google Maps. Drive time stays blank until a server Google Maps key with the Routes API is set."
+      }
     >
       <RoutePlanner
-        offices={offices}
+        offices={offices.map((office) => ({ id: office.id, name: office.name, lat: office.latitude, lng: office.longitude }))}
+        savedSummary={route?.summary ?? null}
         saved={(route?.stops ?? []).map((stop) => ({
           id: stop.id,
           name: stop.account.name,

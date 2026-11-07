@@ -17,7 +17,7 @@ Copy `.env.example` to `.env`. Do not commit `.env` or paste real secrets into d
 | `GEMINI_API_KEY` | No | Enables Gemini extraction. Absent key uses the deterministic parser |
 | `GEMINI_MODEL` | No | Defaults to `gemini-2.5-flash` |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | No | Enables the Google Maps JavaScript map |
-| `GOOGLE_MAPS_API_KEY` | No | Reserved for server-side Routes, Places, and Geocoding. Unused |
+| `GOOGLE_MAPS_API_KEY` | No | Server key for Geocoding, Places API (New), and Routes. Absent key leaves those calls unmade |
 | `RESEND_API_KEY` | Staging and production | Sends email. Local absence logs `logged_demo` |
 | `EMAIL_FROM` | With Resend | Verified from address |
 | `TEST_EMAIL_TO` | Transport test | Inbox you control. The test script refuses seeded office domains |
