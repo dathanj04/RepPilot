@@ -1,6 +1,6 @@
 # Environment
 
-Copy `.env.example` to `.env`. Do not commit `.env`.
+The variable list is maintained in `ENVIRONMENT_VARIABLES.md`. Copy `.env.example` to `.env`. Do not commit `.env`.
 
 | Variable | Required | Purpose |
 | --- | --- | --- |

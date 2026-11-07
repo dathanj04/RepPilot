@@ -10,6 +10,7 @@ import { buildAccountBrief, buildDailyBriefing, draftFollowUpEmail, narrativeUse
 import { recommendStops } from "./routing";
 import { hashToken, tokenMatches } from "./tokens";
 import { rateLimit, resetRateLimits } from "./rate-limit";
+import { accountIdentityKey, isProfileTimezone } from "./accounts";
 
 const now = new Date("2026-10-13T13:00:00.000Z");
 
@@ -376,6 +377,17 @@ describe("routing", () => {
     expect(stops[0]?.reasons.join(" ")).toContain("Frisco");
     expect(stops[0]?.reasons.join(" ").toLowerCase()).not.toContain("minute drive");
     expect(stops[0]?.straightLineMiles).not.toBeNull();
+  });
+});
+
+describe("account identity", () => {
+  it("treats punctuation and case as the same office and rejects unknown timezones", () => {
+    const left = accountIdentityKey({ name: "Northside Clinic", street: "123 Medical Drive", zip: "75034" });
+    const right = accountIdentityKey({ name: "northside clinic", street: "123 medical drive.", zip: "75034" });
+    expect(left).toBe(right);
+    expect(accountIdentityKey({ name: "Northside Clinic", street: "123 Medical Drive", zip: "75035" })).not.toBe(left);
+    expect(isProfileTimezone("America/Chicago")).toBe(true);
+    expect(isProfileTimezone("Mars/Olympus")).toBe(false);
   });
 });
 

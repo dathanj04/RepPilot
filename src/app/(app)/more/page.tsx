@@ -15,6 +15,7 @@ export default async function MorePage() {
     ["/lunches", "Lunches"],
     ["/route", "Plan route"],
     ["/spending", "Spending"],
+    ["/settings", "Settings"],
     ["/reports", "Reports"],
     ["/notifications", "Alerts"],
     ["/onboarding", "Setup checklist"],

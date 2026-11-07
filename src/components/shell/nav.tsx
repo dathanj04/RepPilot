@@ -10,6 +10,7 @@ import {
   Map,
   MoreHorizontal,
   Route,
+  Settings,
   Shield,
   UtensilsCrossed,
   Wallet,
@@ -27,6 +28,7 @@ const ICONS = {
   spending: Wallet,
   admin: Shield,
   route: Route,
+  settings: Settings,
 };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };

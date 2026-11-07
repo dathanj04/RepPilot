@@ -9,6 +9,7 @@ import { processDueReminders } from "../src/lib/services/reminders";
 import { renderReminderEmail } from "../src/lib/email/templates";
 import { issueSecureLink } from "../src/lib/services/links";
 import { consumeSharedRateLimit } from "../src/lib/domain/rate-limit-store";
+import { findDuplicateAccount } from "../src/lib/services/accounts";
 
 const prisma = createPrisma(process.env.DATABASE_URL_TEST || process.env.DATABASE_URL || "");
 const now = new Date("2026-10-13T15:00:00.000Z");
@@ -317,5 +318,35 @@ describe("workflow persistence", () => {
     expect((await consumeSharedRateLimit(prisma, key, 2, 60_000, new Date(first.getTime() + 10))).ok).toBe(true);
     expect((await consumeSharedRateLimit(prisma, key, 2, 60_000, new Date(first.getTime() + 20))).ok).toBe(false);
     expect((await consumeSharedRateLimit(prisma, key, 2, 60_000, new Date(first.getTime() + 60_001))).ok).toBe(true);
+  });
+
+  it("keeps a duplicate office inside its own organization and writes an audit row", async () => {
+    const { orgA, orgB, user, accountA } = await fixture();
+    const same = await findDuplicateAccount(prisma, {
+      organizationId: orgA.id,
+      name: accountA.name.toUpperCase(),
+      street: `${accountA.street}.`,
+      zip: accountA.zip,
+    });
+    expect(same?.id).toBe(accountA.id);
+    const otherOrg = await findDuplicateAccount(prisma, {
+      organizationId: orgB.id,
+      name: accountA.name,
+      street: accountA.street,
+      zip: accountA.zip,
+    });
+    expect(otherOrg).toBeNull();
+    await prisma.auditLog.create({
+      data: {
+        organizationId: orgA.id,
+        actorId: user.id,
+        action: "account.created",
+        entityType: "Account",
+        entityId: accountA.id,
+        metadata: { name: accountA.name },
+      },
+    });
+    const visible = await prisma.auditLog.findMany({ where: { organizationId: orgB.id, entityId: accountA.id } });
+    expect(visible).toEqual([]);
   });
 });

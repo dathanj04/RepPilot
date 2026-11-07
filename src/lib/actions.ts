@@ -17,6 +17,8 @@ import { deliverEmail } from "./email/send";
 import { renderInvitationEmail } from "./email/templates";
 import { consumeSharedRateLimit } from "./domain/rate-limit-store";
 import { recommendStops } from "./domain/routing";
+import { isProfileTimezone } from "./domain/accounts";
+import { findDuplicateAccount } from "./services/accounts";
 import { parseOrgSettings } from "./org-settings";
 
 const ROLES = [
@@ -163,10 +165,30 @@ export async function saveAccountAction(formData: FormData) {
   if (data.generalNotes && /\b(patient|diagnosis|mrn)\b/i.test(data.generalNotes)) {
     redirect(id ? `/accounts/${id}/edit?notice=Office notes cannot include patient information.` : "/accounts/new?notice=Office notes cannot include patient information.");
   }
+  const duplicate = await findDuplicateAccount(prisma, {
+    organizationId: user.organizationId,
+    name: data.name,
+    street: data.street,
+    zip: data.zip,
+    exceptId: id || undefined,
+  });
+  if (duplicate) {
+    redirect(`/accounts/${duplicate.id}?notice=An office with this name and address is already in your organization.`);
+  }
   if (id) {
     const existing = await prisma.account.findFirst({ where: { id, organizationId: user.organizationId } });
     if (!existing) redirect("/accounts?notice=That office was not found.");
     await prisma.account.update({ where: { id }, data });
+    await prisma.auditLog.create({
+      data: {
+        organizationId: user.organizationId,
+        actorId: user.id,
+        action: "account.updated",
+        entityType: "Account",
+        entityId: id,
+        metadata: { name: data.name },
+      },
+    });
     revalidatePath(`/accounts/${id}`);
     redirect(`/accounts/${id}`);
   }
@@ -176,8 +198,50 @@ export async function saveAccountAction(formData: FormData) {
   await prisma.accountAssignment.create({
     data: { organizationId: user.organizationId, accountId: account.id, userId: user.id },
   });
+  await prisma.auditLog.create({
+    data: {
+      organizationId: user.organizationId,
+      actorId: user.id,
+      action: "account.created",
+      entityType: "Account",
+      entityId: account.id,
+      metadata: { name: data.name },
+    },
+  });
   revalidatePath("/accounts");
   redirect(`/accounts/${account.id}`);
+}
+
+export async function updateProfileAction(formData: FormData) {
+  const user = await getCurrentUser();
+  const name = String(formData.get("name") || "").trim();
+  const timezone = String(formData.get("timezone") || "");
+  const currentPassword = String(formData.get("currentPassword") || "");
+  const nextPassword = String(formData.get("nextPassword") || "");
+  if (name.length < 2) redirect("/settings?notice=Add your name.");
+  if (!isProfileTimezone(timezone)) redirect("/settings?notice=Choose a supported timezone.");
+  const record = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+  const data: { name: string; timezone: string; passwordHash?: string } = { name, timezone };
+  if (nextPassword) {
+    if (nextPassword.length < 8) redirect("/settings?notice=Use at least 8 characters for the new password.");
+    if (!(await compare(currentPassword, record.passwordHash))) {
+      redirect("/settings?notice=The current password does not match.");
+    }
+    data.passwordHash = await hash(nextPassword, 10);
+  }
+  await prisma.user.update({ where: { id: user.id }, data });
+  await prisma.auditLog.create({
+    data: {
+      organizationId: user.organizationId,
+      actorId: user.id,
+      action: nextPassword ? "profile.password_changed" : "profile.updated",
+      entityType: "User",
+      entityId: user.id,
+      metadata: { timezone },
+    },
+  });
+  revalidatePath("/settings");
+  redirect("/settings?notice=Settings saved.");
 }
 
 export async function addContactAction(formData: FormData) {

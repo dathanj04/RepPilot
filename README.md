@@ -71,4 +71,4 @@ The app listens on [http://127.0.0.1:43123](http://127.0.0.1:43123).
 - RepPilot does not claim HIPAA compliance or legal certification.
 - Do not store patient names, diagnoses, or other protected health information in notes.
 
-See `ARCHITECTURE.md`, `DATABASE.md`, `ENVIRONMENT.md`, `INTEGRATIONS.md`, `DEPLOYMENT.md`, `SECURITY.md`, `TESTING.md`, and `ROADMAP.md`.
+See `ARCHITECTURE.md`, `DATABASE.md`, `DATABASE_SCHEMA.md`, `ENVIRONMENT_VARIABLES.md`, `INTEGRATIONS.md`, `DEPLOYMENT.md`, `SECURITY.md`, `TESTING.md`, and `PRODUCT_ROADMAP.md`.

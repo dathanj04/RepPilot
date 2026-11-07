@@ -44,6 +44,10 @@ Each integration is an adapter:
 - Email: Resend when configured, otherwise a `logged_demo` delivery row.
 - Calendar and CRM: connection rows stay `not_connected`. Internal `CalendarEventMapping` rows are created for accepted lunches.
 
+## Navigation
+
+Desktop links only to screens that work: Dashboard, My Territory, Accounts, Route Planner, Calendar, Lunch & Learns, Activities, Reports, and Settings. Team and Organization are added for roles that pass `canViewTeam` or `canManageOrg`. Meeting requests, a general AI chat, and CRM setup are not in the menu until those workflows exist. Spending stays under More.
+
 ## Roles
 
 `REP`, `MANAGER`, `COMPLIANCE_ADMIN`, and `ORG_ADMIN` belong to a customer organization. `PLATFORM_ADMIN` belongs to a separate platform organization and cannot open the rep application. Managers see team coverage. Compliance administrators review exceptions. Organization administrators change settings, people, and territories.

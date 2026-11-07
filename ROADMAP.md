@@ -1,5 +1,7 @@
 # Roadmap
 
+Phase status for the commercial plan is in `PRODUCT_ROADMAP.md`.
+
 The Basic daily loop is implemented: Today, map, accounts, check-in, history, tasks, lunch invitations, clinic pages, reminders, catering handoff, spending, and reviewable AI drafts.
 
 These items are intentionally not finished.
@@ -11,7 +13,7 @@ These items are intentionally not finished.
 - Google Calendar and Microsoft Graph OAuth, free/busy, and event create/update/cancel with stored external ids.
 - Salesforce and HubSpot sync with field mapping, conflict rules, and a tested OAuth connection.
 - Stripe subscriptions and plan entitlements. Prices in the product today are labels only.
-- Durable rate limiting and a dedicated worker for reminders, instead of in-memory limits plus the Today-page sweep.
+- A hosted reminder worker on Vercel. Public-link rate limits already live in Postgres. The Today page still processes due reminders for the signed-in organization.
 - Receipt file upload with type checks and private storage.
 - Playwright coverage of the mobile check-in and clinic confirmation.
 - PostGIS, or an equivalent index, if territory search outgrows the coordinate index.

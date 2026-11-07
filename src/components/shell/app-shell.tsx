@@ -13,14 +13,15 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     where: { userId: user.id, organizationId: user.organizationId, readAt: null },
   });
   const items: NavItem[] = [
-    { href: "/today", label: "Today", icon: "today" },
-    { href: "/map", label: "Map", icon: "map" },
+    { href: "/today", label: "Dashboard", icon: "today" },
+    { href: "/map", label: "My Territory", icon: "map" },
     { href: "/accounts", label: "Accounts", icon: "accounts" },
+    { href: "/route", label: "Route Planner", icon: "route" },
     { href: "/calendar", label: "Calendar", icon: "calendar" },
-    { href: "/tasks", label: "Tasks", icon: "tasks" },
-    { href: "/lunches", label: "Lunches", icon: "lunches" },
-    { href: "/route", label: "Route", icon: "route" },
-    { href: "/spending", label: "Spending", icon: "spending" },
+    { href: "/lunches", label: "Lunch & Learns", icon: "lunches" },
+    { href: "/tasks", label: "Activities", icon: "tasks" },
+    { href: "/reports", label: "Reports", icon: "spending" },
+    { href: "/settings", label: "Settings", icon: "settings" },
   ];
   if (canViewTeam(user.roleKey)) items.push({ href: "/manager", label: "Team", icon: "admin" });
   if (canManageOrg(user.roleKey) || user.roleKey === "COMPLIANCE_ADMIN") {
