@@ -19,7 +19,7 @@ import { consumeSharedRateLimit } from "./domain/rate-limit-store";
 import { recommendStops } from "./domain/routing";
 import { isProfileTimezone } from "./domain/accounts";
 import { findDuplicateAccount } from "./services/accounts";
-import { parseOrgSettings } from "./org-settings";
+import { parseOrgSettings, type OrgSettings } from "./org-settings";
 import { geocodeAddress } from "./maps/google";
 
 const ROLES = [
@@ -749,6 +749,8 @@ export async function updateOrgAction(formData: FormData) {
   settings.recentVisitDays = Number(formData.get("recentVisitDays") || settings.recentVisitDays);
   settings.overdueVisitDays = Number(formData.get("overdueVisitDays") || settings.overdueVisitDays);
   settings.invitationExpiryHours = Number(formData.get("invitationExpiryHours") || settings.invitationExpiryHours);
+  const allowedHours = [24, 48, 168].filter((hours) => formData.get(`allow${hours}`) === "on");
+  settings.allowedInvitationHours = (allowedHours.length > 0 ? allowedHours : [24]) as OrgSettings["allowedInvitationHours"];
   settings.workdayStart = String(formData.get("workdayStart") || settings.workdayStart);
   settings.workdayEnd = String(formData.get("workdayEnd") || settings.workdayEnd);
   settings.aiEnabled = formData.get("aiEnabled") === "on";
@@ -880,7 +882,7 @@ export async function clinicRespondAction(payload: {
   const now = new Date();
   if (payload.intent === "accept" && payload.slotId) {
     const result = await acceptInvitationSlot(prisma, { tokenHash, slotId: payload.slotId, now, responderName: payload.name });
-    return result.ok ? { ok: true as const, message: "That time is confirmed. Your representative has been notified." } : { error: result.error };
+    return result.ok ? { ok: true as const, message: "Request sent. Your representative must approve it before it is on the calendar." } : { error: result.error };
   }
   if (payload.intent === "confirm") {
     const result = await confirmLunch(prisma, {

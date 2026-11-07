@@ -48,9 +48,11 @@ Invitation, seven-day, and 48-hour messages identify the representative and orga
 
 ## Calendar
 
-Google and Microsoft connection rows are `not_connected` until OAuth is implemented and tested. Accepted lunches create an internal `CalendarEventMapping`. Clinic pages never receive the representative's other event titles.
+Google Calendar and Microsoft 365 OAuth are implemented and stay disconnected until `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` or `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` are set and a representative finishes the provider consent screen.
 
-Busy/free from an external calendar is not read in this build, so invitation slots are exactly the times the representative typed.
+Connect starts at `/api/calendar/google/start` or `/api/calendar/microsoft/start`. The callback stores the access and refresh tokens encrypted with `TOKEN_ENCRYPTION_KEY`. Disconnect clears that ciphertext. Offices never receive private event titles. Free/busy is read only when a representative approves a meeting. If that read fails, the meeting stays pending. If no calendar is connected, approval still confirms the RepPilot meeting and labels sync as `not_connected` instead of inventing a Google or Outlook event.
+
+Scheduling invitations live at `/meetings`. The public link is `/m/{token}`. It expires, accepts one request, and cannot confirm a calendar by itself.
 
 ## Catering
 

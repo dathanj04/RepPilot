@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Building2,
+  CalendarCheck,
   CalendarDays,
   ClipboardList,
   LayoutDashboard,
@@ -22,6 +23,7 @@ const ICONS = {
   map: Map,
   accounts: Building2,
   calendar: CalendarDays,
+  meetings: CalendarCheck,
   more: MoreHorizontal,
   tasks: ClipboardList,
   lunches: UtensilsCrossed,

@@ -7,10 +7,12 @@ export async function issueSecureLink(
   db: Db,
   input: {
     organizationId: string;
-    purpose: "invitation" | "lunch_confirmation" | "office";
+    purpose: "invitation" | "lunch_confirmation" | "office" | "scheduling" | "scheduling_reply";
     accountId?: string | null;
     invitationId?: string | null;
     bookingId?: string | null;
+    schedulingInvitationId?: string | null;
+    meetingRequestId?: string | null;
     expiresAt: Date;
   },
 ) {
@@ -24,6 +26,8 @@ export async function issueSecureLink(
       accountId: input.accountId ?? null,
       invitationId: input.invitationId ?? null,
       bookingId: input.bookingId ?? null,
+      schedulingInvitationId: input.schedulingInvitationId ?? null,
+      meetingRequestId: input.meetingRequestId ?? null,
       expiresAt: input.expiresAt,
     },
   });

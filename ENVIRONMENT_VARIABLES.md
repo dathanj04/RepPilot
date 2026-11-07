@@ -23,8 +23,8 @@ Copy `.env.example` to `.env`. Do not commit `.env` or paste real secrets into d
 | `TEST_EMAIL_TO` | Transport test | Inbox you control. The test script refuses seeded office domains |
 | `SENTRY_DSN` | Recommended | Sends server errors to Sentry. Empty disables the client |
 | `ALERT_WEBHOOK_URL` | No | JSON webhook for delivery and server errors |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No | Reserved for Google Calendar OAuth |
-| `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` / `MICROSOFT_TENANT_ID` | No | Reserved for Microsoft Graph |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No | Google Calendar OAuth. Absent values leave the connect button unavailable |
+| `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` / `MICROSOFT_TENANT_ID` | No | Microsoft 365 calendar OAuth. Tenant defaults to `common` |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | No | Reserved. Billing is not implemented |
 | `ALLOW_DEMO_SEED` | No | Allows the demo seed against a non-local disposable database. Ignored when `APP_ENV` is production |
 

@@ -5,13 +5,16 @@ import { requireAppUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatWhen } from "@/lib/format";
 import { PageFrame } from "@/components/ui/page";
+import { disconnectCalendarAction } from "@/lib/meetings/actions";
+import { googleCalendarConfigured, microsoftCalendarConfigured } from "@/lib/calendar/oauth";
 
 export const instant = false;
 export const metadata = { title: "Calendar" };
 
-export default async function CalendarPage() {
+export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
   await connection();
   const user = await requireAppUser();
+  const { notice } = await searchParams;
   const now = new Date();
   const [connections, events, tasks] = await Promise.all([
     prisma.calendarConnection.findMany({ where: { userId: user.id } }),
@@ -27,15 +30,16 @@ export default async function CalendarPage() {
       take: 20,
     }),
   ]);
-  const googleReady = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
-  const microsoftReady = Boolean(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET);
+  const googleReady = googleCalendarConfigured();
+  const microsoftReady = microsoftCalendarConfigured();
 
   const monthStart = startOfMonth(now);
   const days = eachDayOfInterval({ start: monthStart, end: endOfMonth(now) });
   const lead = getDay(monthStart);
 
   return (
-    <PageFrame title="Calendar" subtitle="Internal lunches and follow-ups live here. External calendars stay separate until a connection is tested.">
+    <PageFrame title="Calendar" subtitle="Internal lunches and follow-ups live here. External calendars stay disconnected until OAuth succeeds.">
+      {notice ? <p className="mb-3 rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-slate-200">{notice}</p> : null}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.8fr)]">
         <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
           <div className="mb-3 flex items-center justify-between">
@@ -81,7 +85,17 @@ export default async function CalendarPage() {
             <h2 className="font-semibold text-[#10263E]">External calendars</h2>
             <p className="mt-2">Google Calendar: {statusLabel(connections.find((item) => item.provider === "google")?.status, googleReady)}</p>
             <p>Microsoft 365: {statusLabel(connections.find((item) => item.provider === "microsoft")?.status, microsoftReady)}</p>
-            <p className="mt-2 text-xs text-[#66758B]">Busy time from an unconnected calendar is not read. The month grid only shows RepPilot records plus events already stored from a tested connection.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {googleReady ? <a className="inline-flex h-10 items-center rounded-xl bg-[#10263E] px-3 text-xs font-medium text-white" href="/api/calendar/google/start">Connect Google</a> : <span className="text-xs text-[#66758B]">Google OAuth credentials are not set.</span>}
+              {microsoftReady ? <a className="inline-flex h-10 items-center rounded-xl bg-[#10263E] px-3 text-xs font-medium text-white" href="/api/calendar/microsoft/start">Connect Microsoft 365</a> : <span className="text-xs text-[#66758B]">Microsoft OAuth credentials are not set.</span>}
+            </div>
+            {connections.some((item) => item.status === "connected") ? (
+              <form action={disconnectCalendarAction} className="mt-3 flex gap-2">
+                <button name="provider" value="google" className="h-10 rounded-xl px-3 text-xs ring-1 ring-slate-200" type="submit">Disconnect Google</button>
+                <button name="provider" value="microsoft" className="h-10 rounded-xl px-3 text-xs ring-1 ring-slate-200" type="submit">Disconnect Microsoft</button>
+              </form>
+            ) : null}
+            <p className="mt-2 text-xs text-[#66758B]">Busy time from an unconnected calendar is not read, and it is not treated as free. Offices never see private event titles. The month grid shows RepPilot records only until a connection has been authorized.</p>
           </section>
           <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
             <h2 className="font-semibold text-[#10263E]">Internal schedule</h2>

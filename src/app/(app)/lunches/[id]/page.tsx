@@ -9,6 +9,7 @@ import { CATERING_PROVIDERS } from "@/lib/domain/catalog";
 import { previewBookingPolicy } from "@/lib/services/orders";
 import { canRecordOrder } from "@/lib/domain/policy";
 import { exceptionAction, handoffAction, recordOrderAction } from "@/lib/actions";
+import { approveLunchAction } from "@/lib/meetings/actions";
 import { EXCEPTION_LIMIT, LEGALITY_FOOTER } from "@/lib/domain/policy";
 import { canReviewCompliance } from "@/lib/permissions";
 import { revealToken } from "@/lib/services/links";
@@ -68,6 +69,13 @@ export default async function LunchDetailPage({
         {notice ? <p className="mb-2 rounded-xl bg-[#F5F7FA] px-3 py-2 text-sm">{notice}</p> : null}
         <p className="font-medium text-[#10263E]">{formatWhen(lunch.slotStartsAt, lunch.timezone)}</p>
         <p className="text-sm capitalize text-[#66758B]">{lunch.status.replaceAll("_", " ").toLowerCase()} · {lunch.confirmedAt ? `Confirmed ${formatWhen(lunch.confirmedAt, lunch.timezone)}` : "Not confirmed by the office"}</p>
+        {lunch.status === "AWAITING_APPROVAL" ? (
+          <form action={approveLunchAction} className="mt-3">
+            <input type="hidden" name="bookingId" value={lunch.id} />
+            <button className="h-11 rounded-xl bg-[#19B78A] px-4 text-sm font-semibold text-[#06281f]" type="submit">Approve this lunch</button>
+            <p className="mt-2 text-xs text-[#66758B]">The office requested a time you offered. Approving places it on your RepPilot calendar. It is only a tentative hold until then.</p>
+          </form>
+        ) : null}
         <p className="mt-1 text-sm">{lunch.purpose}</p>
         <p className="mt-2 text-sm">Attendance: {lunch.confirmedAttendees != null ? `${lunch.confirmedAttendees} confirmed` : `${lunch.expectedAttendees} expected`} · Spend on file: {formatCents(amountCents)}</p>
       </section>

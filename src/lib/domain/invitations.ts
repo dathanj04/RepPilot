@@ -53,6 +53,9 @@ export function evaluateConfirmationLink(input: {
   if (input.revoked || input.expiresAt <= input.now) {
     return { ok: false, reason: "This confirmation link is no longer active." };
   }
+  if (input.bookingStatus === "AWAITING_APPROVAL") {
+    return { ok: false, reason: "The representative has not approved this time yet." };
+  }
   if (input.bookingStatus === "CANCELED") {
     return {
       ok: false,

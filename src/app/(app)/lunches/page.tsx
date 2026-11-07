@@ -25,10 +25,12 @@ export default async function LunchesPage() {
     }),
   ]);
   const now = new Date();
+  const awaiting = lunches.filter((lunch) => lunch.status === "AWAITING_APPROVAL");
   const upcoming = lunches.filter((lunch) => lunch.slotStartsAt >= now && (lunch.status === "SCHEDULED" || lunch.status === "CHANGE_REQUESTED"));
   const confirmed = lunches.filter((lunch) => lunch.slotStartsAt >= now && lunch.status === "CONFIRMED");
   const completed = lunches.filter((lunch) => lunch.status === "COMPLETED" || (lunch.slotStartsAt < now && lunch.status !== "CANCELED"));
   const sections = [
+    ["Waiting on your approval", awaiting.map(card)],
     ["Waiting on the office", invitations.map((invitation) => ({
       id: invitation.id,
       href: `/accounts/${invitation.accountId}?tab=lunches`,

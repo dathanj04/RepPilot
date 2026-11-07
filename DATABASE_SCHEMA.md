@@ -9,7 +9,8 @@ Every customer record that belongs to a company carries `organizationId`. Querie
 - Identity: `User`, `Role`, `Organization`, `OrganizationMembership`, `Subscription`
 - Territory: `Territory`, `TerritoryAssignment`, `Account`, `AccountContact`, `AccountAssignment`, `AccountNote`
 - Activity: `AccountInteraction`, `InteractionParticipant`, `FollowUpTask`, `DailyRoute`, `RouteStop`
-- Calendar, internal only: `CalendarConnection`, `CalendarEventMapping`
+- Calendar: `CalendarConnection` (encrypted OAuth ciphertext and preferences), `CalendarEventMapping`
+- Scheduling: `SchedulingInvitation`, `SchedulingSlot`, `MeetingRequest`, `MeetingStatusEvent`, `Meeting`
 - Lunch: `LunchInvitation`, `InvitationTimeSlot`, `LunchBooking`, `LunchReminder`, `LunchConfirmation`, `LunchChangeRequest`
 - Catering and policy: `CateringOrder`, `OrderReceipt`, `OfficeSpendingEntry`, `MealPolicy`, `PolicyRule`, `PolicyEvaluation`, `PolicyExceptionRequest`, `Approval`
 - Integrations and AI: `ExternalCRMConnection`, `ExternalRecordMapping`, `AIInteraction`, `AIUsageRecord`

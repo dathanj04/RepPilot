@@ -42,7 +42,8 @@ Each integration is an adapter:
 - Maps: Google Maps JavaScript when the public key exists, otherwise Leaflet and OpenStreetMap. Server Geocoding, Places, and Routes run only with `GOOGLE_MAPS_API_KEY`. Parsers in `src/lib/maps/provider.ts` drop incomplete results instead of filling them in.
 - AI: Gemini on the server when `GEMINI_API_KEY` exists, otherwise the deterministic extractor. Briefings that contain numbers outside the calculated set are discarded.
 - Email: Resend when configured, otherwise a `logged_demo` delivery row.
-- Calendar and CRM: connection rows stay `not_connected`. Internal `CalendarEventMapping` rows are created for accepted lunches.
+- Calendar: Google and Microsoft OAuth store encrypted tokens when a representative connects. Meeting approval reads free/busy only from a connected calendar and writes an external event only after that call succeeds. Scheduling invitations cannot confirm a meeting by themselves.
+- CRM: connection rows stay `not_connected`.
 
 ## Navigation
 

@@ -23,7 +23,7 @@ The variable list is maintained in `ENVIRONMENT_VARIABLES.md`. Copy `.env.exampl
 | `TEST_EMAIL_TO` | For the transport test | Inbox you control. `npm run email:test` refuses seeded office domains |
 | `SENTRY_DSN` | Recommended | Sends server errors to Sentry. Empty disables the client |
 | `ALERT_WEBHOOK_URL` | Optional | Receives JSON when email delivery or a server error fails |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No | Reserved for Google Calendar OAuth |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No | Google Calendar OAuth. Absent values leave connect unavailable |
 | `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` / `MICROSOFT_TENANT_ID` | No | Reserved for Microsoft Graph |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | No | Reserved. Billing is not implemented |
 

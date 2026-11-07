@@ -33,7 +33,18 @@ Still later: traffic-aware reordering, drawing a territory polygon on the map, a
 
 ## Phase 3 — Calendar and approval-gated invitations
 
-Partial. Lunch invitations expire, accept one slot, and reject a second booking. Clinics do not receive a standing calendar. Google Calendar and Microsoft Graph OAuth, free/busy, and a separate meeting-request state machine are not built. A clinic cannot confirm a representative's external calendar because no external calendar is written.
+Implemented for RepPilot scheduling invitations.
+
+- A representative issues a single-use link with a 24-hour default lifetime, or 48 hours or 7 days when the organization allows it.
+- The office can request one offered time. The request stays `PENDING`. No confirmed meeting and no external calendar event are created.
+- The representative approves, declines, or proposes another offered time. Approval checks RepPilot commitments again, and a connected Google or Microsoft calendar when one exists. A failed calendar read leaves the request pending.
+- Confirmation writes one RepPilot meeting. A second approval does not create another. An external event is written only after a connected calendar accepts it, and a failed write is labeled `failed` rather than synced.
+- An expired or used link cannot create a booking. The expired page uses the required expiration message and can ask the representative for a new invitation without booking anything.
+- A request that was already submitted stays on its own record after the link expires.
+- Lunch slot selection now waits in `AWAITING_APPROVAL` with a tentative hold. Reminders start after the representative approves.
+- Google and Microsoft OAuth start, callback, disconnect, and free/busy adapters are in place. They stay disconnected until client credentials exist and a user completes authorization.
+
+Still later: Apple Calendar beyond the internal record, two-way iCloud, and webhook reconciliation for external event edits.
 
 ## Phase 4 — Lunch and learn coordination
 

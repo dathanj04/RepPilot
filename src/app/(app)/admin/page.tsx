@@ -53,9 +53,19 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             <label className="text-sm">Workday end<input name="workdayEnd" defaultValue={settings.workdayEnd} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
             <label className="text-sm">Recent visit days<input name="recentVisitDays" type="number" defaultValue={settings.recentVisitDays} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
             <label className="text-sm">Overdue visit days<input name="overdueVisitDays" type="number" defaultValue={settings.overdueVisitDays} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
-            <label className="text-sm">Invitation hours<input name="invitationExpiryHours" type="number" defaultValue={settings.invitationExpiryHours} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
+            <label className="text-sm">Lunch invitation hours<input name="invitationExpiryHours" type="number" defaultValue={settings.invitationExpiryHours} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
             <label className="text-sm">Internal cap ($ / person)<input name="cap" type="number" step="0.01" defaultValue={policy ? policy.perPersonCapCents / 100 : 25} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
           </div>
+          <fieldset className="text-sm">
+            <legend className="font-medium">Meeting invitation lifetimes</legend>
+            <p className="text-xs text-[#66758B]">Representatives can only issue a lifetime checked here. The default choice on the form is 24 hours.</p>
+            {[24, 48, 168].map((hours) => (
+              <label key={hours} className="mt-1 flex items-center gap-2">
+                <input type="checkbox" name={`allow${hours}`} defaultChecked={settings.allowedInvitationHours.includes(hours as 24 | 48 | 168)} />
+                {hours === 168 ? "7 days" : `${hours} hours`}
+              </label>
+            ))}
+          </fieldset>
           <label className="text-sm"><input type="checkbox" name="aiEnabled" defaultChecked={settings.aiEnabled} className="mr-2" />AI features available</label>
           {!policy ? <label className="text-sm"><input type="checkbox" name="createPolicy" className="mr-2" />Create an internal meal policy</label> : <p className="text-xs text-[#66758B]">{policy.name} {policy.version} is active. The cap is an internal company figure, not a federal meal allowance. Entertainment and referral-linked meals stay prohibited.</p>}
           <button className="h-11 rounded-xl bg-[#10263E] text-sm font-medium text-white" type="submit">Save organization settings</button>

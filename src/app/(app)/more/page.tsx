@@ -12,6 +12,7 @@ export default async function MorePage() {
   const user = await requireAppUser();
   const links = [
     ["/tasks", "Follow-ups"],
+    ["/meetings", "Meeting requests"],
     ["/lunches", "Lunches"],
     ["/route", "Plan route"],
     ["/spending", "Spending"],

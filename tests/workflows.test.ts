@@ -3,7 +3,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createPrisma } from "../src/lib/db";
 import { hashToken } from "../src/lib/domain/tokens";
 import { saveCheckIn } from "../src/lib/services/checkins";
-import { acceptInvitationSlot, confirmLunch, createInvitation } from "../src/lib/services/lunches";
+import { acceptInvitationSlot, approveLunchBooking, confirmLunch, createInvitation } from "../src/lib/services/lunches";
+import { approveMeetingRequest, createSchedulingInvitation, requestReplacementInvitation, submitMeetingRequest } from "../src/lib/services/meetings";
 import { recordCateringOrder, requestPolicyException } from "../src/lib/services/orders";
 import { processDueReminders } from "../src/lib/services/reminders";
 import { renderReminderEmail } from "../src/lib/email/templates";
@@ -146,6 +147,15 @@ describe("workflow persistence", () => {
     const tokenHash = hashToken(created.token);
     const first = await acceptInvitationSlot(prisma, { tokenHash, slotId: slot.id, now });
     expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const held = await prisma.lunchBooking.findUniqueOrThrow({ where: { id: first.bookingId } });
+    expect(held.status).toBe("AWAITING_APPROVAL");
+    expect(await prisma.calendarEventMapping.count({ where: { lunchBookingId: held.id, syncState: "internal" } })).toBe(0);
+    const approved = await approveLunchBooking(prisma, { organizationId: orgA.id, userId: user.id, bookingId: held.id, now });
+    expect(approved.ok).toBe(true);
+    const again = await approveLunchBooking(prisma, { organizationId: orgA.id, userId: user.id, bookingId: held.id, now });
+    expect(again.ok).toBe(false);
+    expect(await prisma.calendarEventMapping.count({ where: { lunchBookingId: held.id, syncState: "internal" } })).toBe(1);
     const second = await acceptInvitationSlot(prisma, { tokenHash, slotId: slot.id, now });
     expect(second.ok).toBe(false);
     expect(await prisma.lunchBooking.count({ where: { invitationId: created.invitation.id } })).toBe(1);
@@ -348,5 +358,118 @@ describe("workflow persistence", () => {
     });
     const visible = await prisma.auditLog.findMany({ where: { organizationId: orgB.id, entityId: accountA.id } });
     expect(visible).toEqual([]);
+  });
+
+  it("keeps a meeting pending until approval and rejects an expired token", async () => {
+    const { orgA, orgB, user, accountA } = await fixture();
+    const created = await createSchedulingInvitation(prisma, {
+      organizationId: orgA.id,
+      userId: user.id,
+      accountId: accountA.id,
+      lifetimeHours: 24,
+      allowedHours: [24, 48, 168],
+      publicContact: true,
+      now,
+      slots: [
+        { startsAt: new Date("2026-10-21T15:00:00.000Z"), endsAt: new Date("2026-10-21T15:30:00.000Z") },
+        { startsAt: new Date("2026-10-22T15:00:00.000Z"), endsAt: new Date("2026-10-22T15:30:00.000Z") },
+      ],
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const submitted = await submitMeetingRequest(prisma, {
+      tokenHash: hashToken(created.token),
+      slotId: created.invitation.slots[0]!.id,
+      officeName: accountA.name,
+      requesterName: "Office manager",
+      requesterEmail: "office@example.com",
+      purpose: "Introductory meeting with the care team.",
+      now,
+    });
+    expect(submitted.ok).toBe(true);
+    if (!submitted.ok) return;
+    expect(await prisma.meeting.count({ where: { requestId: submitted.requestId } })).toBe(0);
+    const reused = await submitMeetingRequest(prisma, {
+      tokenHash: hashToken(created.token),
+      slotId: created.invitation.slots[1]!.id,
+      officeName: accountA.name,
+      requesterName: "Office manager",
+      requesterEmail: "office@example.com",
+      purpose: "A second request through the used token.",
+      now,
+    });
+    expect(reused.ok).toBe(false);
+    const blocked = await approveMeetingRequest(prisma, { organizationId: orgB.id, userId: user.id, requestId: submitted.requestId, now });
+    expect(blocked.ok).toBe(false);
+    const approved = await approveMeetingRequest(prisma, { organizationId: orgA.id, userId: user.id, requestId: submitted.requestId, now });
+    expect(approved.ok).toBe(true);
+    if (!approved.ok) return;
+    expect(approved.created).toBe(true);
+    const repeat = await approveMeetingRequest(prisma, { organizationId: orgA.id, userId: user.id, requestId: submitted.requestId, now });
+    expect(repeat.ok).toBe(true);
+    if (!repeat.ok) return;
+    expect(repeat.created).toBe(false);
+    expect(await prisma.meeting.count({ where: { requestId: submitted.requestId } })).toBe(1);
+    expect(await prisma.meeting.findFirst({ where: { requestId: submitted.requestId } })).toMatchObject({ syncState: "not_connected", externalEventId: null });
+    const overlap = await createSchedulingInvitation(prisma, {
+      organizationId: orgA.id,
+      userId: user.id,
+      accountId: accountA.id,
+      lifetimeHours: 24,
+      allowedHours: [24],
+      publicContact: true,
+      now,
+      slots: [{ startsAt: new Date("2026-10-21T15:00:00.000Z"), endsAt: new Date("2026-10-21T15:30:00.000Z") }],
+    });
+    expect(overlap.ok).toBe(true);
+    if (!overlap.ok) return;
+    const overlapRequest = await submitMeetingRequest(prisma, {
+      tokenHash: hashToken(overlap.token),
+      slotId: overlap.invitation.slots[0]!.id,
+      officeName: "Other office",
+      requesterName: "Coordinator",
+      requesterEmail: "",
+      purpose: "A conflicting introductory meeting.",
+      now,
+    });
+    expect(overlapRequest.ok).toBe(true);
+    if (!overlapRequest.ok) return;
+    const conflict = await approveMeetingRequest(prisma, { organizationId: orgA.id, userId: user.id, requestId: overlapRequest.requestId, now });
+    expect(conflict.ok).toBe(false);
+    expect(await prisma.meeting.count({ where: { requestId: overlapRequest.requestId } })).toBe(0);
+
+    const expired = await createSchedulingInvitation(prisma, {
+      organizationId: orgA.id,
+      userId: user.id,
+      accountId: accountA.id,
+      lifetimeHours: 24,
+      allowedHours: [24],
+      publicContact: true,
+      now: new Date("2026-09-01T15:00:00.000Z"),
+      slots: [{ startsAt: new Date("2026-10-28T15:00:00.000Z"), endsAt: new Date("2026-10-28T15:30:00.000Z") }],
+    });
+    expect(expired.ok).toBe(true);
+    if (!expired.ok) return;
+    await prisma.schedulingInvitation.update({ where: { id: expired.invitation.id }, data: { expiresAt: new Date("2026-09-02T15:00:00.000Z") } });
+    const late = await submitMeetingRequest(prisma, {
+      tokenHash: hashToken(expired.token),
+      slotId: expired.invitation.slots[0]!.id,
+      officeName: accountA.name,
+      requesterName: "Returning office",
+      requesterEmail: "",
+      purpose: "Trying the old link thirty days later.",
+      now,
+    });
+    expect(late.ok).toBe(false);
+    const asked = await requestReplacementInvitation(prisma, {
+      tokenHash: hashToken(expired.token),
+      officeName: accountA.name,
+      note: "Please send a new invitation.",
+      now,
+    });
+    expect(asked.ok).toBe(true);
+    expect(await prisma.meeting.count({ where: { organizationId: orgA.id, request: { invitationId: expired.invitation.id } } })).toBe(0);
+    const pendingStillThere = await prisma.meetingRequest.findUnique({ where: { id: submitted.requestId } });
+    expect(pendingStillThere?.status).toBe("CONFIRMED");
   });
 });

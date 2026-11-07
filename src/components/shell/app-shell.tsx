@@ -18,6 +18,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/accounts", label: "Accounts", icon: "accounts" },
     { href: "/route", label: "Route Planner", icon: "route" },
     { href: "/calendar", label: "Calendar", icon: "calendar" },
+    { href: "/meetings", label: "Meeting Requests", icon: "meetings" },
     { href: "/lunches", label: "Lunch & Learns", icon: "lunches" },
     { href: "/tasks", label: "Activities", icon: "tasks" },
     { href: "/reports", label: "Reports", icon: "spending" },

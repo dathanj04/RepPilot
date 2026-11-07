@@ -48,10 +48,10 @@ export default async function InvitationPage({ params }: { params: Promise<{ tok
   if (invitation.status === "ACCEPTED") {
     const selected = invitation.slots.find((slot) => slot.id === invitation.selectedSlotId);
     return (
-      <PublicShell eyebrow={invitation.organization.name} title="A time from this invitation is already confirmed.">
+      <PublicShell eyebrow={invitation.organization.name} title="A time from this invitation was already requested.">
         <p className="text-sm">{invitation.account.name}</p>
         {selected ? <p className="mt-2 font-medium">{formatWhen(selected.startsAt, invitation.organization.timezone)}</p> : null}
-        <p className="mt-2 text-sm text-[#66758B]">This link cannot choose another time.</p>
+        <p className="mt-2 text-sm text-[#66758B]">This link cannot choose another time. The request is not a confirmed calendar event until the representative approves it.</p>
         <Contact email={invitation.createdBy.email} name={invitation.createdBy.name} />
       </PublicShell>
     );

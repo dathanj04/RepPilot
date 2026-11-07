@@ -8,6 +8,7 @@ export const orgSettingsSchema = z.object({
   overdueVisitDays: z.number().int().positive().default(45),
   staleBriefingDays: z.number().int().positive().default(30),
   invitationExpiryHours: z.number().int().positive().default(48),
+  allowedInvitationHours: z.array(z.union([z.literal(24), z.literal(48), z.literal(168)])).default([24, 48, 168]),
   aiEnabled: z.boolean().default(true),
   monthlyAiLimit: z.number().int().nonnegative().default(200),
   previewCapabilities: z.array(z.string()).default([]),

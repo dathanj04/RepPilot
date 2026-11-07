@@ -31,6 +31,9 @@ model User {
   routes               DailyRoute[]
   calendarConnections  CalendarConnection[]
   invitations          LunchInvitation[]
+  schedulingInvitations SchedulingInvitation[]
+  meetingDecisions     MeetingRequest[]          @relation("MeetingDecider")
+  meetings             Meeting[]
   lunchBookings        LunchBooking[]            @relation("LunchRepresentative")
   notifications        Notification[]
   auditLogs            AuditLog[]
@@ -66,6 +69,9 @@ model Organization {
   accounts          Account[]
   policies          MealPolicy[]
   invitations       LunchInvitation[]
+  schedulingInvitations SchedulingInvitation[]
+  meetingRequests   MeetingRequest[]
+  meetings          Meeting[]
   lunchBookings     LunchBooking[]
   spendingEntries   OfficeSpendingEntry[]
   subscription      Subscription?
@@ -182,6 +188,8 @@ model Account {
   spending     OfficeSpendingEntry[]
   routeStops   RouteStop[]
   secureLinks  SecureLinkToken[]
+  schedulingInvitations SchedulingInvitation[]
+  meetingRequests MeetingRequest[]
 
   @@index([organizationId])
   @@index([organizationId, name])
@@ -336,6 +344,7 @@ model CalendarConnection {
   status                String
   externalAccountEmail  String?
   credentialCiphertext  String?
+  preferences           Json     @default("{}")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -365,6 +374,111 @@ model CalendarEventMapping {
 
   @@index([organizationId, userId, startsAt])
   @@index([lunchBookingId])
+}
+
+model SchedulingInvitation {
+  id             String   @id @default(cuid())
+  organizationId String
+  createdById    String
+  accountId      String?
+  invitationType String   @default("meeting")
+  status         String   @default("ACTIVE")
+  maxUses        Int      @default(1)
+  useCount       Int      @default(0)
+  lifetimeHours  Int
+  expiresAt      DateTime
+  publicContact  Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User               @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  account      Account?           @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  slots        SchedulingSlot[]
+  requests     MeetingRequest[]
+  secureLinks  SecureLinkToken[]
+
+  @@index([organizationId, status, expiresAt])
+  @@index([createdById])
+}
+
+model SchedulingSlot {
+  id           String   @id @default(cuid())
+  invitationId String
+  startsAt     DateTime
+  endsAt       DateTime
+
+  invitation SchedulingInvitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  @@index([invitationId, startsAt])
+}
+
+model MeetingRequest {
+  id                String    @id @default(cuid())
+  organizationId    String
+  invitationId      String
+  accountId         String?
+  officeName        String
+  requesterName     String
+  requesterEmail    String?
+  purpose           String
+  requestedStartsAt DateTime
+  requestedEndsAt   DateTime
+  proposedStartsAt  DateTime?
+  proposedEndsAt    DateTime?
+  status            String
+  decidedById       String?
+  decidedAt         DateTime?
+  decisionNote      String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitation   SchedulingInvitation  @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  account      Account?              @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  decidedBy    User?                 @relation("MeetingDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  history      MeetingStatusEvent[]
+  meeting      Meeting?
+  secureLinks  SecureLinkToken[]
+
+  @@index([organizationId, status, requestedStartsAt])
+  @@index([invitationId])
+}
+
+model MeetingStatusEvent {
+  id         String   @id @default(cuid())
+  requestId  String
+  fromStatus String?
+  toStatus   String
+  actorId    String?
+  actorLabel String
+  createdAt  DateTime @default(now())
+
+  request MeetingRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+}
+
+model Meeting {
+  id              String   @id @default(cuid())
+  organizationId  String
+  requestId       String   @unique
+  userId          String
+  accountId       String?
+  startsAt        DateTime
+  endsAt          DateTime
+  status          String   @default("CONFIRMED")
+  syncState       String   @default("not_connected")
+  externalEventId String?
+  provider        String   @default("internal")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  request      MeetingRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, userId, startsAt])
 }
 
 model LunchInvitation {
@@ -761,24 +875,30 @@ model RateLimitBucket {
 }
 
 model SecureLinkToken {
-  id               String    @id @default(cuid())
-  organizationId   String
-  purpose          String
-  tokenHash        String    @unique
-  tokenCiphertext  String
-  accountId        String?
-  invitationId     String?
-  bookingId        String?
-  expiresAt        DateTime
-  revokedAt        DateTime?
-  createdAt        DateTime  @default(now())
+  id                     String    @id @default(cuid())
+  organizationId         String
+  purpose                String
+  tokenHash              String    @unique
+  tokenCiphertext        String
+  accountId              String?
+  invitationId           String?
+  bookingId              String?
+  schedulingInvitationId String?
+  meetingRequestId       String?
+  expiresAt              DateTime
+  revokedAt              DateTime?
+  createdAt              DateTime  @default(now())
 
-  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  account      Account?         @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  invitation   LunchInvitation? @relation(fields: [invitationId], references: [id], onDelete: Cascade)
-  booking      LunchBooking?    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account              Account?              @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  invitation           LunchInvitation?      @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  booking              LunchBooking?         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  schedulingInvitation SchedulingInvitation? @relation(fields: [schedulingInvitationId], references: [id], onDelete: Cascade)
+  meetingRequest       MeetingRequest?       @relation(fields: [meetingRequestId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, purpose])
   @@index([invitationId])
   @@index([bookingId])
+  @@index([schedulingInvitationId])
+  @@index([meetingRequestId])
 }

@@ -33,7 +33,7 @@ export function InvitationResponse({
         start(async () => {
           const response = await clinicRespondAction({ token, intent: "accept", slotId, name });
           if ("error" in response && response.error) setError(response.error);
-          else if ("message" in response) setMessage(response.message ?? "That time is confirmed.");
+          else if ("message" in response) setMessage(response.message ?? "Request sent. It is not confirmed until your representative approves it.");
         });
       }}
     >
@@ -48,7 +48,7 @@ export function InvitationResponse({
       </fieldset>
       <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name (optional)" className="h-12 rounded-xl border border-slate-200 bg-white px-3" />
       <button disabled={pending || !slotId} className="h-12 rounded-xl bg-[#19B78A] font-semibold text-[#06281f] disabled:opacity-50" type="submit">
-        {pending ? "Confirming…" : "Confirm selected time"}
+        {pending ? "Sending…" : "Request this time"}
       </button>
       <Feedback message={null} error={error} />
     </form>

@@ -165,7 +165,7 @@ export async function acceptInvitationSlot(
           invitationId: invitation.id,
           slotStartsAt: slot.startsAt,
           slotEndsAt: slot.endsAt,
-          status: "SCHEDULED",
+          status: "AWAITING_APPROVAL",
           purpose: invitation.purpose,
           expectedAttendees: meta.expectedAttendees ?? 8,
           timezone: "America/Chicago",
@@ -203,44 +203,16 @@ export async function acceptInvitationSlot(
         data: { revokedAt: input.now },
       });
 
-      const reminders = computeReminderInstants(slot.startsAt, "America/Chicago");
-      await tx.lunchReminder.createMany({
-        data: (Object.keys(reminders) as (keyof typeof reminders)[]).map((kind) => ({
-          organizationId: invitation.organizationId,
-          bookingId: created.id,
-          kind,
-          scheduledFor: reminders[kind],
-          status: "SCHEDULED",
-          idempotencyKey: reminderIdempotencyKey(created.id, kind, slot.startsAt.toISOString()),
-        })),
-      });
-
-      if (meta.estimatedBudgetCents && meta.estimatedBudgetCents > 0) {
-        await tx.officeSpendingEntry.create({
-          data: {
-            organizationId: invitation.organizationId,
-            accountId: invitation.accountId,
-            bookingId: created.id,
-            kind: "commitment",
-            amountCents: meta.estimatedBudgetCents,
-            attendeeCount: meta.expectedAttendees ?? 8,
-            vendor: null,
-            occurredOn: slot.startsAt,
-            policyStatus: "pending",
-          },
-        });
-      }
-
       await tx.calendarEventMapping.create({
         data: {
           organizationId: invitation.organizationId,
           userId: invitation.createdById,
           provider: "internal",
           lunchBookingId: created.id,
-          title: `Educational lunch · ${invitation.account.name}`,
+          title: `Tentative hold · not confirmed · ${invitation.account.name}`,
           startsAt: slot.startsAt,
           endsAt: slot.endsAt,
-          syncState: "internal",
+          syncState: "tentative",
         },
       });
 
@@ -248,9 +220,9 @@ export async function acceptInvitationSlot(
         data: {
           organizationId: invitation.organizationId,
           userId: invitation.createdById,
-          kind: "lunch_scheduled",
-          title: "Lunch time selected",
-          body: `${invitation.account.name} selected a time you offered.`,
+          kind: "lunch_requested",
+          title: "Lunch time requested",
+          body: `${invitation.account.name} requested a time you offered. It is not confirmed until you approve it.`,
           href: `/lunches/${created.id}`,
         },
       });
@@ -381,9 +353,97 @@ export async function requestLunchChange(
   return { ok: true as const };
 }
 
+export async function approveLunchBooking(
+  db: Db,
+  input: { organizationId: string; userId: string; bookingId: string; now: Date },
+) {
+  const booking = await db.lunchBooking.findFirst({
+    where: { id: input.bookingId, organizationId: input.organizationId },
+    include: { account: true },
+  });
+  if (!booking) return { ok: false as const, error: "That lunch is not in your organization." };
+  if (booking.representativeId !== input.userId) return { ok: false as const, error: "Only the assigned representative can approve this lunch." };
+  if (booking.status !== "AWAITING_APPROVAL") return { ok: false as const, error: "This lunch is not waiting for approval." };
+  const [lunches, meetings] = await Promise.all([
+    db.lunchBooking.findMany({
+      where: {
+        representativeId: booking.representativeId,
+        id: { not: booking.id },
+        status: { notIn: ["CANCELED", "AWAITING_APPROVAL", "COMPLETED"] },
+      },
+    }),
+    db.meeting.findMany({ where: { organizationId: input.organizationId, userId: booking.representativeId, status: "CONFIRMED" } }),
+  ]);
+  const overlap = [...lunches.map((item) => rangesOverlap(item.slotStartsAt, item.slotEndsAt, booking.slotStartsAt, booking.slotEndsAt)), ...meetings.map((item) => rangesOverlap(item.startsAt, item.endsAt, booking.slotStartsAt, booking.slotEndsAt))].some(Boolean);
+  if (overlap) return { ok: false as const, error: "That time now conflicts with another commitment. The lunch stays unapproved." };
+
+  const audit = await db.auditLog.findFirst({ where: { entityId: booking.invitationId ?? "", action: "invitation.created" } });
+  const meta = (audit?.metadata ?? {}) as { expectedAttendees?: number; estimatedBudgetCents?: number | null };
+  await db.$transaction(async (tx) => {
+    const current = await tx.lunchBooking.findFirst({ where: { id: booking.id, status: "AWAITING_APPROVAL" } });
+    if (!current) return;
+    await tx.lunchBooking.update({ where: { id: booking.id }, data: { status: "SCHEDULED" } });
+    await tx.calendarEventMapping.updateMany({
+      where: { lunchBookingId: booking.id, syncState: "tentative" },
+      data: { title: `Educational lunch · ${booking.account.name}`, syncState: "internal" },
+    });
+    const reminders = computeReminderInstants(booking.slotStartsAt, booking.timezone);
+    const existingReminders = await tx.lunchReminder.count({ where: { bookingId: booking.id } });
+    if (existingReminders === 0) {
+      await tx.lunchReminder.createMany({
+        data: (Object.keys(reminders) as (keyof typeof reminders)[]).map((kind) => ({
+          organizationId: booking.organizationId,
+          bookingId: booking.id,
+          kind,
+          scheduledFor: reminders[kind],
+          status: "SCHEDULED",
+          idempotencyKey: reminderIdempotencyKey(booking.id, kind, booking.slotStartsAt.toISOString()),
+        })),
+      });
+    }
+    if (meta.estimatedBudgetCents && meta.estimatedBudgetCents > 0) {
+      const spending = await tx.officeSpendingEntry.count({ where: { bookingId: booking.id, kind: "commitment" } });
+      if (spending === 0) {
+        await tx.officeSpendingEntry.create({
+          data: {
+            organizationId: booking.organizationId,
+            accountId: booking.accountId,
+            bookingId: booking.id,
+            kind: "commitment",
+            amountCents: meta.estimatedBudgetCents,
+            attendeeCount: meta.expectedAttendees ?? booking.expectedAttendees,
+            occurredOn: booking.slotStartsAt,
+            policyStatus: "pending",
+          },
+        });
+      }
+    }
+    await tx.notification.create({
+      data: {
+        organizationId: booking.organizationId,
+        userId: booking.representativeId,
+        kind: "lunch_scheduled",
+        title: "Lunch approved",
+        body: `${booking.account.name} is on your RepPilot calendar. No external calendar was written by this approval.`,
+        href: `/lunches/${booking.id}`,
+      },
+    });
+    await tx.auditLog.create({
+      data: {
+        organizationId: booking.organizationId,
+        actorId: input.userId,
+        action: "lunch.approved",
+        entityType: "LunchBooking",
+        entityId: booking.id,
+      },
+    });
+  });
+  return { ok: true as const, bookingId: booking.id };
+}
+
 export async function issueConfirmationLink(db: Db, bookingId: string, now: Date) {
   const booking = await db.lunchBooking.findUnique({ where: { id: bookingId } });
-  if (!booking || booking.status === "CANCELED") return null;
+  if (!booking || booking.status === "CANCELED" || booking.status === "AWAITING_APPROVAL") return null;
   await db.secureLinkToken.updateMany({
     where: { bookingId, purpose: "lunch_confirmation", revokedAt: null },
     data: { revokedAt: now },

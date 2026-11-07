@@ -3,7 +3,7 @@ import { getIronSession, nextProxyCookies } from "iron-session";
 import { sessionOptions, type SessionData } from "@/lib/session-options";
 import { bearerSeal, isPreviewRequest, unsealSession } from "@/lib/session-seal";
 
-const PUBLIC_PATH = [/^\/login$/, /^\/signup$/, /^\/i\//, /^\/l\//, /^\/o\//, /^\/api\/cron/, /^\/api\/health$/];
+const PUBLIC_PATH = [/^\/login$/, /^\/signup$/, /^\/i\//, /^\/l\//, /^\/o\//, /^\/m\//, /^\/api\/cron/, /^\/api\/health$/];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
