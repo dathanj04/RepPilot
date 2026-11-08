@@ -15,7 +15,7 @@ This build is a working application with a real PostgreSQL database. Several ext
 - Track follow-ups, an internal calendar, and an advisory route.
 - Offer specific lunch times on a private clinic link.
 - Confirm a lunch or request a change without a clinic account.
-- Open ezCater or DoorDash in the browser, then record the order yourself.
+- Request catering with a lunch. The representative approves the time, and a different reviewer approves the catering. Then open ezCater or DoorDash and record the order and receipt yourself.
 - Keep recorded spending separate from upcoming commitments.
 - Review an internal meal policy. Approval cannot clear a prohibition.
 

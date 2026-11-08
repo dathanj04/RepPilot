@@ -48,7 +48,16 @@ Still later: Apple Calendar beyond the internal record, two-way iCloud, and webh
 
 ## Phase 4 — Lunch and learn coordination
 
-Partial. Requests, attendance, budget, policy blocks, catering handoff to ezCater and DoorDash, reminders, and order notes exist. Receipt files, live menus, and automatic checkout do not. Opening a provider site does not place or pay for an order.
+Implemented for the catering handoff. Live menus and automatic checkout stay disconnected.
+
+- An office can request a time and sponsored catering together. The lunch stays off the calendar until the representative approves it.
+- Catering has its own approval. The representative who owns the lunch cannot approve it. A manager, compliance administrator, or organization administrator does.
+- Provider links for ezCater and DoorDash stay closed until both approvals exist. Opening a link does not place, pay for, or complete an order.
+- The representative records the provider reference, the amounts from the receipt, and an optional PDF or image. Line items are stored only when they add up to the total. RepPilot does not calculate tax, tip, or a menu price.
+- Receipt files and the meeting and catering decisions stay on the lunch. Delivery status is whatever the representative records.
+- Reminders cover seven days, 48 hours, 24 hours, the delivery day, and a separate note to the representative when the office has not confirmed. A missing confirmation does not cancel the lunch.
+
+Still later: a licensed catering catalog, live delivery tracking, and payment inside RepPilot. Those need a real partner agreement. Uber Eats stays not connected.
 
 ## Phase 5 — CRM
 

@@ -618,6 +618,13 @@ model CateringOrder {
   groupOrderUrl          String?
   externalHandoffAt      DateTime?
   handoffVendor          String?
+  approvalStatus         String    @default("NOT_REQUESTED")
+  subtotalCents          Int?
+  taxCents               Int?
+  feeCents               Int?
+  deliveryCents          Int?
+  tipCents               Int?
+  deliveryStatus         String    @default("NOT_TRACKED")
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 
@@ -628,6 +635,7 @@ model CateringOrder {
 
   @@index([organizationId, accountId])
   @@index([organizationId, status])
+  @@index([organizationId, approvalStatus])
 }
 
 model OrderReceipt {
@@ -636,6 +644,10 @@ model OrderReceipt {
   note        String?
   reference   String?
   amountCents Int?
+  fileName    String?
+  contentType String?
+  byteSize    Int?
+  content     Bytes?
   createdAt   DateTime @default(now())
 
   order CateringOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)

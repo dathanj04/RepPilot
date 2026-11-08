@@ -98,7 +98,13 @@ export async function createInvitation(
 
 export async function acceptInvitationSlot(
   db: Db,
-  input: { tokenHash: string; slotId: string; now: Date; responderName?: string },
+  input: {
+    tokenHash: string;
+    slotId: string;
+    now: Date;
+    responderName?: string;
+    catering?: { requested: boolean; attendees?: number | null; dietary?: string; deliveryInstructions?: string };
+  },
 ) {
   const link = await db.secureLinkToken.findFirst({
     where: { tokenHash: input.tokenHash, purpose: "invitation", revokedAt: null },
@@ -157,6 +163,12 @@ export async function acceptInvitationSlot(
         deliveryInstructions?: string;
       };
 
+      const catering = input.catering?.requested ? input.catering : null;
+      const attendees = catering?.attendees && catering.attendees >= 1 && catering.attendees <= 200
+        ? catering.attendees
+        : meta.expectedAttendees ?? 8;
+      const dietary = (catering?.dietary || meta.mealPreferences || "").trim().slice(0, 500);
+      const delivery = (catering?.deliveryInstructions || meta.deliveryInstructions || "").trim().slice(0, 500);
       const created = await tx.lunchBooking.create({
         data: {
           organizationId: invitation.organizationId,
@@ -167,20 +179,22 @@ export async function acceptInvitationSlot(
           slotEndsAt: slot.endsAt,
           status: "AWAITING_APPROVAL",
           purpose: invitation.purpose,
-          expectedAttendees: meta.expectedAttendees ?? 8,
+          expectedAttendees: attendees,
           timezone: "America/Chicago",
-          mealPreferences: meta.mealPreferences || null,
-          deliveryInstructions: meta.deliveryInstructions || null,
+          mealPreferences: dietary || null,
+          deliveryInstructions: delivery || null,
           estimatedBudgetCents: meta.estimatedBudgetCents ?? null,
+          confirmedByName: input.responderName?.trim() || null,
           order: {
             create: {
               organizationId: invitation.organizationId,
               accountId: invitation.accountId,
               status: "NOT_STARTED",
+              approvalStatus: catering ? "PENDING" : "NOT_REQUESTED",
               estimatedAmountCents: meta.estimatedBudgetCents ?? null,
-              confirmedAttendees: meta.expectedAttendees ?? 8,
+              confirmedAttendees: attendees,
               targetDeliveryAt: slot.startsAt,
-              deliveryInstructions: meta.deliveryInstructions || null,
+              deliveryInstructions: delivery || null,
             },
           },
         },
@@ -222,7 +236,9 @@ export async function acceptInvitationSlot(
           userId: invitation.createdById,
           kind: "lunch_requested",
           title: "Lunch time requested",
-          body: `${invitation.account.name} requested a time you offered. It is not confirmed until you approve it.`,
+          body: catering
+            ? `${invitation.account.name} requested a time and sponsored catering. The calendar and the order each need approval.`
+            : `${invitation.account.name} requested a time you offered. It is not confirmed until you approve it.`,
           href: `/lunches/${created.id}`,
         },
       });
@@ -233,8 +249,11 @@ export async function acceptInvitationSlot(
     logEvent("info", "invitation.accepted", { bookingId: booking.id });
     return { ok: true as const, bookingId: booking.id };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "That time could not be confirmed.";
-    return { ok: false as const, error: message };
+    const message = error instanceof Error ? error.message : "";
+    const safe = message && !/prisma|invocation/i.test(message)
+      ? message
+      : "That time could not be requested. Ask your representative for a new invitation.";
+    return { ok: false as const, error: safe };
   }
 }
 
@@ -245,6 +264,7 @@ export async function confirmLunch(
     now: Date;
     responderName?: string;
     attendeeCount?: number | null;
+    deliveryInstructions?: string;
   },
 ) {
   const link = await db.secureLinkToken.findFirst({
@@ -274,6 +294,9 @@ export async function confirmLunch(
       confirmedAt: input.now,
       confirmedByName: input.responderName?.trim() || link.booking.confirmedByName,
       confirmedAttendees: attendees,
+      deliveryInstructions: input.deliveryInstructions?.trim()
+        ? input.deliveryInstructions.trim().slice(0, 500)
+        : link.booking.deliveryInstructions,
     },
   });
   await db.lunchConfirmation.upsert({
@@ -426,6 +449,17 @@ export async function approveLunchBooking(
         title: "Lunch approved",
         body: `${booking.account.name} is on your RepPilot calendar. No external calendar was written by this approval.`,
         href: `/lunches/${booking.id}`,
+      },
+    });
+    await tx.approval.create({
+      data: {
+        organizationId: booking.organizationId,
+        subjectType: "LunchBooking",
+        subjectId: booking.id,
+        gate: "meeting",
+        status: "approved",
+        decidedById: input.userId,
+        note: "Representative approved the lunch time.",
       },
     });
     await tx.auditLog.create({

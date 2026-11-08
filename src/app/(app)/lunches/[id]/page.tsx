@@ -8,7 +8,8 @@ import { formatWhen } from "@/lib/format";
 import { CATERING_PROVIDERS } from "@/lib/domain/catalog";
 import { previewBookingPolicy } from "@/lib/services/orders";
 import { canRecordOrder } from "@/lib/domain/policy";
-import { exceptionAction, handoffAction, recordOrderAction } from "@/lib/actions";
+import { exceptionAction, handoffAction, recordOrderAction, requestCateringAction } from "@/lib/actions";
+import { MENU_UNAVAILABLE, budgetRemainingCents, cateringGates } from "@/lib/domain/catering";
 import { approveLunchAction } from "@/lib/meetings/actions";
 import { EXCEPTION_LIMIT, LEGALITY_FOOTER } from "@/lib/domain/policy";
 import { canReviewCompliance } from "@/lib/permissions";
@@ -32,7 +33,14 @@ export default async function LunchDetailPage({
     where: { id, organizationId: user.organizationId },
     include: {
       account: true,
-      order: { include: { receipts: true } },
+      order: {
+        include: {
+          receipts: {
+            select: { id: true, note: true, reference: true, amountCents: true, createdAt: true, fileName: true, contentType: true, byteSize: true },
+            orderBy: { createdAt: "desc" },
+          },
+        },
+      },
       reminders: { orderBy: { scheduledFor: "asc" } },
       changeRequests: { orderBy: { createdAt: "desc" } },
       spending: true,
@@ -52,10 +60,33 @@ export default async function LunchDetailPage({
     where: { organizationId: user.organizationId, bookingId: lunch.id },
     orderBy: { createdAt: "desc" },
   });
-  const gate = canRecordOrder({
+  const approvals = await prisma.approval.findMany({
+    where: {
+      organizationId: user.organizationId,
+      OR: [
+        { subjectType: "LunchBooking", subjectId: lunch.id },
+        ...(lunch.order ? [{ subjectType: "CateringOrder", subjectId: lunch.order.id }] : []),
+        ...(exception ? [{ subjectType: "PolicyExceptionRequest", subjectId: exception.id }] : []),
+      ],
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  const policyGate = canRecordOrder({
     decision: preview.decision,
     exceptionStatus: (exception?.status as "approved" | "pending" | "denied" | "prohibited" | undefined) ?? "none",
   });
+  const approvalGate = cateringGates({
+    lunchStatus: lunch.status,
+    approvalStatus: lunch.order?.approvalStatus ?? "NOT_REQUESTED",
+  });
+  const gate = approvalGate.reason
+    ? { allowed: false, reason: approvalGate.reason }
+    : policyGate;
+  const remaining = budgetRemainingCents(
+    preview.policy?.perPersonCapCents ?? null,
+    attendees,
+    lunch.order?.estimatedAmountCents ?? lunch.estimatedBudgetCents,
+  );
   const confirmLink = lunch.secureLinks.find((link) => link.purpose === "lunch_confirmation" && !link.revokedAt);
   let confirmPath = "";
   if (confirmLink) {
@@ -118,6 +149,7 @@ export default async function LunchDetailPage({
         <p className="mt-3 text-xs">Educational purpose — {lunch.purpose.length > 8 ? "Documented" : "Missing"}</p>
         <p className="text-xs">Referral-linked meal eligibility — Not permitted</p>
         <p className="text-xs">Entertainment — Disabled in this product</p>
+        <p className="mt-2 text-sm">Budget remaining against the internal cap: {remaining == null ? "Not calculated until a policy and an estimate exist" : formatCents(remaining)}</p>
         <p className="mt-2 text-xs text-[#66758B]">{LEGALITY_FOOTER}</p>
         <p className="mt-2 text-xs">{EXCEPTION_LIMIT}</p>
         {!gate.allowed ? (
@@ -136,25 +168,59 @@ export default async function LunchDetailPage({
       <section className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
         <h2 className="font-semibold">Order catering</h2>
         <p className="text-sm text-[#66758B]">Confirmed attendees: {lunch.confirmedAttendees ?? "Not confirmed"} · Office confirmation: {lunch.confirmedAt ? "Confirmed" : "Waiting"}</p>
-        <p className="mt-1 text-xs">RepPilot does not place the order. The provider website opens, and you record the result after checkout.</p>
-        <div className="mt-3 grid gap-3">
-          {CATERING_PROVIDERS.map((provider) => provider.live ? (
-            <div key={provider.id} className="rounded-xl bg-[#F5F7FA] p-3">
-              <a className="grid h-12 place-items-center rounded-xl bg-[#10263E] text-sm font-medium text-white" href={provider.url} target="_blank" rel="noreferrer">
-                {provider.label}
-              </a>
-              <p className="mt-2 text-xs text-[#66758B]">Opens the official {provider.label.replace("Order with ", "")} website. RepPilot does not place or pay for the order.</p>
-              <form action={handoffAction} className="mt-2">
-                <input type="hidden" name="bookingId" value={lunch.id} />
-                <input type="hidden" name="vendor" value={provider.id} />
-                <button className="text-sm underline" type="submit">Mark as ordering externally</button>
-              </form>
-            </div>
-          ) : (
-            <p key={provider.id} className="rounded-xl bg-slate-100 px-3 py-2 text-sm">Uber Eats is reserved for a later approved integration and is not connected.</p>
-          ))}
-        </div>
-        <p className="mt-2 text-xs">Current order status: {lunch.order?.status.replaceAll("_", " ") ?? "Not started"}. Opening a website does not mark the order complete.</p>
+        <p className="mt-1 text-sm">Catering approval: {(lunch.order?.approvalStatus ?? "NOT_REQUESTED").replaceAll("_", " ").toLowerCase()}</p>
+        <p className="mt-1 text-xs">{MENU_UNAVAILABLE}</p>
+        <p className="mt-1 text-xs">RepPilot does not place or pay for the order. A provider link opens only after catering is approved, and opening it does not mark the order complete.</p>
+        {lunch.order?.approvalStatus === "NOT_REQUESTED" && approvalGate.meetingApproved && user.id === lunch.representativeId ? (
+          <form action={requestCateringAction} className="mt-3 grid gap-2">
+            <input type="hidden" name="bookingId" value={lunch.id} />
+            <input name="attendees" type="number" min={1} defaultValue={attendees} className="h-11 rounded-xl border px-3" required />
+            <input name="estimate" type="number" min={0} step="0.01" placeholder="Estimated total you expect ($)" className="h-11 rounded-xl border px-3" />
+            <input name="dietary" placeholder="Dietary notes the office volunteered" defaultValue={lunch.mealPreferences ?? ""} className="h-11 rounded-xl border px-3" />
+            <input name="deliveryInstructions" placeholder="Delivery instructions" defaultValue={lunch.deliveryInstructions ?? ""} className="h-11 rounded-xl border px-3" />
+            <button className="h-11 rounded-xl bg-[#10263E] text-sm text-white" type="submit">Submit catering for approval</button>
+          </form>
+        ) : null}
+        {lunch.order?.approvalStatus === "PENDING" ? (
+          <p className="mt-2 text-sm">
+            {approvalGate.meetingApproved
+              ? "Waiting for a manager or compliance reviewer. The representative on this lunch cannot approve the catering."
+              : "The office asked for catering. Approve the lunch time first. Catering still needs a separate reviewer, and no order is placed."}
+          </p>
+        ) : null}
+        {lunch.order?.approvalStatus === "DECLINED" && user.id === lunch.representativeId ? <p className="mt-2 text-sm">Catering was declined. Submit it again only if the plan changed. No order was placed.</p> : null}
+        {lunch.order?.approvalStatus === "DECLINED" && user.id === lunch.representativeId ? (
+          <form action={requestCateringAction} className="mt-3 grid gap-2">
+            <input type="hidden" name="bookingId" value={lunch.id} />
+            <input name="attendees" type="number" min={1} defaultValue={attendees} className="h-11 rounded-xl border px-3" required />
+            <input name="estimate" type="number" min={0} step="0.01" placeholder="Estimated total ($)" className="h-11 rounded-xl border px-3" />
+            <input name="dietary" placeholder="Dietary notes" defaultValue={lunch.mealPreferences ?? ""} className="h-11 rounded-xl border px-3" />
+            <input name="deliveryInstructions" placeholder="Delivery instructions" defaultValue={lunch.deliveryInstructions ?? ""} className="h-11 rounded-xl border px-3" />
+            <button className="h-11 rounded-xl bg-[#10263E] text-sm text-white" type="submit">Submit catering again</button>
+          </form>
+        ) : null}
+        {gate.allowed ? (
+          <div className="mt-3 grid gap-3">
+            {CATERING_PROVIDERS.map((provider) => provider.live ? (
+              <div key={provider.id} className="rounded-xl bg-[#F5F7FA] p-3">
+                <a className="grid h-12 place-items-center rounded-xl bg-[#10263E] text-sm font-medium text-white" href={provider.url} target="_blank" rel="noreferrer">
+                  {provider.label}
+                </a>
+                <p className="mt-2 text-xs text-[#66758B]">Opens the official {provider.label.replace("Order with ", "")} website. RepPilot does not place or pay for the order.</p>
+                <form action={handoffAction} className="mt-2">
+                  <input type="hidden" name="bookingId" value={lunch.id} />
+                  <input type="hidden" name="vendor" value={provider.id} />
+                  <button className="text-sm underline" type="submit">Mark as ordering externally</button>
+                </form>
+              </div>
+            ) : (
+              <p key={provider.id} className="rounded-xl bg-slate-100 px-3 py-2 text-sm">Uber Eats is reserved for a later approved integration and is not connected.</p>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 rounded-xl bg-slate-100 px-3 py-2 text-sm">Provider links stay closed until the lunch and the catering request are both approved. {gate.reason}</p>
+        )}
+        <p className="mt-2 text-xs">Current order status: {lunch.order?.status.replaceAll("_", " ") ?? "Not started"}. Delivery status: {(lunch.order?.deliveryStatus ?? "NOT_TRACKED").replaceAll("_", " ").toLowerCase()}. RepPilot does not track a driver.</p>
       </section>
       <section className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
         <h2 className="font-semibold">Record the external order</h2>
@@ -167,9 +233,22 @@ export default async function LunchDetailPage({
           </select>
           <input name="amount" type="number" min="0" step="0.01" placeholder="Final amount ($)" defaultValue={lunch.order?.finalAmountCents ? lunch.order.finalAmountCents / 100 : ""} className="h-11 rounded-xl border px-3" required />
           <input name="attendees" type="number" min="1" defaultValue={attendees} className="h-11 rounded-xl border px-3" />
-          <input name="reference" placeholder="Order reference" defaultValue={lunch.order?.orderReference ?? ""} className="h-11 rounded-xl border px-3" />
+          <input name="reference" placeholder="Order reference from the provider" defaultValue={lunch.order?.orderReference ?? ""} className="h-11 rounded-xl border px-3" />
+          <div className="grid grid-cols-2 gap-2">
+            <input name="subtotal" type="number" min="0" step="0.01" placeholder="Subtotal ($)" className="h-11 rounded-xl border px-3" />
+            <input name="tax" type="number" min="0" step="0.01" placeholder="Tax ($)" className="h-11 rounded-xl border px-3" />
+            <input name="fees" type="number" min="0" step="0.01" placeholder="Fees ($)" className="h-11 rounded-xl border px-3" />
+            <input name="delivery" type="number" min="0" step="0.01" placeholder="Delivery ($)" className="h-11 rounded-xl border px-3" />
+            <input name="tip" type="number" min="0" step="0.01" placeholder="Tip ($)" className="h-11 rounded-xl border px-3" />
+          </div>
+          <p className="text-xs text-[#66758B]">Leave the line items blank, or enter all five so they add up to the final amount. RepPilot does not invent tax or a tip.</p>
           <input name="groupOrderUrl" placeholder="Optional group-order URL" defaultValue={lunch.order?.groupOrderUrl ?? ""} className="h-11 rounded-xl border px-3" />
+          <select name="deliveryStatus" defaultValue={lunch.order?.deliveryStatus ?? "NOT_TRACKED"} className="h-11 rounded-xl border px-3">
+            <option value="NOT_TRACKED">Delivery not tracked</option>
+            <option value="RECORDED_BY_REP">Delivery noted by the representative</option>
+          </select>
           <textarea name="receiptNote" placeholder="Receipt note" className="rounded-xl border p-3" />
+          <input name="receiptFile" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="text-sm" />
           <select name="status" defaultValue={lunch.order?.status === "COMPLETED" ? "COMPLETED" : "ORDER_RECORDED"} className="h-11 rounded-xl border px-3">
             <option value="ORDER_RECORDED">Order recorded</option>
             <option value="COMPLETED">Completed</option>
@@ -188,8 +267,33 @@ export default async function LunchDetailPage({
             <div><dt className="text-[#66758B]">Final</dt><dd>{lunch.order.finalAmountCents != null ? formatCents(lunch.order.finalAmountCents) : "Not recorded"}</dd></div>
             <div><dt className="text-[#66758B]">Reference</dt><dd>{lunch.order.orderReference ?? "—"}</dd></div>
             <div><dt className="text-[#66758B]">Delivery</dt><dd>{lunch.deliveryInstructions ?? "—"}</dd></div>
+            <div><dt className="text-[#66758B]">Subtotal</dt><dd>{lunch.order.subtotalCents != null ? formatCents(lunch.order.subtotalCents) : "—"}</dd></div>
+            <div><dt className="text-[#66758B]">Tax</dt><dd>{lunch.order.taxCents != null ? formatCents(lunch.order.taxCents) : "—"}</dd></div>
+            <div><dt className="text-[#66758B]">Fees</dt><dd>{lunch.order.feeCents != null ? formatCents(lunch.order.feeCents) : "—"}</dd></div>
+            <div><dt className="text-[#66758B]">Delivery charge</dt><dd>{lunch.order.deliveryCents != null ? formatCents(lunch.order.deliveryCents) : "—"}</dd></div>
+            <div><dt className="text-[#66758B]">Tip</dt><dd>{lunch.order.tipCents != null ? formatCents(lunch.order.tipCents) : "—"}</dd></div>
           </dl>
         ) : null}
+        <h3 className="mt-4 font-medium">Receipts</h3>
+        {lunch.order?.receipts.length ? (
+          <ul className="mt-2 space-y-2 text-sm">
+            {lunch.order.receipts.map((receipt) => (
+              <li key={receipt.id} className="rounded-xl bg-[#F5F7FA] p-3">
+                <p>{receipt.note || "Receipt on file"}{receipt.amountCents != null ? ` · ${formatCents(receipt.amountCents)}` : ""}</p>
+                <p className="text-[#66758B]">{receipt.reference ?? "No reference"}{receipt.fileName ? ` · ${receipt.fileName}` : ""}</p>
+                {receipt.fileName ? <a className="underline" href={`/api/receipts/${receipt.id}`}>Download receipt</a> : null}
+              </li>
+            ))}
+          </ul>
+        ) : <p className="mt-2 text-sm text-[#66758B]">No receipt is stored yet.</p>}
+        <h3 className="mt-4 font-medium">Approval history</h3>
+        {approvals.length === 0 ? <p className="mt-2 text-sm text-[#66758B]">No approval decisions yet.</p> : (
+          <ol className="mt-2 space-y-2 text-sm">
+            {approvals.map((approval) => (
+              <li key={approval.id}>{approval.gate} · {approval.status}{approval.note ? ` · ${approval.note}` : ""}</li>
+            ))}
+          </ol>
+        )}
       </section>
     </div>
     </PageFrame>

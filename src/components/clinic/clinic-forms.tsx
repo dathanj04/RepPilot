@@ -18,6 +18,10 @@ export function InvitationResponse({
 }) {
   const [slotId, setSlotId] = useState(slots[0]?.id ?? "");
   const [name, setName] = useState("");
+  const [catering, setCatering] = useState(false);
+  const [attendees, setAttendees] = useState("8");
+  const [dietary, setDietary] = useState("");
+  const [delivery, setDelivery] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -31,7 +35,16 @@ export function InvitationResponse({
         event.preventDefault();
         setError(null);
         start(async () => {
-          const response = await clinicRespondAction({ token, intent: "accept", slotId, name });
+          const response = await clinicRespondAction({
+            token,
+            intent: "accept",
+            slotId,
+            name,
+            requestCatering: catering,
+            attendees: catering ? Number(attendees) || undefined : undefined,
+            dietary,
+            deliveryInstructions: delivery,
+          });
           if ("error" in response && response.error) setError(response.error);
           else if ("message" in response) setMessage(response.message ?? "Request sent. It is not confirmed until your representative approves it.");
         });
@@ -47,6 +60,17 @@ export function InvitationResponse({
         ))}
       </fieldset>
       <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name (optional)" className="h-12 rounded-xl border border-slate-200 bg-white px-3" />
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" className="mt-1" checked={catering} onChange={(event) => setCatering(event.target.checked)} />
+        Request sponsored catering with this time. Catering is not ordered until your representative and a reviewer both approve it.
+      </label>
+      {catering ? (
+        <div className="grid gap-2">
+          <input value={attendees} onChange={(event) => setAttendees(event.target.value)} inputMode="numeric" aria-label="Estimated attendees" placeholder="Estimated attendees" className="h-12 rounded-xl border border-slate-200 bg-white px-3" />
+          <input value={dietary} onChange={(event) => setDietary(event.target.value)} aria-label="Dietary notes" placeholder="Dietary notes, if you want to share them" className="h-12 rounded-xl border border-slate-200 bg-white px-3" />
+          <input value={delivery} onChange={(event) => setDelivery(event.target.value)} aria-label="Delivery instructions" placeholder="Delivery instructions" className="h-12 rounded-xl border border-slate-200 bg-white px-3" />
+        </div>
+      ) : null}
       <button disabled={pending || !slotId} className="h-12 rounded-xl bg-[#19B78A] font-semibold text-[#06281f] disabled:opacity-50" type="submit">
         {pending ? "Sending…" : "Request this time"}
       </button>
@@ -65,6 +89,7 @@ export function ConfirmationResponse({
   const [name, setName] = useState("");
   const [attendees, setAttendees] = useState(String(defaultAttendees));
   const [change, setChange] = useState("");
+  const [delivery, setDelivery] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -78,6 +103,7 @@ export function ConfirmationResponse({
         name,
         attendees: Number(attendees) || undefined,
         message: change,
+        deliveryInstructions: delivery,
       });
       if ("error" in response && response.error) setError(response.error);
       else if ("message" in response) setMessage(response.message ?? "Thank you. The lunch is confirmed.");
@@ -93,6 +119,7 @@ export function ConfirmationResponse({
         <input value={attendees} onChange={(event) => setAttendees(event.target.value)} inputMode="numeric" className="h-12 rounded-xl border border-slate-200 bg-white px-3" />
       </label>
       <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name (optional)" className="h-12 rounded-xl border border-slate-200 bg-white px-3" />
+      <input value={delivery} onChange={(event) => setDelivery(event.target.value)} aria-label="Delivery instructions" placeholder="Delivery instructions to share with your representative" className="h-12 rounded-xl border border-slate-200 bg-white px-3" />
       <button disabled={pending} className="h-12 rounded-xl bg-[#19B78A] font-semibold text-[#06281f] disabled:opacity-50" type="button" onClick={() => run("confirm")}>
         {pending ? "Saving…" : "Confirm lunch"}
       </button>

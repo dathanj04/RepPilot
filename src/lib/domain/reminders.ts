@@ -1,6 +1,6 @@
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 
-export type ReminderKind = "SEVEN_DAY" | "FORTY_EIGHT_HOUR" | "NONRESPONSE_24H";
+export type ReminderKind = "SEVEN_DAY" | "FORTY_EIGHT_HOUR" | "TWENTY_FOUR_HOUR" | "DELIVERY_DAY" | "NONRESPONSE_24H";
 
 export function computeReminderInstants(
   appointmentUtc: Date,
@@ -12,9 +12,15 @@ export function computeReminderInstants(
   const seven = new Date(Date.UTC(year!, (month ?? 1) - 1, day));
   seven.setUTCDate(seven.getUTCDate() - 7);
   const sevenDate = seven.toISOString().slice(0, 10);
+  const atEight = fromZonedTime(`${localDate}T08:00:00`, timeZone);
+  const deliveryDay = atEight.getTime() >= appointmentUtc.getTime()
+    ? new Date(appointmentUtc.getTime() - 2 * 60 * 60 * 1000)
+    : atEight;
   return {
     SEVEN_DAY: fromZonedTime(`${sevenDate}T${localTime}`, timeZone),
     FORTY_EIGHT_HOUR: new Date(appointmentUtc.getTime() - 48 * 60 * 60 * 1000),
+    TWENTY_FOUR_HOUR: new Date(appointmentUtc.getTime() - 24 * 60 * 60 * 1000),
+    DELIVERY_DAY: deliveryDay,
     NONRESPONSE_24H: new Date(appointmentUtc.getTime() - 24 * 60 * 60 * 1000),
   };
 }

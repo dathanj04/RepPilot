@@ -56,7 +56,7 @@ Scheduling invitations live at `/meetings`. The public link is `/m/{token}`. It 
 
 ## Catering
 
-ezCater and DoorDash buttons open `https://www.ezcater.com/` and `https://www.doordash.com/`. The schedule-lunch page shows the same links before a lunch exists. Opening a provider site does not place, pay for, or complete an order. On a saved lunch, a separate control marks the lunch `ORDERING_EXTERNALLY`. The rep records vendor, amount, reference, and status after returning. Uber Eats is shown as not connected.
+ezCater and DoorDash buttons open `https://www.ezcater.com/` and `https://www.doordash.com/` only after the representative has approved the lunch and a different reviewer has approved the catering. The schedule-lunch page can still show the public sites while the invitation is being written. Opening a provider site does not place, pay for, or complete an order. On an approved lunch, a separate control marks the lunch `ORDERING_EXTERNALLY` without changing a recorded final amount back to a completed purchase. The representative records vendor, amount, reference, line items, and a receipt file after returning. Restaurant menus, prices, and driver locations are not loaded. Uber Eats is shown as not connected.
 
 A group-order URL can be saved on the order. The clinic is not given the representative's payment method.
 

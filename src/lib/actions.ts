@@ -10,7 +10,8 @@ import { getCurrentUser } from "./auth";
 import { canManageOrg, canReviewCompliance, appUrl } from "./permissions";
 import { saveCheckIn, updateCheckIn } from "./services/checkins";
 import { createInvitation } from "./services/lunches";
-import { recordCateringHandoff, recordCateringOrder, requestPolicyException, reviewPolicyException } from "./services/orders";
+import { decideCateringApproval, recordCateringHandoff, recordCateringOrder, requestCateringApproval, requestPolicyException, reviewPolicyException } from "./services/orders";
+import { receiptFileAllowed } from "./domain/catering";
 import { extractCheckIn } from "./ai/gemini";
 import { buildAccountBrief, draftFollowUpEmail } from "./domain/briefing";
 import { deliverEmail } from "./email/send";
@@ -596,6 +597,23 @@ export async function createInvitationAction(formData: FormData) {
   };
 }
 
+function centsOrNull(value: FormDataEntryValue | null) {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const amount = Number(text);
+  if (!Number.isFinite(amount) || amount < 0) return Number.NaN;
+  return Math.round(amount * 100);
+}
+
+async function receiptFileFromForm(value: FormDataEntryValue | null) {
+  if (!(value instanceof File) || value.size === 0) return null;
+  const bytes = new Uint8Array(await value.arrayBuffer());
+  const contentType = value.type || "application/octet-stream";
+  const check = receiptFileAllowed({ contentType, byteSize: bytes.byteLength });
+  if (!check.ok) return { error: check.error } as const;
+  return { fileName: value.name.slice(0, 180) || "receipt", contentType, bytes };
+}
+
 export async function handoffAction(formData: FormData) {
   const user = await getCurrentUser();
   const bookingId = String(formData.get("bookingId") || "");
@@ -614,6 +632,20 @@ export async function handoffAction(formData: FormData) {
 export async function recordOrderAction(formData: FormData) {
   const user = await getCurrentUser();
   const bookingId = String(formData.get("bookingId") || "");
+  const receiptFile = await receiptFileFromForm(formData.get("receiptFile"));
+  if (receiptFile && "error" in receiptFile) {
+    redirect(`/lunches/${bookingId}?notice=${encodeURIComponent(receiptFile.error ?? "Receipt file was rejected.")}`);
+  }
+  const parts = {
+    subtotalCents: centsOrNull(formData.get("subtotal")),
+    taxCents: centsOrNull(formData.get("tax")),
+    feeCents: centsOrNull(formData.get("fees")),
+    deliveryCents: centsOrNull(formData.get("delivery")),
+    tipCents: centsOrNull(formData.get("tip")),
+  };
+  if (Object.values(parts).some((value) => Number.isNaN(value))) {
+    redirect(`/lunches/${bookingId}?notice=${encodeURIComponent("Line items have to be zero or a positive dollar amount.")}`);
+  }
   const result = await recordCateringOrder(prisma, {
     organizationId: user.organizationId,
     userId: user.id,
@@ -624,6 +656,9 @@ export async function recordOrderAction(formData: FormData) {
     attendees: Number(formData.get("attendees") || 0),
     receiptNote: String(formData.get("receiptNote") || ""),
     status: String(formData.get("status") || "ORDER_RECORDED") as "ORDER_RECORDED" | "COMPLETED" | "CANCELED",
+    deliveryStatus: formData.get("deliveryStatus") === "RECORDED_BY_REP" ? "RECORDED_BY_REP" : "NOT_TRACKED",
+    parts,
+    receiptFile: receiptFile && "bytes" in receiptFile ? receiptFile : null,
   });
   if (result.ok && formData.get("groupOrderUrl")) {
     const booking = await prisma.lunchBooking.findFirst({
@@ -641,6 +676,43 @@ export async function recordOrderAction(formData: FormData) {
   revalidatePath("/spending");
   if (!result.ok) redirect(`/lunches/${bookingId}?notice=${encodeURIComponent(result.error)}`);
   redirect(`/lunches/${bookingId}?notice=Order details recorded. This does not confirm payment or delivery.`);
+}
+
+export async function requestCateringAction(formData: FormData) {
+  const user = await getCurrentUser();
+  const bookingId = String(formData.get("bookingId") || "");
+  const estimated = centsOrNull(formData.get("estimate"));
+  if (Number.isNaN(estimated)) {
+    redirect(`/lunches/${bookingId}?notice=${encodeURIComponent("Enter the estimated total from your notes, or leave it blank.")}`);
+  }
+  const result = await requestCateringApproval(prisma, {
+    organizationId: user.organizationId,
+    userId: user.id,
+    bookingId,
+    attendees: Number(formData.get("attendees") || 0),
+    estimatedAmountCents: estimated,
+    dietary: String(formData.get("dietary") || ""),
+    deliveryInstructions: String(formData.get("deliveryInstructions") || ""),
+  });
+  revalidatePath(`/lunches/${bookingId}`);
+  revalidatePath("/manager");
+  redirect(`/lunches/${bookingId}?notice=${encodeURIComponent(result.ok ? "Catering was submitted for a separate approval. No order was placed." : result.error)}`);
+}
+
+export async function decideCateringAction(formData: FormData) {
+  const user = await getCurrentUser();
+  const bookingId = String(formData.get("bookingId") || "");
+  const result = await decideCateringApproval(prisma, {
+    organizationId: user.organizationId,
+    reviewerId: user.id,
+    reviewerRole: user.roleKey,
+    bookingId,
+    approve: formData.get("decision") === "approve",
+    note: String(formData.get("note") || ""),
+  });
+  revalidatePath("/manager");
+  revalidatePath(`/lunches/${bookingId}`);
+  redirect(`/manager?notice=${encodeURIComponent(result.ok ? "Catering decision saved. Opening a provider site still does not place the order." : result.error)}`);
 }
 
 export async function exceptionAction(formData: FormData) {
@@ -873,6 +945,9 @@ export async function clinicRespondAction(payload: {
   attendees?: number;
   message?: string;
   name?: string;
+  requestCatering?: boolean;
+  dietary?: string;
+  deliveryInstructions?: string;
 }) {
   const { hashToken } = await import("./domain/tokens");
   const ipLimit = await consumeSharedRateLimit(prisma, `public:${hashToken(payload.token).slice(0, 24)}`, 20, 60_000);
@@ -881,8 +956,28 @@ export async function clinicRespondAction(payload: {
   const tokenHash = hashToken(payload.token);
   const now = new Date();
   if (payload.intent === "accept" && payload.slotId) {
-    const result = await acceptInvitationSlot(prisma, { tokenHash, slotId: payload.slotId, now, responderName: payload.name });
-    return result.ok ? { ok: true as const, message: "Request sent. Your representative must approve it before it is on the calendar." } : { error: result.error };
+    const result = await acceptInvitationSlot(prisma, {
+      tokenHash,
+      slotId: payload.slotId,
+      now,
+      responderName: payload.name,
+      catering: payload.requestCatering
+        ? {
+            requested: true,
+            attendees: payload.attendees,
+            dietary: payload.dietary,
+            deliveryInstructions: payload.deliveryInstructions,
+          }
+        : undefined,
+    });
+    return result.ok
+      ? {
+          ok: true as const,
+          message: payload.requestCatering
+            ? "Request sent. Your representative must approve the time before it is on the calendar. Catering needs a separate approval and is not ordered."
+            : "Request sent. Your representative must approve it before it is on the calendar.",
+        }
+      : { error: result.error };
   }
   if (payload.intent === "confirm") {
     const result = await confirmLunch(prisma, {
@@ -890,6 +985,7 @@ export async function clinicRespondAction(payload: {
       now,
       responderName: payload.name,
       attendeeCount: payload.attendees,
+      deliveryInstructions: payload.deliveryInstructions,
     });
     return result.ok ? { ok: true as const, message: "Thank you. The lunch is confirmed." } : { error: result.error };
   }

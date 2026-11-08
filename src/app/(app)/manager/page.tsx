@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { requireAppUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canReviewCompliance, canViewTeam } from "@/lib/permissions";
-import { reviewExceptionAction } from "@/lib/actions";
+import { decideCateringAction, reviewExceptionAction } from "@/lib/actions";
 import { formatCents, summarizeSpending } from "@/lib/domain/spending";
 import { formatWhen } from "@/lib/format";
 import { EXCEPTION_LIMIT } from "@/lib/domain/policy";
@@ -19,7 +19,7 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
   if (!canViewTeam(user.roleKey)) notFound();
   const now = new Date();
   const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const [members, accounts, visits, tasks, lunches, spending, exceptions, territories] = await Promise.all([
+  const [members, accounts, visits, tasks, lunches, spending, cateringRequests, exceptions, territories] = await Promise.all([
     prisma.organizationMembership.findMany({
       where: { organizationId: user.organizationId },
       include: { user: true, role: true },
@@ -36,6 +36,12 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
       orderBy: { slotStartsAt: "asc" },
     }),
     prisma.officeSpendingEntry.findMany({ where: { organizationId: user.organizationId } }),
+    prisma.cateringOrder.findMany({
+      where: { organizationId: user.organizationId, approvalStatus: "PENDING" },
+      include: { account: true, booking: { include: { representative: true } } },
+      orderBy: { updatedAt: "desc" },
+      take: 20,
+    }),
     prisma.policyExceptionRequest.findMany({
       where: { organizationId: user.organizationId },
       include: { requestedBy: true },
@@ -106,6 +112,37 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
               <Link className="underline" href={`/lunches/${lunch.id}`}>Open</Link>
             </li>
           ))}
+        </ul>
+      </section>
+      <section className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+        <h2 className="font-semibold">Catering approvals</h2>
+        <p className="mt-1 text-xs text-[#66758B]">A catering decision is separate from the lunch time. Approving it does not place or pay for an order.</p>
+        {cateringRequests.length === 0 ? <p className="mt-2 text-sm text-[#66758B]">No catering requests are waiting.</p> : null}
+        <ul className="mt-3 space-y-3">
+          {cateringRequests.map((order) => {
+            const ownLunch = order.booking.representativeId === user.id;
+            const lunchReady = ["SCHEDULED", "CONFIRMED", "CHANGE_REQUESTED", "COMPLETED"].includes(order.booking.status);
+            return (
+              <li key={order.id} className="text-sm">
+                <p className="font-medium">{order.account.name}</p>
+                <p className="text-[#66758B]">{order.booking.representative.name} · lunch {order.booking.status.replaceAll("_", " ").toLowerCase()} · {order.estimatedAmountCents != null ? formatCents(order.estimatedAmountCents) : "No estimate"}</p>
+                {canReviewCompliance(user.roleKey) || user.roleKey === "MANAGER" ? (
+                  ownLunch || !lunchReady ? (
+                    <p className="mt-1 text-xs">{ownLunch ? "You own this lunch, so someone else reviews the catering." : "The lunch time is still waiting for the representative."}</p>
+                  ) : (
+                    <form action={decideCateringAction} className="mt-2 grid gap-2">
+                      <input type="hidden" name="bookingId" value={order.bookingId} />
+                      <input name="note" placeholder="Review note" className="h-11 rounded-xl border px-3" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <button name="decision" value="approve" className="h-11 rounded-xl bg-[#10263E] text-white" type="submit">Approve catering</button>
+                        <button name="decision" value="decline" className="h-11 rounded-xl bg-white ring-1 ring-slate-200" type="submit">Decline</button>
+                      </div>
+                    </form>
+                  )
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       </section>
       <section className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">

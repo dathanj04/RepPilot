@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { formatStraightLine, straightLineMiles } from "./distance";
 import { classifyAccount } from "./markers";
 import { evaluateMealPolicy, canRecordOrder, exceptionIsProhibited, perPersonCents } from "./policy";
+import { assertCostParts, budgetRemainingCents, cateringGates, receiptFileAllowed } from "./catering";
 import { summarizeSpending } from "./spending";
 import { computeReminderInstants, reminderAction, rangesOverlap } from "./reminders";
 import { evaluateConfirmationLink, evaluateSlotSelection } from "./invitations";
@@ -169,13 +170,29 @@ describe("spending", () => {
   });
 });
 
+describe("catering gates", () => {
+  it("keeps an order closed until the lunch and the catering request are both approved", () => {
+    expect(cateringGates({ lunchStatus: "AWAITING_APPROVAL", approvalStatus: "PENDING" }).reason).toMatch(/not approved this lunch/);
+    expect(cateringGates({ lunchStatus: "SCHEDULED", approvalStatus: "PENDING" }).reason).toMatch(/own approval/);
+    expect(cateringGates({ lunchStatus: "SCHEDULED", approvalStatus: "APPROVED" }).reason).toBeNull();
+    expect(assertCostParts({ subtotalCents: 1000, taxCents: 80, feeCents: 20, deliveryCents: 100, tipCents: null }, 1200).ok).toBe(false);
+    expect(assertCostParts({ subtotalCents: 1000, taxCents: 80, feeCents: 20, deliveryCents: 0, tipCents: 100 }, 1200).ok).toBe(true);
+    expect(budgetRemainingCents(2500, 4, 8000)).toBe(2000);
+    expect(receiptFileAllowed({ contentType: "text/plain", byteSize: 10 }).ok).toBe(false);
+  });
+});
+
 describe("reminders and conflicts", () => {
   it("schedules the seven-day reminder on the local calendar and skips duplicates conceptually", () => {
     const appointment = new Date("2026-10-22T17:00:00.000Z");
     const instants = computeReminderInstants(appointment, "America/Chicago");
     expect(instants.FORTY_EIGHT_HOUR.toISOString()).toBe("2026-10-20T17:00:00.000Z");
     expect(instants.NONRESPONSE_24H.toISOString()).toBe("2026-10-21T17:00:00.000Z");
+    expect(instants.TWENTY_FOUR_HOUR.toISOString()).toBe("2026-10-21T17:00:00.000Z");
+    expect(instants.DELIVERY_DAY.toISOString()).toBe("2026-10-22T13:00:00.000Z");
     expect(instants.SEVEN_DAY.toISOString()).toBe("2026-10-15T17:00:00.000Z");
+    expect(reminderAction({ kind: "TWENTY_FOUR_HOUR", bookingStatus: "CONFIRMED", confirmedAt: new Date() })).toBe("send");
+    expect(reminderAction({ kind: "DELIVERY_DAY", bookingStatus: "CANCELED", confirmedAt: null })).toBe("skip");
     expect(
       reminderAction({
         kind: "FORTY_EIGHT_HOUR",

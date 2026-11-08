@@ -12,7 +12,7 @@ Every customer record that belongs to a company carries `organizationId`. Querie
 - Calendar: `CalendarConnection` (encrypted OAuth ciphertext and preferences), `CalendarEventMapping`
 - Scheduling: `SchedulingInvitation`, `SchedulingSlot`, `MeetingRequest`, `MeetingStatusEvent`, `Meeting`
 - Lunch: `LunchInvitation`, `InvitationTimeSlot`, `LunchBooking`, `LunchReminder`, `LunchConfirmation`, `LunchChangeRequest`
-- Catering and policy: `CateringOrder`, `OrderReceipt`, `OfficeSpendingEntry`, `MealPolicy`, `PolicyRule`, `PolicyEvaluation`, `PolicyExceptionRequest`, `Approval`
+- Catering and policy: `CateringOrder` (including `approvalStatus` and the receipt line items), `OrderReceipt` (optional file bytes), `OfficeSpendingEntry`, `MealPolicy`, `PolicyRule`, `PolicyEvaluation`, `PolicyExceptionRequest`, `Approval`
 - Integrations and AI: `ExternalCRMConnection`, `ExternalRecordMapping`, `AIInteraction`, `AIUsageRecord`
 - Operations: `Notification`, `NotificationDelivery`, `AuditLog`, `SecureLinkToken`, `RateLimitBucket`
 

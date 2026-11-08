@@ -19,12 +19,14 @@ The form keeps a local draft so a refresh does not wipe an unsaved note. Save go
 
 ## Lunches
 
-A representative creates an invitation with explicit slots. The clinic page can select only those slots. Acceptance locks the invitation row, checks overlap on the representative, creates one booking, schedules three reminders, and revokes the invitation token. A second accept fails.
+A representative creates an invitation with explicit slots. The clinic page can select only those slots and can ask for sponsored catering on the same request. Acceptance locks the invitation row, checks overlap on the representative, creates one booking in `AWAITING_APPROVAL`, and revokes the invitation token. A second accept fails. Reminders and the internal calendar event are written when the representative approves the time. Catering stays pending until a different reviewer approves it. Provider links and order recording stay closed until both approvals exist.
 
 Reminders:
 
 - Seven days before, at the same local clock time.
-- Forty-eight hours before, exact.
+- Forty-eight hours before, exact, with a confirmation link.
+- Twenty-four hours before, to the office, even after they confirm.
+- The morning of the lunch, at 8:00 in the office time zone, asking them to reconfirm headcount and delivery instructions.
 - Twenty-four hours before, the representative is notified if the office has not confirmed. The lunch is not canceled.
 
 `processDueReminders` claims a row by moving `SCHEDULED` to `SENDING`, so a second worker does not send it again. The Today screen runs due reminders so a local demo does not need a scheduler. Production should also call `POST /api/cron/reminders` with `Authorization: Bearer $CRON_SECRET`.

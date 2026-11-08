@@ -78,7 +78,7 @@ export async function processDueReminders(
 
     try {
       let confirmUrl: string | undefined;
-      if (reminder.kind === "FORTY_EIGHT_HOUR") {
+      if (reminder.kind === "FORTY_EIGHT_HOUR" || reminder.kind === "TWENTY_FOUR_HOUR" || reminder.kind === "DELIVERY_DAY") {
         const token = await issueConfirmationLink(db, booking.id, now);
         if (token) confirmUrl = `${deps.appUrl}/l/c/${token}`;
       }
@@ -97,6 +97,14 @@ export async function processDueReminders(
         reminder.kind === "NONRESPONSE_24H"
           ? booking.representative.email
           : booking.account.email;
+      const officeReminder =
+        reminder.kind === "SEVEN_DAY"
+          ? { kind: "reminder_sent", title: "Seven-day reminder sent" }
+          : reminder.kind === "TWENTY_FOUR_HOUR"
+            ? { kind: "reminder_sent", title: "24-hour reminder sent" }
+            : reminder.kind === "DELIVERY_DAY"
+              ? { kind: "reminder_sent", title: "Delivery-day reminder sent" }
+              : { kind: "confirmation_requested", title: "48-hour confirmation requested" };
       const delivery = await deps.send({
         organizationId: booking.organizationId,
         to: to ?? null,
@@ -114,11 +122,8 @@ export async function processDueReminders(
                 href: `/lunches/${booking.id}`,
               }
             : {
-                kind: reminder.kind === "SEVEN_DAY" ? "reminder_sent" : "confirmation_requested",
-                title:
-                  reminder.kind === "SEVEN_DAY"
-                    ? "Seven-day reminder sent"
-                    : "48-hour confirmation requested",
+                kind: officeReminder.kind,
+                title: officeReminder.title,
                 body: `${booking.account.name} · ${rendered.subject}`,
                 href: `/lunches/${booking.id}`,
               },

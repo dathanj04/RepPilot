@@ -5,7 +5,7 @@ import { hashToken } from "../src/lib/domain/tokens";
 import { saveCheckIn } from "../src/lib/services/checkins";
 import { acceptInvitationSlot, approveLunchBooking, confirmLunch, createInvitation } from "../src/lib/services/lunches";
 import { approveMeetingRequest, createSchedulingInvitation, requestReplacementInvitation, submitMeetingRequest } from "../src/lib/services/meetings";
-import { recordCateringOrder, requestPolicyException } from "../src/lib/services/orders";
+import { decideCateringApproval, recordCateringHandoff, recordCateringOrder, requestPolicyException } from "../src/lib/services/orders";
 import { processDueReminders } from "../src/lib/services/reminders";
 import { renderReminderEmail } from "../src/lib/email/templates";
 import { issueSecureLink } from "../src/lib/services/links";
@@ -471,5 +471,152 @@ describe("workflow persistence", () => {
     expect(await prisma.meeting.count({ where: { organizationId: orgA.id, request: { invitationId: expired.invitation.id } } })).toBe(0);
     const pendingStillThere = await prisma.meetingRequest.findUnique({ where: { id: submitted.requestId } });
     expect(pendingStillThere?.status).toBe("CONFIRMED");
+  });
+
+  it("requires a separate catering approval and keeps the receipt", async () => {
+    const { orgA, orgB, user, accountA } = await fixture();
+    const reviewerRole = await prisma.role.upsert({
+      where: { key: "COMPLIANCE_ADMIN" },
+      update: {},
+      create: { key: "COMPLIANCE_ADMIN", name: "Compliance", description: "Reviews catering", scope: "organization" },
+    });
+    const reviewer = await prisma.user.create({
+      data: { email: `compliance-${Date.now()}@example-health.test`, name: "Test Compliance", passwordHash: "not-used" },
+    });
+    await prisma.organizationMembership.create({
+      data: { organizationId: orgA.id, userId: reviewer.id, roleId: reviewerRole.id },
+    });
+    await prisma.mealPolicy.create({
+      data: {
+        organizationId: orgA.id,
+        name: "Test policy",
+        version: "1",
+        active: true,
+        perPersonCapCents: 3000,
+        exceptionsPermitted: true,
+        educationalPurposeRequired: true,
+      },
+    });
+    const created = await createInvitation(prisma, {
+      organizationId: orgA.id,
+      userId: user.id,
+      accountId: accountA.id,
+      purpose: "Educational program overview for office staff.",
+      recipientName: "Office Manager",
+      recipientEmail: "",
+      expiresAt: new Date("2026-10-20T15:00:00.000Z"),
+      expectedAttendees: 6,
+      estimatedBudgetCents: 12000,
+      mealPreferences: "",
+      deliveryInstructions: "",
+      slots: [{ startsAt: new Date("2026-10-21T17:00:00.000Z"), endsAt: new Date("2026-10-21T18:00:00.000Z") }],
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const requested = await acceptInvitationSlot(prisma, {
+      tokenHash: hashToken(created.token),
+      slotId: created.invitation.slots[0]!.id,
+      now,
+      responderName: "Office Manager",
+      catering: { requested: true, attendees: 6, dietary: "Two vegetarian meals", deliveryInstructions: "Side entrance" },
+    });
+    expect(requested.ok).toBe(true);
+    if (!requested.ok) return;
+    const pendingOrder = await prisma.cateringOrder.findUniqueOrThrow({ where: { bookingId: requested.bookingId } });
+    expect(pendingOrder.approvalStatus).toBe("PENDING");
+    expect(pendingOrder.status).toBe("NOT_STARTED");
+
+    const earlyHandoff = await recordCateringHandoff(prisma, {
+      organizationId: orgA.id,
+      userId: user.id,
+      bookingId: requested.bookingId,
+      vendor: "ezcater",
+    });
+    expect(earlyHandoff.ok).toBe(false);
+    await approveLunchBooking(prisma, { organizationId: orgA.id, userId: user.id, bookingId: requested.bookingId, now });
+    const afterMeeting = await prisma.cateringOrder.findUniqueOrThrow({ where: { bookingId: requested.bookingId } });
+    expect(afterMeeting.approvalStatus).toBe("PENDING");
+    const stillBlocked = await recordCateringOrder(prisma, {
+      organizationId: orgA.id,
+      userId: user.id,
+      bookingId: requested.bookingId,
+      vendor: "ezcater",
+      finalAmountCents: 12000,
+      orderReference: "EZ-100",
+      attendees: 6,
+      receiptNote: "Paid on ezCater",
+      status: "COMPLETED",
+    });
+    expect(stillBlocked.ok).toBe(false);
+    const selfApproval = await decideCateringApproval(prisma, {
+      organizationId: orgA.id,
+      reviewerId: user.id,
+      reviewerRole: "COMPLIANCE_ADMIN",
+      bookingId: requested.bookingId,
+      approve: true,
+      note: "I am the rep",
+    });
+    expect(selfApproval.ok).toBe(false);
+    const otherOrg = await decideCateringApproval(prisma, {
+      organizationId: orgB.id,
+      reviewerId: reviewer.id,
+      reviewerRole: "COMPLIANCE_ADMIN",
+      bookingId: requested.bookingId,
+      approve: true,
+      note: "Wrong organization",
+    });
+    expect(otherOrg.ok).toBe(false);
+    const approved = await decideCateringApproval(prisma, {
+      organizationId: orgA.id,
+      reviewerId: reviewer.id,
+      reviewerRole: "COMPLIANCE_ADMIN",
+      bookingId: requested.bookingId,
+      approve: true,
+      note: "Educational lunch within the internal cap.",
+    });
+    expect(approved.ok).toBe(true);
+    const mismatched = await recordCateringOrder(prisma, {
+      organizationId: orgA.id,
+      userId: user.id,
+      bookingId: requested.bookingId,
+      vendor: "ezcater",
+      finalAmountCents: 11800,
+      orderReference: "EZ-100",
+      attendees: 6,
+      receiptNote: "",
+      status: "ORDER_RECORDED",
+      parts: { subtotalCents: 10000, taxCents: 1, feeCents: 0, deliveryCents: 0, tipCents: 0 },
+    });
+    expect(mismatched.ok).toBe(false);
+    const recorded = await recordCateringOrder(prisma, {
+      organizationId: orgA.id,
+      userId: user.id,
+      bookingId: requested.bookingId,
+      vendor: "ezcater",
+      finalAmountCents: 11800,
+      orderReference: "EZ-100",
+      attendees: 6,
+      receiptNote: "Paid on ezCater",
+      status: "ORDER_RECORDED",
+      parts: { subtotalCents: 10000, taxCents: 800, feeCents: 0, deliveryCents: 500, tipCents: 500 },
+      receiptFile: { fileName: "receipt.pdf", contentType: "application/pdf", bytes: new Uint8Array([37, 80, 68, 70]) },
+    });
+    expect(recorded.ok).toBe(true);
+    const order = await prisma.cateringOrder.findUniqueOrThrow({ where: { bookingId: requested.bookingId }, include: { receipts: true } });
+    expect(order.status).toBe("ORDER_RECORDED");
+    expect(order.subtotalCents).toBe(10000);
+    expect(order.receipts).toHaveLength(1);
+    expect(order.receipts[0]?.byteSize).toBe(4);
+    const history = await prisma.approval.findMany({ where: { organizationId: orgA.id, subjectId: { in: [requested.bookingId, order.id] } } });
+    expect(history.map((item) => item.gate).sort()).toEqual(["catering", "meeting"]);
+    const handoff = await recordCateringHandoff(prisma, {
+      organizationId: orgA.id,
+      userId: user.id,
+      bookingId: requested.bookingId,
+      vendor: "doordash",
+    });
+    expect(handoff.ok).toBe(true);
+    const afterHandoff = await prisma.cateringOrder.findUniqueOrThrow({ where: { bookingId: requested.bookingId } });
+    expect(afterHandoff.status).toBe("ORDER_RECORDED");
   });
 });

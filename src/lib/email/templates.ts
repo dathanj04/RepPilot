@@ -51,6 +51,21 @@ export function renderReminderEmail(input: {
       }),
     };
   }
+  if (input.kind === "TWENTY_FOUR_HOUR" || input.kind === "DELIVERY_DAY") {
+    const delivery = input.kind === "DELIVERY_DAY";
+    const text = delivery
+      ? `Hi ${input.officeName},\n\nToday is the educational lunch with ${input.repName}.\n\n${when}\nExpected attendees: ${input.attendees}\n\nPlease reconfirm the headcount and any delivery instructions with ${input.repName}. RepPilot does not track a driver.\n\nThank you,\n${input.repName}\n${input.organizationName}`
+      : `Hi ${input.officeName},\n\nYour educational lunch is tomorrow.\n\n${when}\nExpected attendees: ${input.attendees}\nRepresentative: ${input.repName}\n\nPlease reconfirm attendance. This reminder does not place a catering order.\n\nThank you,\n${input.repName}\n${input.organizationName}`;
+    return {
+      subject: delivery ? `Educational lunch today — ${input.officeName}` : `Educational lunch tomorrow — ${input.officeName}`,
+      text,
+      html: shell({
+        title: delivery ? "Your educational lunch is today" : "Your educational lunch is tomorrow",
+        preheader: `${input.officeName} · ${when}`,
+        body: `<p>Hi ${input.officeName},</p><p>${delivery ? `Today is the educational lunch with ${input.repName}.` : "Your educational lunch is tomorrow."}</p><p><strong>${when}</strong><br/>Expected attendees: ${input.attendees}<br/>Representative: ${input.repName}</p><p>${delivery ? "Please reconfirm the headcount and any delivery instructions with your representative. RepPilot does not track a driver." : "Please reconfirm attendance. This reminder does not place a catering order."}</p><p>Thank you,<br/>${input.repName}<br/>${input.organizationName}</p>`,
+      }),
+    };
+  }
   if (input.kind === "NONRESPONSE_24H") {
     const text = `${input.officeName} has not confirmed the educational lunch scheduled ${when}. The appointment was not canceled.`;
     return {
