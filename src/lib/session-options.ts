@@ -20,14 +20,16 @@ export function credentialVersion(passwordHash: string) {
   return createHash("sha256").update(passwordHash).digest("hex").slice(0, 16);
 }
 
-export const sessionOptions: SessionOptions = {
-  cookieName: "reppilot_session",
-  password: sessionPassword(),
-  ttl: 60 * 60 * 24 * 14,
-  cookieOptions: {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-  },
-};
+export function sessionOptions(): SessionOptions {
+  return {
+    cookieName: "reppilot_session",
+    password: sessionPassword(),
+    ttl: 60 * 60 * 24 * 14,
+    cookieOptions: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    },
+  };
+}

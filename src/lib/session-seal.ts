@@ -32,13 +32,14 @@ export function bearerSeal(authorization: string | null | undefined) {
 }
 
 export function sealSession(data: SessionData) {
-  return sealData(data, { password: sessionOptions.password, ttl: sessionOptions.ttl });
+  const options = sessionOptions();
+  return sealData(data, { password: options.password, ttl: options.ttl });
 }
 
 export async function unsealSession(seal: string | undefined | null): Promise<SessionData | null> {
   if (!seal) return null;
   try {
-    const data = await unsealData<SessionData>(seal, { password: sessionOptions.password });
+    const data = await unsealData<SessionData>(seal, { password: sessionOptions().password });
     if (!data.userId || !data.organizationId || !data.roleKey || !data.credentialVersion) return null;
     return {
       userId: data.userId,

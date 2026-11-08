@@ -5,7 +5,7 @@ import { bearerSeal, isPreviewRequest, previewCookieName, sealSession, unsealSes
 
 export async function getSession() {
   const store = await cookies();
-  const session = await getIronSession<SessionData>(store, sessionOptions);
+  const session = await getIronSession<SessionData>(store, sessionOptions());
   if (!session.userId) {
     const headerStore = await headers();
     if (!isPreviewRequest((name) => headerStore.get(name))) return session;

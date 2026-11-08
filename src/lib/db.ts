@@ -18,11 +18,22 @@ function createClient(connectionString = process.env.DATABASE_URL) {
   return new PrismaClient({ adapter });
 }
 
-export const prisma = globalForPrisma.prisma ?? createClient();
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
+function getPrisma() {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createClient();
+  }
+  return globalForPrisma.prisma;
 }
+
+// The client connects on the first query. Importing this module during a build
+// does not require DATABASE_URL.
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, property) {
+    const client = getPrisma();
+    const value = Reflect.get(client, property, client);
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+}) as PrismaClient;
 
 export function createPrisma(connectionString: string) {
   return createClient(connectionString);

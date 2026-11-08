@@ -13,7 +13,7 @@ export async function proxy(request: NextRequest) {
   const response = NextResponse.next();
   const session = await getIronSession<SessionData>(
     nextProxyCookies(request, response),
-    sessionOptions,
+    sessionOptions(),
   );
   if (!session.userId) {
     const preview = isPreviewRequest((name) => request.headers.get(name))
