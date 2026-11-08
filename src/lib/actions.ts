@@ -375,9 +375,14 @@ export async function saveCheckInAction(payload: {
   occurredAt: string;
   latitude?: number | null;
   longitude?: number | null;
+  questions?: string;
+  challenges?: string;
+  resourcesRequested?: string;
+  discussedThemeId?: string | null;
 }) {
   const user = await getCurrentUser();
-  if (/\b(patient|diagnosis|mrn|date of birth)\b/i.test(payload.summary)) {
+  const notes = [payload.summary, payload.questions, payload.challenges, payload.resourcesRequested].filter(Boolean).join(" ");
+  if (/\b(patient|diagnosis|mrn|date of birth)\b/i.test(notes)) {
     return { ok: false as const, error: "Check-in was not saved. Remove patient information and try again." };
   }
   const result = await saveCheckIn(prisma, {
@@ -396,6 +401,11 @@ export async function saveCheckInAction(payload: {
     occurredAt: new Date(payload.occurredAt),
     latitude: payload.latitude,
     longitude: payload.longitude,
+    contactName: payload.participants.find((person) => person.name.trim())?.name ?? null,
+    questions: payload.questions,
+    challenges: payload.challenges,
+    resourcesRequested: payload.resourcesRequested,
+    discussedThemeId: payload.discussedThemeId,
   });
   if (!result.ok) return result;
   revalidatePath(`/accounts/${payload.accountId}`);

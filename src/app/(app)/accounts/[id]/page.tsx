@@ -9,6 +9,7 @@ import { labelFor, ACTIVITIES, CONTACT_ROLES } from "@/lib/domain/catalog";
 import { directionsUrl } from "@/lib/domain/distance";
 import { revealToken } from "@/lib/services/links";
 import { BriefButton, DraftButton } from "@/components/accounts/account-tools";
+import { PrepareVisit } from "@/components/visits/prepare-visit";
 import { PageFrame } from "@/components/ui/page";
 
 export const instant = false;
@@ -68,6 +69,9 @@ export default async function AccountPage({
       <div className="mt-4">
         {tab === "overview" ? (
           <div className="grid items-start gap-4 lg:grid-cols-2">
+            <div className="lg:col-span-2">
+              <PrepareVisit organizationId={user.organizationId} userId={user.id} accountId={account.id} timeZone={user.timezone} />
+            </div>
             <div className="space-y-3">
               <Card>
                 <h2 className="font-semibold text-[#10263E]">Office profile</h2>
@@ -77,7 +81,7 @@ export default async function AccountPage({
                 <p>Hours: {account.officeHours ?? "Not recorded"}</p>
                 <p>Phone: {account.phone ?? "Not on file"}</p>
                 <p>Referral communication preference: {account.referralCommunicationPreference ?? "Not recorded"}</p>
-                <p className="text-xs text-[#66758B]">RepPilot does not track referral volume.</p>
+                <p className="text-xs text-[#66758B]">Referral counts appear only after a verified CRM sync. A missing sync is not zero.</p>
               </Card>
               <Card>
                 <h2 className="font-semibold text-[#10263E]">Upcoming follow-ups</h2>

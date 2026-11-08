@@ -62,7 +62,7 @@ A group-order URL can be saved on the order. The clinic is not given the represe
 
 ## CRM
 
-Salesforce and HubSpot have `ExternalCRMConnection` rows with status `not_connected`. There is no sync. Basic use does not require either.
+Salesforce and HubSpot have `ExternalCRMConnection` rows with status `not_connected`. There is still no OAuth and no live referral query. A sync attempt writes an audit row and a last-sync status. It does not insert a referral count, including zero. Counts on a visit brief come only from a `CrmReferralSnapshot` whose status is `verified` and whose sync is less than 24 hours old. Credentials, when a future connector stores them, stay in `credentialCiphertext` and are not sent to the browser.
 
 ## Stripe
 

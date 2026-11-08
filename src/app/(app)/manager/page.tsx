@@ -71,7 +71,8 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
     <div className="mx-auto max-w-3xl space-y-4 px-4 py-5">
       <h1 className="text-2xl font-semibold">Team</h1>
       {notice ? <p className="rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-slate-200">{notice}</p> : null}
-      <p className="text-sm text-[#66758B]">Coverage and workload for {user.organizationName}. Referral counts are not shown.</p>
+      <p className="text-sm text-[#66758B]">Coverage and workload for {user.organizationName}. Verified CRM counts stay on the theme report and are not attributed to a campaign.</p>
+      <Link href="/manager/themes" className="inline-flex h-11 items-center rounded-xl bg-[#10263E] px-4 text-sm font-semibold text-white">Monthly outreach themes</Link>
       <div className="grid grid-cols-2 gap-3">
         <Stat label="Active offices" value={String(accounts)} />
         <Stat label="Open follow-ups" value={String(tasks)} />

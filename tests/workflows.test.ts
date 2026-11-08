@@ -11,6 +11,7 @@ import { renderReminderEmail } from "../src/lib/email/templates";
 import { issueSecureLink } from "../src/lib/services/links";
 import { consumeSharedRateLimit } from "../src/lib/domain/rate-limit-store";
 import { findDuplicateAccount } from "../src/lib/services/accounts";
+import { prepareVisitBrief, recordReferralSyncAttempt, saveMonthlyTheme } from "../src/lib/services/visit-intelligence";
 
 const prisma = createPrisma(process.env.DATABASE_URL_TEST || process.env.DATABASE_URL || "");
 const now = new Date("2026-10-13T15:00:00.000Z");
@@ -618,5 +619,99 @@ describe("workflow persistence", () => {
     expect(handoff.ok).toBe(true);
     const afterHandoff = await prisma.cateringOrder.findUniqueOrThrow({ where: { bookingId: requested.bookingId } });
     expect(afterHandoff.status).toBe("ORDER_RECORDED");
+  });
+
+  it("keeps CRM referrals unverified, isolates tenants, and lets only managers publish themes", async () => {
+    const { orgA, orgB, user, accountA } = await fixture();
+    const now = new Date("2026-11-10T15:00:00.000Z");
+    const denied = await saveMonthlyTheme(prisma, {
+      organizationId: orgA.id,
+      actorId: user.id,
+      roleKey: "REP",
+      title: "Autism Evaluation Awareness",
+      description: "Diagnostic access",
+      startDate: "2026-11-01",
+      endDate: "2026-11-30",
+      specialties: ["Pediatrics"],
+      territoryIds: [],
+      userIds: [],
+      priority: "HIGH",
+      talkingPoints: ["Explain available diagnostic evaluation services."],
+      resources: [],
+      targetMetric: null,
+      status: "PUBLISHED",
+    });
+    expect(denied.ok).toBe(false);
+    const published = await saveMonthlyTheme(prisma, {
+      organizationId: orgA.id,
+      actorId: user.id,
+      roleKey: "MANAGER",
+      title: "Autism Evaluation Awareness",
+      description: "Diagnostic access",
+      startDate: "2026-11-01",
+      endDate: "2026-11-30",
+      specialties: ["Pediatrics"],
+      territoryIds: [],
+      userIds: [],
+      priority: "HIGH",
+      talkingPoints: ["Explain available diagnostic evaluation services."],
+      resources: [],
+      targetMetric: null,
+      status: "PUBLISHED",
+    });
+    expect(published.ok).toBe(true);
+    const foreign = await prepareVisitBrief(prisma, {
+      organizationId: orgB.id,
+      userId: user.id,
+      accountId: accountA.id,
+      timeZone: "America/Chicago",
+      now,
+    });
+    expect(foreign.ok).toBe(false);
+    const before = await prepareVisitBrief(prisma, {
+      organizationId: orgA.id,
+      userId: user.id,
+      accountId: accountA.id,
+      timeZone: "America/Chicago",
+      now,
+    });
+    expect(before.ok).toBe(true);
+    if (!before.ok) return;
+    expect(before.brief.referralCount).toBeNull();
+    expect(before.brief.referralInsight).toContain("could not be verified");
+    expect(before.brief.theme).toBeNull();
+    const sync = await recordReferralSyncAttempt(prisma, {
+      organizationId: orgA.id,
+      actorId: user.id,
+      accountId: accountA.id,
+      provider: "salesforce",
+    });
+    expect(sync.ok).toBe(true);
+    if (sync.ok) expect(sync.status).toBe("unavailable");
+    expect(await prisma.crmReferralSnapshot.count({ where: { accountId: accountA.id } })).toBe(0);
+    await prisma.crmReferralSnapshot.create({
+      data: {
+        organizationId: orgA.id,
+        accountId: accountA.id,
+        periodStart: new Date("2026-10-11T12:00:00.000Z"),
+        periodEnd: now,
+        countSinceVisit: 3,
+        count30: 3,
+        count90: 3,
+        previousCount30: 1,
+        syncStatus: "verified",
+        syncedAt: now,
+      },
+    });
+    const after = await prepareVisitBrief(prisma, {
+      organizationId: orgA.id,
+      userId: user.id,
+      accountId: accountA.id,
+      timeZone: "America/Chicago",
+      now,
+      force: true,
+    });
+    expect(after.ok).toBe(true);
+    if (after.ok) expect(after.brief.referralCount).toBe(3);
   });
 });

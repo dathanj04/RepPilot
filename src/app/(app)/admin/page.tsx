@@ -4,6 +4,7 @@ import { requireAppUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canManageOrg, canReviewCompliance } from "@/lib/permissions";
 import { createMemberAction, createTerritoryAction, updateOrgAction } from "@/lib/actions";
+import { saveCrmMatchAction, syncReferralAction } from "@/lib/visits/actions";
 import { parseOrgSettings } from "@/lib/org-settings";
 import { formatWhen } from "@/lib/format";
 
@@ -15,7 +16,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const { notice } = await searchParams;
   const user = await requireAppUser();
   if (!canManageOrg(user.roleKey) && !canReviewCompliance(user.roleKey)) notFound();
-  const [org, members, territories, policy, audits, calendars, crms] = await Promise.all([
+  const [org, members, territories, policy, audits, calendars, crms, accounts] = await Promise.all([
     prisma.organization.findUniqueOrThrow({ where: { id: user.organizationId } }),
     prisma.organizationMembership.findMany({
       where: { organizationId: user.organizationId },
@@ -27,6 +28,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     prisma.auditLog.findMany({ where: { organizationId: user.organizationId }, orderBy: { createdAt: "desc" }, take: 12 }),
     prisma.calendarConnection.findMany({ where: { organizationId: user.organizationId } }),
     prisma.externalCRMConnection.findMany({ where: { organizationId: user.organizationId } }),
+    prisma.account.findMany({ where: { organizationId: user.organizationId }, orderBy: { name: "asc" }, take: 40 }),
   ]);
   const settings = parseOrgSettings(org.settings);
   const integrations = [
@@ -36,8 +38,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     ["Email", Boolean(process.env.RESEND_API_KEY), "Messages are logged as demo deliveries without it."],
     ["Google Calendar", Boolean(process.env.GOOGLE_CLIENT_ID), `${calendars.filter((item) => item.provider === "google" && item.status === "connected").length} connected.`],
     ["Microsoft 365", Boolean(process.env.MICROSOFT_CLIENT_ID), "Not connected until OAuth is configured and tested."],
-    ["Salesforce", crms.some((item) => item.provider === "salesforce" && item.status === "connected"), "Framework only. Not a live connector."],
-    ["HubSpot", crms.some((item) => item.provider === "hubspot" && item.status === "connected"), "Framework only. Not a live connector."],
+    ["Salesforce", crms.some((item) => item.provider === "salesforce" && item.status === "connected"), "Not a live referral query. Sync does not write a count."],
+    ["HubSpot", crms.some((item) => item.provider === "hubspot" && item.status === "connected"), "Not a live referral query. Sync does not write a count."],
   ];
 
   return (
@@ -115,6 +117,37 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           ))}
         </ul>
         <p className="mt-2 text-xs text-[#66758B]">Stripe billing is not enabled. Plans in seed data are packaging labels, not charges.</p>
+        {notice ? <p className="mt-2 text-sm">{notice}</p> : null}
+        <form action={saveCrmMatchAction} className="mt-3 grid gap-2">
+          <p className="text-sm font-medium">Review a CRM organization mapping</p>
+          <select name="connectionId" className="h-11 rounded-xl border px-3 text-sm" required>
+            <option value="">CRM connection</option>
+            {crms.map((item) => <option key={item.id} value={item.id}>{item.provider} · {item.status}</option>)}
+          </select>
+          <select name="accountId" className="h-11 rounded-xl border px-3 text-sm">
+            <option value="">No practice yet</option>
+            {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+          </select>
+          <input name="externalOrganizationId" required placeholder="CRM organization id" className="h-11 rounded-xl border px-3 text-sm" />
+          <select name="status" className="h-11 rounded-xl border px-3 text-sm">
+            <option value="ambiguous">Ambiguous — hold for review</option>
+            <option value="approved">Approved mapping</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <button className="h-11 rounded-xl bg-[#10263E] text-sm text-white" type="submit">Save mapping</button>
+        </form>
+        <form action={syncReferralAction} className="mt-3 grid gap-2">
+          <p className="text-sm font-medium">Try a referral sync</p>
+          <select name="accountId" className="h-11 rounded-xl border px-3 text-sm" required>
+            {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+          </select>
+          <select name="provider" className="h-11 rounded-xl border px-3 text-sm">
+            <option value="salesforce">Salesforce</option>
+            <option value="hubspot">HubSpot</option>
+          </select>
+          <button className="h-11 rounded-xl bg-white text-sm ring-1 ring-slate-200" type="submit">Sync</button>
+          <p className="text-xs text-[#66758B]">Without a connected credential and a live query, this records unavailable or failed and stores no referral count.</p>
+        </form>
       </section>
       <section>
         <h2 className="text-sm font-semibold">Recent audit</h2>

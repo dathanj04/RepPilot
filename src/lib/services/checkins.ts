@@ -1,5 +1,6 @@
 import type { Db } from "../db";
 import { PHYSICAL_VISIT_TYPES } from "../domain/catalog";
+import { summarizeSavedVisit } from "../domain/visit-intelligence";
 
 export type CheckInInput = {
   organizationId: string;
@@ -14,6 +15,11 @@ export type CheckInInput = {
   occurredAt: Date;
   latitude?: number | null;
   longitude?: number | null;
+  contactName?: string | null;
+  questions?: string;
+  challenges?: string;
+  resourcesRequested?: string;
+  discussedThemeId?: string | null;
 };
 
 export async function saveCheckIn(db: Db, input: CheckInInput) {
@@ -77,6 +83,27 @@ export async function saveCheckIn(db: Db, input: CheckInInput) {
   if (Object.keys(updates).length > 0) {
     await db.account.update({ where: { id: account.id }, data: updates });
   }
+
+  const learned = summarizeSavedVisit({
+    summary: input.summary,
+    contactName: input.contactName ?? input.participants.find((person) => person.name.trim())?.name ?? null,
+    questions: input.questions ?? "",
+    tasks: input.tasks.map((task) => task.title),
+  });
+  await db.visitDetail.create({
+    data: {
+      organizationId: input.organizationId,
+      interactionId: interaction.id,
+      contactName: input.contactName ?? input.participants.find((person) => person.name.trim())?.name ?? null,
+      questions: input.questions?.trim() ? [input.questions.trim()] : [],
+      challenges: input.challenges?.trim() ?? "",
+      resourcesRequested: input.resourcesRequested?.trim() ?? "",
+      proposedCommitments: input.tasks.map((task) => task.title),
+      discussedThemeIds: input.discussedThemeId ? [input.discussedThemeId] : [],
+      aiSummary: learned.summary,
+      nextTopic: learned.nextTopic,
+    },
+  });
 
   await db.auditLog.create({
     data: {

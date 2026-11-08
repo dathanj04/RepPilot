@@ -8,12 +8,12 @@ Every customer record that belongs to a company carries `organizationId`. Querie
 
 - Identity: `User`, `Role`, `Organization`, `OrganizationMembership`, `Subscription`
 - Territory: `Territory`, `TerritoryAssignment`, `Account`, `AccountContact`, `AccountAssignment`, `AccountNote`
-- Activity: `AccountInteraction`, `InteractionParticipant`, `FollowUpTask`, `DailyRoute`, `RouteStop`
+- Activity: `AccountInteraction`, `InteractionParticipant`, `VisitDetail`, `VisitBrief`, `FollowUpTask`, `DailyRoute`, `RouteStop`
 - Calendar: `CalendarConnection` (encrypted OAuth ciphertext and preferences), `CalendarEventMapping`
 - Scheduling: `SchedulingInvitation`, `SchedulingSlot`, `MeetingRequest`, `MeetingStatusEvent`, `Meeting`
 - Lunch: `LunchInvitation`, `InvitationTimeSlot`, `LunchBooking`, `LunchReminder`, `LunchConfirmation`, `LunchChangeRequest`
 - Catering and policy: `CateringOrder` (including `approvalStatus` and the receipt line items), `OrderReceipt` (optional file bytes), `OfficeSpendingEntry`, `MealPolicy`, `PolicyRule`, `PolicyEvaluation`, `PolicyExceptionRequest`, `Approval`
-- Integrations and AI: `ExternalCRMConnection`, `ExternalRecordMapping`, `AIInteraction`, `AIUsageRecord`
+- Integrations and AI: `ExternalCRMConnection`, `ExternalRecordMapping`, `PracticeCrmMatch`, `CrmReferralSnapshot`, `MonthlyTheme`, `AIInteraction`, `AIUsageRecord`
 - Operations: `Notification`, `NotificationDelivery`, `AuditLog`, `SecureLinkToken`, `RateLimitBucket`
 
 `AuditLog` records the actor, action, entity, and a small JSON metadata object. Account create, account update, and profile changes write a row. Passwords are never stored in metadata.

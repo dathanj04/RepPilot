@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Mic } from "lucide-react";
@@ -9,7 +9,19 @@ import { extractDictationAction, saveCheckInAction } from "@/lib/actions";
 
 type Contact = { id: string; name: string; roleLabel: string };
 
-export function CheckInForm({ accountId, accountName, contacts }: { accountId: string; accountName: string; contacts: Contact[] }) {
+export function CheckInForm({
+  accountId,
+  accountName,
+  contacts,
+  theme,
+  brief,
+}: {
+  accountId: string;
+  accountName: string;
+  contacts: Contact[];
+  theme: { id: string; title: string } | null;
+  brief?: ReactNode;
+}) {
   const router = useRouter();
   const draftKey = `reppilot-draft-${accountId}`;
   const [type, setType] = useState("office_visit");
@@ -21,6 +33,10 @@ export function CheckInForm({ accountId, accountName, contacts }: { accountId: s
   const [activities, setActivities] = useState<string[]>([]);
   const [steps, setSteps] = useState<string[]>([]);
   const [followUpDate, setFollowUpDate] = useState("");
+  const [questions, setQuestions] = useState("");
+  const [challenges, setChallenges] = useState("");
+  const [resourcesRequested, setResourcesRequested] = useState("");
+  const [discussedTheme, setDiscussedTheme] = useState(false);
   const [listening, setListening] = useState(false);
   const [provider, setProvider] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +141,10 @@ export function CheckInForm({ accountId, accountName, contacts }: { accountId: s
           participants,
           tasks: taskTitles.map((title) => ({ title, dueDate: needsDate ? followUpDate || null : null })),
           occurredAt: new Date().toISOString(),
+          questions,
+          challenges,
+          resourcesRequested,
+          discussedThemeId: discussedTheme && theme ? theme.id : null,
         });
         setSaving(false);
         if (!result.ok) {
@@ -197,6 +217,21 @@ export function CheckInForm({ accountId, accountName, contacts }: { accountId: s
           </button>
         </div>
         <textarea value={summary} onChange={(event) => setSummary(event.target.value)} rows={4} placeholder="Discussed services, answered office questions, and reviewed educational materials." className="w-full rounded-2xl border border-slate-200 p-3 text-sm" />
+      </section>
+
+      {brief}
+      <section>
+        <h2 className="mb-2 text-sm font-semibold">Questions, challenges, and resources</h2>
+        <textarea value={questions} onChange={(event) => setQuestions(event.target.value)} rows={2} placeholder="Question the practice asked" className="w-full rounded-2xl border border-slate-200 p-3 text-sm" />
+        <textarea value={challenges} onChange={(event) => setChallenges(event.target.value)} rows={2} placeholder="Challenge or objection" className="mt-2 w-full rounded-2xl border border-slate-200 p-3 text-sm" />
+        <textarea value={resourcesRequested} onChange={(event) => setResourcesRequested(event.target.value)} rows={2} placeholder="Resource they asked for" className="mt-2 w-full rounded-2xl border border-slate-200 p-3 text-sm" />
+        {theme ? (
+          <label className="mt-2 flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1" checked={discussedTheme} onChange={(event) => setDiscussedTheme(event.target.checked)} />
+            <span>This visit discussed the monthly theme: {theme.title}</span>
+          </label>
+        ) : null}
+        <p className="mt-2 text-xs text-[#66758B]">Follow-ups become tasks only when you select a next step. Suggested commitments are not assigned on their own.</p>
       </section>
 
       <section>

@@ -10,7 +10,7 @@ npx eslint src tests --max-warnings 0
 
 ## Domain tests
 
-`src/lib/domain/domain.test.ts` covers marker priority, straight-line distance, policy blocks, spending separation, reminder math, invitation expiry, extraction without invented activities, briefing numbers, and route reasons. `src/lib/maps/provider.test.ts` covers geocode precision, dropped Places addresses, Routes durations, and appointment-gap warnings. These tests do not need Postgres or a Google key.
+`src/lib/domain/domain.test.ts` covers marker priority, straight-line distance, policy blocks, spending separation, reminder math, invitation expiry, extraction without invented activities, briefing numbers, and route reasons. `src/lib/domain/visit-intelligence.test.ts` covers a first visit, verified referral counts, a disconnected or failed or stale or ambiguous CRM, theme targeting and expiry, open follow-ups ahead of a theme, patient-detail redaction, prompt injection, and a model fallback. `src/lib/maps/provider.test.ts` covers geocode precision, dropped Places addresses, Routes durations, and appointment-gap warnings. These tests do not need Postgres or a Google key.
 
 ## Workflow tests
 
@@ -24,6 +24,7 @@ npx eslint src tests --max-warnings 0
 - A confirmation link does not confirm a canceled lunch.
 - A due reminder sends once.
 - An entertainment order stays blocked, and the exception is prohibited.
+- A representative cannot publish a monthly theme, another organization cannot read a practice brief, and a disconnected CRM sync writes no referral count.
 
 The test database must already have the migrations applied (`npx prisma migrate deploy` with `DATABASE_URL` pointed at the test database, or run migrate against both URLs).
 

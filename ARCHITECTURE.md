@@ -11,7 +11,7 @@ RepPilot is one Next.js application. The browser talks to React Server Component
 
 ## Domain logic
 
-Pure functions in `src/lib/domain` decide marker tone, straight-line distance, meal-policy results, spending totals, reminder instants, invitation acceptance, check-in extraction, and the daily briefing. Services in `src/lib/services` persist those decisions. Tests cover the pure functions without a database, and `tests/workflows.test.ts` covers persistence.
+Pure functions in `src/lib/domain` decide marker tone, straight-line distance, meal-policy results, spending totals, reminder instants, invitation acceptance, check-in extraction, the daily briefing, and the pre-visit conversation. Referral counts and theme matching are rules in `visit-intelligence.ts`. The model may only rephrase an opener that already passed those rules. Services in `src/lib/services` persist those decisions. Tests cover the pure functions without a database, and `tests/workflows.test.ts` covers persistence.
 
 ## Check-in
 
@@ -45,7 +45,7 @@ Each integration is an adapter:
 - AI: Gemini on the server when `GEMINI_API_KEY` exists, otherwise the deterministic extractor. Briefings that contain numbers outside the calculated set are discarded.
 - Email: Resend when configured, otherwise a `logged_demo` delivery row.
 - Calendar: Google and Microsoft OAuth store encrypted tokens when a representative connects. Meeting approval reads free/busy only from a connected calendar and writes an external event only after that call succeeds. Scheduling invitations cannot confirm a meeting by themselves.
-- CRM: connection rows stay `not_connected`.
+- CRM: connection rows stay `not_connected`. Referral sync does not invent a count. An ambiguous practice mapping stays unverified until an administrator approves it.
 
 ## Navigation
 

@@ -61,11 +61,21 @@ Still later: a licensed catering catalog, live delivery tracking, and payment in
 
 ## Phase 5 — CRM
 
-Not connected. Salesforce and HubSpot connection rows stay `not_connected`. There is no OAuth, import, or writeback.
+Partial. Salesforce and HubSpot connection rows stay `not_connected`. There is no OAuth and no live referral query. An administrator can save an approved or ambiguous practice mapping. A sync attempt records unavailable, ambiguous, or failed and does not write a referral count. A verified count appears only when a snapshot was stored by a successful query, which this build does not perform.
 
 ## Phase 6 — AI assistant
 
-Partial. Check-in extraction and briefings run on Gemini when `GEMINI_API_KEY` is set, and on a deterministic parser otherwise. The parser does not invent activities. There is no general chat assistant and no automatic CRM write.
+Partial. Check-in extraction, the daily briefing, and the pre-visit conversation all have a deterministic path. Gemini rewrites an opener only when `GEMINI_API_KEY` is set and the rewrite keeps the same numbers. There is no general chat assistant and no automatic CRM write. Visit notes are treated as data, not instructions.
+
+## Visit intelligence and monthly themes
+
+Implemented on the existing account, check-in, and team screens.
+
+- A practice profile and the check-in screen show a pre-visit brief: last conversation, open follow-ups, a CRM freshness line, talking points the representative can edit, an opener, and one next action.
+- Missing, failed, stale, or ambiguous CRM data is labeled unverified. It is not shown as zero referrals.
+- Saving a check-in stores who was met, questions, challenges, resources, and whether the representative marked the monthly theme as discussed. Selected next steps are the only new tasks.
+- Managers and organization admins create, publish, and archive monthly themes. A published theme shows on a representative’s Today page when the dates, team, and territory match. A practice brief uses it only when the specialty and territory also match, and an open follow-up stays ahead of the theme.
+- The theme report separates representative-reported visits from verified CRM snapshots and does not attribute referrals to the theme.
 
 ## Phase 7 — Enterprise and billing
 

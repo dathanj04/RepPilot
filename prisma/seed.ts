@@ -457,6 +457,28 @@ async function main() {
     });
   }
 
+  await prisma.monthlyTheme.create({
+    data: {
+      organizationId: org.id,
+      createdById: userIds.MANAGER!,
+      title: "November 2026 — Autism Evaluation Awareness",
+      description: "Focus on educating pediatric practices about autism diagnostic services, evaluation access, and referral pathways.",
+      startDate: new Date("2026-11-01T12:00:00.000Z"),
+      endDate: new Date("2026-11-30T12:00:00.000Z"),
+      targetSpecialties: ["Pediatrics", "Family Medicine", "Developmental Pediatrics"],
+      talkingPoints: [
+        "Explain available diagnostic evaluation services.",
+        "Discuss common referral challenges.",
+        "Share updated referral instructions.",
+        "Ask practices about diagnostic access barriers.",
+        "Identify opportunities for stronger referral partnerships.",
+      ],
+      resources: ["Updated referral instructions"],
+      priority: "HIGH",
+      status: "PUBLISHED",
+    },
+  });
+
   console.log("Seeded Example Healthcare Services");
   console.log(`Demo password: ${PASSWORD}`);
   console.log(`Summit invitation: ${process.env.APP_URL}/i/${summitLink.token}`);

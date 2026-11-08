@@ -11,6 +11,7 @@ import { deliverEmail } from "@/lib/email/send";
 import { renderReminderEmail } from "@/lib/email/templates";
 import { appUrl } from "@/lib/permissions";
 import { MetricCard, PageFrame } from "@/components/ui/page";
+import { focusThemes, visitCards } from "@/lib/services/visit-intelligence";
 
 export const instant = false;
 export const metadata = { title: "Today" };
@@ -77,6 +78,16 @@ export default async function TodayPage() {
   const briefing = narrativeUsesOnlyAllowedNumbers(polished, allowed) ? polished : calculated;
   const nextStop = route?.stops[0]?.account ?? accounts.find((account) => account.nextFollowUpAt && account.nextFollowUpAt <= end) ?? null;
   const greeting = greetingFor(hourInZone(now, user.timezone), user.name);
+  const [cards, themes] = await Promise.all([
+    visitCards(prisma, {
+      organizationId: user.organizationId,
+      userId: user.id,
+      timeZone: user.timezone,
+      now,
+      staleDays: settings.staleBriefingDays,
+    }),
+    focusThemes(prisma, { organizationId: user.organizationId, userId: user.id, timeZone: user.timezone, now }),
+  ]);
 
   const visits = route?.stops ?? [];
 
@@ -88,6 +99,40 @@ export default async function TodayPage() {
         <MetricCard label="Pending confirmations" value={String(pendingConfirmations.length)} hint="Waiting on the office" />
         <MetricCard label="Follow-ups due" value={String(dueToday.length)} hint={`${staleAccounts} offices quiet for ${settings.staleBriefingDays} days`} />
       </div>
+      <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+        <h2 className="font-semibold text-[#10263E]">This month&apos;s focus</h2>
+        {themes.length === 0 ? <p className="mt-2 text-sm text-[#66758B]">No published theme applies to you today.</p> : null}
+        <ul className="mt-3 space-y-3">
+          {themes.map((theme) => (
+            <li key={theme.id}>
+              <p className="font-medium">{theme.title}</p>
+              <p className="text-sm text-[#66758B]">{theme.description}</p>
+              {theme.talkingPoints[0] ? <p className="mt-1 text-sm">{theme.talkingPoints[0]}</p> : null}
+              {theme.resources.length > 0 ? <p className="mt-1 text-xs text-[#66758B]">Resources: {theme.resources.join(", ")}</p> : null}
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section className="mt-4">
+        <h2 className="font-semibold text-[#10263E]">AI visit intelligence</h2>
+        <p className="mt-1 text-sm text-[#66758B]">Open follow-ups and saved route stops. A missing CRM sync is not shown as zero referrals.</p>
+        {cards.length === 0 ? <p className="mt-3 text-sm text-[#66758B]">No open follow-up or saved stop needs a recommendation.</p> : null}
+        <ul className="mt-3 grid gap-3 lg:grid-cols-2">
+          {cards.map((card) => (
+            <li key={card.accountId} className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+              <p className="font-semibold text-[#10263E]">{card.name}</p>
+              <p className="text-xs text-[#66758B]">Last visit: {card.lastVisit}</p>
+              <p className="mt-2 text-sm">{card.referralLabel}</p>
+              <p className="mt-1 text-sm">{card.reason}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link className="inline-flex h-10 items-center rounded-xl bg-white px-3 text-sm ring-1 ring-slate-200" href={`/accounts/${card.accountId}`}>View practice</Link>
+                <Link className="inline-flex h-10 items-center rounded-xl bg-white px-3 text-sm ring-1 ring-slate-200" href={`/accounts/${card.accountId}#brief`}>Prepare for visit</Link>
+                <Link className="inline-flex h-10 items-center rounded-xl bg-[#19B78A] px-3 text-sm font-semibold text-[#06281f]" href={`/accounts/${card.accountId}/check-in`}>Start check-in</Link>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
       <div className="mt-6 grid items-start gap-4 lg:grid-cols-3">
         <section className="rounded-2xl bg-[#10263E] p-5 text-white lg:col-span-1">
           <p className="text-xs font-medium tracking-wide text-white/60">SUGGESTED NEXT STOP</p>

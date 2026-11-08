@@ -40,6 +40,7 @@ model User {
   aiInteractions       AIInteraction[]
   exceptionRequests    PolicyExceptionRequest[]  @relation("ExceptionRequester")
   calendarEvents       CalendarEventMapping[]
+  monthlyThemes        MonthlyTheme[]
 
   @@index([email])
 }
@@ -84,6 +85,10 @@ model Organization {
   secureLinks       SecureLinkToken[]
   routes            DailyRoute[]
   calendarEvents    CalendarEventMapping[]
+  monthlyThemes     MonthlyTheme[]
+  visitBriefs       VisitBrief[]
+  referralSnapshots CrmReferralSnapshot[]
+  crmMatches        PracticeCrmMatch[]
   evaluations       PolicyEvaluation[]
   exceptions        PolicyExceptionRequest[]
   approvals         Approval[]
@@ -190,6 +195,9 @@ model Account {
   secureLinks  SecureLinkToken[]
   schedulingInvitations SchedulingInvitation[]
   meetingRequests MeetingRequest[]
+  referralSnapshots CrmReferralSnapshot[]
+  crmMatches        PracticeCrmMatch[]
+  visitBriefs       VisitBrief[]
 
   @@index([organizationId])
   @@index([organizationId, name])
@@ -263,6 +271,7 @@ model AccountInteraction {
   user         User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   participants InteractionParticipant[]
   tasks        FollowUpTask[]
+  visitDetail  VisitDetail?
 
   @@index([organizationId, accountId, occurredAt])
   @@index([organizationId, userId, occurredAt])
@@ -813,12 +822,18 @@ model ExternalCRMConnection {
   id             String   @id @default(cuid())
   organizationId String
   provider       String
-  status         String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  status                String
+  credentialCiphertext  String?
+  fieldMapping          Json      @default("{}")
+  lastSyncAt            DateTime?
+  lastSyncStatus        String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   mappings     ExternalRecordMapping[]
+  matches      PracticeCrmMatch[]
+  snapshots    CrmReferralSnapshot[]
 
   @@unique([organizationId, provider])
 }
@@ -838,6 +853,110 @@ model ExternalRecordMapping {
 
   @@unique([connectionId, localType, localId])
   @@index([organizationId, localType, localId])
+}
+
+model MonthlyTheme {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  createdById         String
+  title               String
+  description         String
+  startDate           DateTime
+  endDate             DateTime
+  targetUserIds       String[] @default([])
+  targetTerritoryIds  String[] @default([])
+  targetSpecialties   String[] @default([])
+  priority            String   @default("NORMAL")
+  talkingPoints       String[] @default([])
+  resources           String[] @default([])
+  targetMetric        String?
+  status              String   @default("DRAFT")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status, startDate])
+}
+
+model VisitDetail {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  interactionId       String   @unique
+  contactName         String?
+  topics              String[] @default([])
+  questions           String[] @default([])
+  challenges          String   @default("")
+  resourcesRequested  String   @default("")
+  proposedCommitments String[] @default([])
+  discussedThemeIds   String[] @default([])
+  aiSummary           String   @default("")
+  nextTopic           String   @default("")
+  createdAt           DateTime @default(now())
+
+  interaction AccountInteraction @relation(fields: [interactionId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model CrmReferralSnapshot {
+  id                     String    @id @default(cuid())
+  organizationId         String
+  accountId              String
+  connectionId           String?
+  externalOrganizationId String?
+  periodStart            DateTime
+  periodEnd              DateTime
+  countSinceVisit        Int?
+  count30                Int?
+  count90                Int?
+  previousCount30        Int?
+  lastReferralAt         DateTime?
+  syncStatus             String
+  syncedAt               DateTime
+  createdAt              DateTime  @default(now())
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  connection   ExternalCRMConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, accountId, syncedAt])
+}
+
+model PracticeCrmMatch {
+  id                     String   @id @default(cuid())
+  organizationId         String
+  accountId              String?
+  connectionId           String
+  externalOrganizationId String
+  status                 String
+  note                   String   @default("")
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      Account?              @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  connection   ExternalCRMConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, externalOrganizationId])
+  @@index([organizationId, accountId, status])
+}
+
+model VisitBrief {
+  id             String   @id @default(cuid())
+  organizationId String
+  accountId      String
+  userId         String
+  payload        Json
+  evidenceHash   String
+  fallback       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, accountId, createdAt])
 }
 
 model Notification {
