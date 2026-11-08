@@ -49,7 +49,9 @@ When you approve DNS, add the domain in Vercel and create the CNAME or A record 
 | `zod` nested under `shadcn` | high | Component CLI. App code already uses zod 4.6.7 | Upgrade `shadcn` and move it to devDependencies |
 | `body-parser`, `undici`, `fast-uri` | high / moderate | `shadcn` CLI and Prisma dev tooling | Override to patched versions. They are not imported by app routes |
 
-The Cursor preview bearer is accepted only when `host`, `x-forwarded-host`, and `origin` are all Cursor preview hosts. A production host with a spoofed forwarded host is rejected. Production pages unregister the preview service worker.
+Authentication requires normal HttpOnly session cookies. The legacy JavaScript-readable preview cookie and bearer fallback are retired. Cursor preview ingress that strips cookies cannot support authenticated testing; use a direct HTTPS staging deployment. Existing preview workers are cleared and unregistered. Rotate `SESSION_PASSWORD` during rollout to invalidate previously issued preview credentials (all users must sign in again). Do not rotate `TOKEN_ENCRYPTION_KEY` for this change: existing encrypted clinic links depend on it.
+
+The delivery-body redaction migration clears existing `NotificationDelivery.htmlBody` and `textBody` values. Deploy the updated sender before running that migration; old instances must stop writing bodies. Delivery metadata remains for diagnostics and idempotency. Existing backups may retain old content until their configured expiry.
 
 ## What is not production-hardened here
 

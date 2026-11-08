@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireAppUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AccountForm } from "../../new/page";
+import { accountEditScope } from "@/lib/permissions";
 import { saveAccountAction } from "@/lib/actions";
 
 export const instant = false;
@@ -18,7 +19,7 @@ export default async function EditAccountPage({
   const user = await requireAppUser();
   const { id } = await params;
   const { notice } = await searchParams;
-  const account = await prisma.account.findFirst({ where: { id, organizationId: user.organizationId } });
+  const account = await prisma.account.findFirst({ where: { id, ...accountEditScope(user) } });
   if (!account) notFound();
   return (
     <div className="mx-auto max-w-xl px-4 py-5">

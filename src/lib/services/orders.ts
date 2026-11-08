@@ -90,7 +90,7 @@ export async function recordCateringHandoff(
   input: { organizationId: string; userId: string; bookingId: string; vendor: string },
 ) {
   const booking = await db.lunchBooking.findFirst({
-    where: { id: input.bookingId, organizationId: input.organizationId },
+    where: { id: input.bookingId, organizationId: input.organizationId, representativeId: input.userId },
     include: { order: true },
   });
   if (!booking?.order) return { ok: false as const, error: "Lunch order was not found." };
@@ -138,7 +138,7 @@ export async function recordCateringOrder(
   },
 ) {
   const booking = await db.lunchBooking.findFirst({
-    where: { id: input.bookingId, organizationId: input.organizationId },
+    where: { id: input.bookingId, organizationId: input.organizationId, representativeId: input.userId },
     include: { order: true },
   });
   if (!booking?.order) return { ok: false as const, error: "Lunch order was not found." };

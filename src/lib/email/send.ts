@@ -65,10 +65,10 @@ export async function deliverEmail(email: OutboundEmail) {
     }
   } else if (!email.to) {
     status = "logged_demo";
-    error = "No recipient email on file. The message was saved but not delivered.";
+    error = "No recipient email on file. Delivery metadata was recorded; the message was not delivered.";
   } else {
     status = "logged_demo";
-    error = "RESEND_API_KEY is not set. The message was saved but not delivered.";
+    error = "RESEND_API_KEY is not set. Delivery metadata was recorded; the message was not delivered.";
   }
 
   const delivery = await prisma.notificationDelivery.update({
@@ -78,8 +78,8 @@ export async function deliverEmail(email: OutboundEmail) {
       providerMessageId,
       error,
       sentAt: new Date(),
-      htmlBody: email.html,
-      textBody: email.text,
+      htmlBody: "",
+      textBody: "",
       toAddress: email.to,
       subject: email.subject,
     },
@@ -121,8 +121,8 @@ async function claimDelivery(email: OutboundEmail, existingId?: string) {
           channel: "email",
           toAddress: email.to,
           subject: email.subject,
-          htmlBody: email.html,
-          textBody: email.text,
+          htmlBody: "",
+          textBody: "",
           status: "sending",
           idempotencyKey: email.idempotencyKey,
         },

@@ -33,8 +33,8 @@ The app starts without the optional keys. Screens label the missing integration 
 Local demo database used in this workspace:
 
 ```text
-postgresql://reppilot:reppilot_local@127.0.0.1:5432/reppilot
-postgresql://reppilot:reppilot_local@127.0.0.1:5432/reppilot_test
+postgresql://<DB_USER>:<DB_PASSWORD>@127.0.0.1:5432/reppilot
+postgresql://<DB_USER>:<DB_PASSWORD>@127.0.0.1:5432/reppilot_test
 ```
 
-Change those passwords outside a private development machine.
+Replace the placeholders with unique local credentials; never reuse development credentials on a hosted database.
