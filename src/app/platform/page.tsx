@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { connection } from "next/server";
 import { requirePlatformAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -21,6 +22,7 @@ export default async function PlatformPage() {
         <div>
           <p className="text-sm font-semibold text-[#10263E]">RepPilot platform</p>
           <h1 className="text-2xl font-semibold">{user.name}</h1>
+          <Link href="/platform/deletion-requests" className="inline-flex min-h-11 items-center rounded-xl border bg-white px-4 text-sm font-medium">Account deletion requests</Link>
         </div>
         <form action={logoutAction}>
           <button className="text-sm underline" type="submit">Sign out</button>

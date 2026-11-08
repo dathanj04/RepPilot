@@ -1033,3 +1033,15 @@ model SecureLinkToken {
   @@index([schedulingInvitationId])
   @@index([meetingRequestId])
 }
+
+// Queue for verified deletion initiation. No email/password copies are stored.
+// A request is not equivalent to completed deletion; operator processing is required.
+model AccountDeletionRequest {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  status      String    @default("PENDING")
+  requestedAt DateTime  @default(now())
+  completedAt DateTime?
+
+  @@index([status, requestedAt])
+}
