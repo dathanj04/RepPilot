@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PublicPage } from "@/components/legal/public-page";
-import { LEGAL_OPERATOR_NAME, SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/legal";
+import { LEGAL_OPERATOR_NAME, SUPPORT_EMAIL, SUPPORT_MAILTO, DELETION_PROCESSING_DAYS } from "@/lib/legal";
 
 export const metadata = { title: "Privacy policy" };
 
@@ -24,7 +24,7 @@ export default function PrivacyPage() {
     <section className="space-y-2"><h2 className="text-xl font-semibold">Retention and deletion</h2>
       <p>Account and organization records are kept while they are needed to provide the service. You can initiate account deletion in Settings or through the <Link href="/delete-account" className="underline">account-deletion page</Link>, including after uninstalling the app. Submitting a request does not mean deletion is already complete.</p>
       <p>Deletion review covers the account, associated personal data and user-created content, connected-provider credentials, relevant provider-held copies, and local drafts. Shared organization records must be reviewed to distinguish other members’ data from your data. Any information that must be retained for a legitimate legal or security reason, and its retention period, will be explained during processing. A retained business record is not a blanket exemption from deleting personal data.</p>
-      <p>Backup copies can persist until their backup retention period expires. Contact support for the applicable processing timeframe and backup-retention schedule. We will confirm when your request is completed.</p>
+      <p>Backup copies can persist until their backup retention period expires. We process verified account-deletion requests within {DELETION_PROCESSING_DAYS} days and confirm completion. Any justified retained data and its retention period will be explained. Contact support for the backup-retention schedule.</p>
     </section>
     <section className="space-y-2"><h2 className="text-xl font-semibold">Your choices and account security</h2>
       <p>You can edit your profile, change your password, decline optional device permissions, type instead of using speech, and disconnect calendar access. Contact support to request access to or correction of data you cannot change yourself. Use a unique password and do not share your sign-in details.</p>

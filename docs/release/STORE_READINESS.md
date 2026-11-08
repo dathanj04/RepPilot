@@ -5,6 +5,10 @@ Baseline: main commit `2c55613`, including security PR #1. The fixes accompanyin
 
 **Verdict: NOT READY for App Store or Google Play submission.** The web application has working tested server workflows, but this repository does not yet contain a distributable native app. A successful Next.js build is not an iOS or Android release build. Store approval cannot be guaranteed by this audit.
 
+## Follow-up status
+
+Privacy, support and deletion-intake pages have since been added to main by PR #3. The owner confirmed `Johnson Strategic Outreach and Solutions DBA Rep Pilot LLC`, support at `dathan@abagrowth.com`, and a 30-day verified-deletion-request window. Deadline disclosure and operator due dates are included in the follow-up change. The original evidence below describes the earlier audit baseline; its public-URL failures are historical. Actual deletion fulfillment, backup-retention configuration and native submission work remain open. The verdict remains NOT READY.
+
 ## Verified evidence
 
 | Check | Result | Limits |
