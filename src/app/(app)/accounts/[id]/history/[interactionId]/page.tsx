@@ -12,7 +12,7 @@ export default async function EditCheckInPage({ params }: { params: Promise<{ id
   const user = await requireAppUser();
   const { id, interactionId } = await params;
   const interaction = await prisma.accountInteraction.findFirst({
-    where: { id: interactionId, accountId: id, organizationId: user.organizationId },
+    where: { id: interactionId, accountId: id, organizationId: user.organizationId, userId: user.id },
   });
   if (!interaction) notFound();
   return (
