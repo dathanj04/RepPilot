@@ -1,3 +1,4 @@
+import { LegalLinks } from "@/components/legal/public-page";
 import Link from "next/link";
 import { connection } from "next/server";
 import { requireAppUser } from "@/lib/auth";
@@ -15,6 +16,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const links = [
     ["/notifications", "Alerts"],
     ["/reports", "Reports"],
+    ["/delete-account/confirm", "Delete account"],
   ];
   if (canViewTeam(user.roleKey)) links.push(["/manager", "Team"]);
   if (canManageOrg(user.roleKey) || user.roleKey === "COMPLIANCE_ADMIN") links.push(["/admin", "Organization"]);
@@ -54,6 +56,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </li>
         ))}
       </ul>
+      <LegalLinks />
     </div>
   );
 }

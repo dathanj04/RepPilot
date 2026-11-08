@@ -1,3 +1,4 @@
+import { LegalLinks } from "@/components/legal/public-page";
 import { LoginForm } from "@/components/auth/login-form";
 
 export const metadata = { title: "Sign in" };
@@ -19,6 +20,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           <h2 className="mb-6 text-2xl font-semibold">Sign in</h2>
           <LoginForm />
+          <div className="mt-8"><LegalLinks /></div>
         </div>
       </section>
     </main>

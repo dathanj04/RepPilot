@@ -1,5 +1,7 @@
 "use client";
 
+import { LegalLinks } from "@/components/legal/public-page";
+
 import { useActionState } from "react";
 import Link from "next/link";
 import { signupFormAction } from "@/lib/actions";
@@ -22,6 +24,7 @@ export default function SignupPage() {
         {state?.error ? <p className="text-sm text-[#D94B4B]">{state.error}</p> : null}
         <Button className="h-12 w-full" type="submit" disabled={pending}>{pending ? "Creating…" : "Create account"}</Button>
       </form>
+      <div className="mt-6"><LegalLinks /></div>
       <p className="mt-4 text-sm"><Link href="/login" className="underline">I already have an account</Link></p>
     </main>
   );
