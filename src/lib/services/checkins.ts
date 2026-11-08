@@ -131,11 +131,11 @@ export async function updateCheckIn(
   },
 ) {
   const existing = await db.accountInteraction.findFirst({
-    where: { id: input.interactionId, organizationId: input.organizationId },
+    where: { id: input.interactionId, organizationId: input.organizationId, userId: input.userId },
   });
   if (!existing) return { ok: false as const, error: "Check-in was not found." };
   await db.accountInteraction.update({
-    where: { id: existing.id },
+    where: { id: existing.id, organizationId: input.organizationId, userId: input.userId },
     data: {
       summary: input.summary.trim(),
       outcome: input.outcome,

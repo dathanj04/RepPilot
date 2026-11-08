@@ -5,9 +5,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { fromZonedTime } from "date-fns-tz";
 import { prisma } from "./db";
-import { clearPreviewSession, getSession, publishPreviewSession } from "./session";
+import { clearPreviewSession, getSession } from "./session";
 import { getCurrentUser } from "./auth";
-import { canManageOrg, canReviewCompliance, appUrl } from "./permissions";
+import { canManageOrg, canReviewCompliance, appUrl, accountEditScope, taskEditScope } from "./permissions";
 import { saveCheckIn, updateCheckIn } from "./services/checkins";
 import { createInvitation } from "./services/lunches";
 import { decideCateringApproval, recordCateringHandoff, recordCateringOrder, requestCateringApproval, requestPolicyException, reviewPolicyException } from "./services/orders";
@@ -22,6 +22,7 @@ import { recommendStops } from "./domain/routing";
 import { isProfileTimezone } from "./domain/accounts";
 import { findDuplicateAccount } from "./services/accounts";
 import { parseOrgSettings, type OrgSettings } from "./org-settings";
+import { safeWebsiteUrl } from "./domain/urls";
 import { geocodeAddress } from "./maps/google";
 
 const ROLES = [
@@ -77,12 +78,7 @@ export async function loginAction(formData: FormData) {
   session.roleKey = membership.role.key;
   session.credentialVersion = version;
   await session.save();
-  await publishPreviewSession({
-    userId: user.id,
-    organizationId: membership.organizationId,
-    roleKey: membership.role.key,
-    credentialVersion: version,
-  });
+  await clearPreviewSession();
   redirect(membership.role.key === "PLATFORM_ADMIN" ? "/platform" : "/today");
 }
 
@@ -146,18 +142,19 @@ export async function signupAction(formData: FormData) {
   session.roleKey = "ORG_ADMIN";
   session.credentialVersion = version;
   await session.save();
-  await publishPreviewSession({
-    userId: user.id,
-    organizationId: organization.id,
-    roleKey: "ORG_ADMIN",
-    credentialVersion: version,
-  });
+  await clearPreviewSession();
   redirect("/onboarding");
 }
 
 export async function saveAccountAction(formData: FormData) {
   const user = await getCurrentUser();
   const id = String(formData.get("id") || "");
+  if (id && !(await prisma.account.findFirst({ where: { id, ...accountEditScope(user) } }))) {
+    redirect("/accounts?notice=You cannot edit this practice.");
+  }
+  const websiteInput = String(formData.get("website") || "").trim();
+  const website = safeWebsiteUrl(websiteInput);
+  if (websiteInput && !website) redirect("/accounts?notice=Use an absolute http or https website URL.");
   const data = {
     name: String(formData.get("name") || "").trim(),
     officeType: String(formData.get("officeType") || "Clinic").trim(),
@@ -168,7 +165,7 @@ export async function saveAccountAction(formData: FormData) {
     zip: String(formData.get("zip") || "").trim(),
     phone: String(formData.get("phone") || "").trim() || null,
     email: String(formData.get("email") || "").trim() || null,
-    website: String(formData.get("website") || "").trim() || null,
+    website,
     officeHours: String(formData.get("officeHours") || "").trim() || null,
     generalNotes: String(formData.get("generalNotes") || "").trim() || null,
     providerCount: Number(formData.get("providerCount") || 1),
@@ -226,7 +223,7 @@ export async function saveAccountAction(formData: FormData) {
   if (id) {
     const existing = await prisma.account.findFirst({ where: { id, organizationId: user.organizationId } });
     if (!existing) redirect("/accounts?notice=That office was not found.");
-    await prisma.account.update({ where: { id }, data });
+    await prisma.account.update({ where: { id, ...accountEditScope(user) }, data });
     await prisma.auditLog.create({
       data: {
         organizationId: user.organizationId,
@@ -285,12 +282,7 @@ export async function updateProfileAction(formData: FormData) {
     const session = await getSession();
     session.credentialVersion = version;
     await session.save();
-    await publishPreviewSession({
-      userId: user.id,
-      organizationId: user.organizationId,
-      roleKey: user.roleKey,
-      credentialVersion: version,
-    });
+    await clearPreviewSession();
   }
   await prisma.auditLog.create({
     data: {
@@ -309,7 +301,7 @@ export async function updateProfileAction(formData: FormData) {
 export async function addContactAction(formData: FormData) {
   const user = await getCurrentUser();
   const accountId = String(formData.get("accountId") || "");
-  const account = await prisma.account.findFirst({ where: { id: accountId, organizationId: user.organizationId } });
+  const account = await prisma.account.findFirst({ where: { id: accountId, ...accountEditScope(user) } });
   if (!account) redirect("/accounts?notice=That office was not found.");
   const name = String(formData.get("name") || "").trim();
   const roleLabel = String(formData.get("roleLabel") || "other");
@@ -336,7 +328,7 @@ export async function addNoteAction(formData: FormData) {
   if (/\b(patient|diagnosis|mrn|date of birth)\b/i.test(body)) {
     redirect(`/accounts/${accountId}?tab=notes&notice=Notes cannot include patient information.`);
   }
-  const account = await prisma.account.findFirst({ where: { id: accountId, organizationId: user.organizationId } });
+  const account = await prisma.account.findFirst({ where: { id: accountId, ...accountEditScope(user) } });
   if (!account || body.length < 2) redirect(`/accounts/${accountId}?tab=notes&notice=Add a short office note.`);
   await prisma.accountNote.create({
     data: { organizationId: user.organizationId, accountId, authorId: user.id, body },
@@ -560,11 +552,11 @@ export async function draftEmailAction(accountId: string) {
 export async function toggleTaskAction(formData: FormData) {
   const user = await getCurrentUser();
   const id = String(formData.get("id") || "");
-  const task = await prisma.followUpTask.findFirst({ where: { id, organizationId: user.organizationId } });
+  const task = await prisma.followUpTask.findFirst({ where: { id, ...taskEditScope(user) } });
   if (!task) return;
   const done = task.status !== "DONE";
   await prisma.followUpTask.update({
-    where: { id },
+    where: { id, ...taskEditScope(user) },
     data: { status: done ? "DONE" : "OPEN", completedAt: done ? new Date() : null },
   });
   revalidatePath("/tasks");
@@ -668,6 +660,9 @@ export async function handoffAction(formData: FormData) {
 export async function recordOrderAction(formData: FormData) {
   const user = await getCurrentUser();
   const bookingId = String(formData.get("bookingId") || "");
+  const groupOrderInput = String(formData.get("groupOrderUrl") || "").trim();
+  const groupOrderUrl = safeWebsiteUrl(groupOrderInput);
+  if (groupOrderInput && !groupOrderUrl) redirect(`/lunches/${bookingId}?notice=Use an absolute http or https order URL.`);
   const receiptFile = await receiptFileFromForm(formData.get("receiptFile"));
   if (receiptFile && "error" in receiptFile) {
     redirect(`/lunches/${bookingId}?notice=${encodeURIComponent(receiptFile.error ?? "Receipt file was rejected.")}`);
@@ -704,7 +699,7 @@ export async function recordOrderAction(formData: FormData) {
     if (booking?.order) {
       await prisma.cateringOrder.update({
         where: { id: booking.order.id },
-        data: { groupOrderUrl: String(formData.get("groupOrderUrl")) },
+        data: { groupOrderUrl },
       });
     }
   }

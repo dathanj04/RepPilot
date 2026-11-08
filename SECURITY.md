@@ -36,3 +36,13 @@ Audit rows record invitation creation, lunch confirmation, and policy decisions.
 - It does not prove that a deployment meets HIPAA, SOC 2, or a payer rule.
 - It does not let an approval override entertainment or referral-linked meal blocks.
 - It does not send email or place catering orders without the representative's action and, for email, a configured provider.
+
+## Security review follow-up
+
+Practice edits and new contacts/notes require assignment, or a manager/organization administrator role in the same organization. Task changes require ownership or that same team-edit role. Check-in edits require the original author. Catering order entry and handoff require the booking representative. Read visibility is unchanged.
+
+Website links accept only absolute HTTP(S) URLs without embedded credentials, both on save and display. Stored legacy values are validated before rendering.
+
+Email delivery bodies are not retained in delivery records. The redaction migration clears existing copies, including embedded clinic-link tokens. Delivery status, recipient, subject and provider identifiers remain restricted to server-side delivery processing; this change does not purge backups or provider records. Establish metadata and backup retention with the hosting operator before launch.
+
+The credential previously shown in ENVIRONMENT.md was labeled local development. If reused elsewhere, rotate it with the database operator. Removing the example does not remove git history or revoke a live credential.

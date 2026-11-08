@@ -12,6 +12,8 @@ import { BriefButton, DraftButton } from "@/components/accounts/account-tools";
 import { PrepareVisit } from "@/components/visits/prepare-visit";
 import { PageFrame } from "@/components/ui/page";
 
+import { safeWebsiteUrl } from "@/lib/domain/urls";
+
 export const instant = false;
 
 export default async function AccountPage({
@@ -55,7 +57,7 @@ export default async function AccountPage({
         <Action href={`tel:${account.phone ?? ""}`} label="Call" disabled={!account.phone} />
         <Action href={`mailto:${account.email ?? ""}`} label="Email" disabled={!account.email} />
         <Action href={directions} label="Directions" external />
-        <Action href={account.website || "#"} label="Website" disabled={!account.website} external />
+        <Action href={safeWebsiteUrl(account.website) || "#"} label="Website" disabled={!safeWebsiteUrl(account.website)} external />
         <Action href={`/accounts/${account.id}/check-in`} label="Check In" primary />
         <Action href={`/lunches/new?account=${account.id}`} label="Schedule Lunch" />
       </div>
