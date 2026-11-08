@@ -12,11 +12,11 @@ export function PageFrame({
   children: ReactNode;
 }) {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-5 md:px-8 md:py-8">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <div className="mx-auto w-full max-w-7xl px-4 py-6 md:px-8 md:py-10">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#10263E] md:text-3xl">{title}</h1>
-          {subtitle ? <p className="mt-1 max-w-2xl text-sm leading-6 text-[#66758B]">{subtitle}</p> : null}
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-[#10263E] md:text-4xl">{title}</h1>
+          {subtitle ? <p className="mt-3 max-w-2xl text-sm leading-6 text-[#66758B]">{subtitle}</p> : null}
         </div>
         {action}
       </div>
@@ -27,10 +27,10 @@ export function PageFrame({
 
 export function MetricCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-      <p className="text-2xl font-semibold tracking-tight text-[#10263E]">{value}</p>
-      <p className="mt-1 text-sm font-medium text-[#14243A]">{label}</p>
-      {hint ? <p className="mt-1 text-xs text-[#66758B]">{hint}</p> : null}
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_4px_24px_-12px_rgba(16,38,62,0.18)]">
+      <p className="text-xs font-medium tracking-wide text-[#66758B]">{label}</p>
+      <p className="mt-3 text-4xl font-semibold tracking-tight text-[#10263E] tabular-nums">{value}</p>
+      {hint ? <p className="mt-3 text-xs text-[#66758B]">{hint}</p> : null}
     </div>
   );
 }

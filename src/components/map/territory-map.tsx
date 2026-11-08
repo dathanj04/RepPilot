@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { ArrowUpRight, MapPin, Route, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { MapContainer, TileLayer, CircleMarker, Polygon, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -142,7 +143,8 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
 
   const list = (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="space-y-2 border-b border-slate-200 p-3">
+      <div className="max-h-[55%] shrink-0 space-y-4 overflow-y-auto border-b border-slate-200/80 p-5">
+        <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] font-semibold tracking-[0.18em] text-[#66758B]">FIELD WORKSPACE</p><h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#10263E]">My territory</h1></div><Link href="/route" aria-label="Open route planner" className="grid size-11 place-items-center rounded-xl bg-[#10263E] text-white"><Route className="size-5" aria-hidden="true" /></Link></div>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -168,29 +170,32 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
             </FilterChip>
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <details className="group rounded-xl border border-slate-200 bg-slate-50/60 p-3"><summary className="flex min-h-8 cursor-pointer items-center gap-2 text-xs font-semibold text-[#10263E]"><SlidersHorizontal className="size-4" aria-hidden="true" /> More filters</summary><div className="mt-3 grid grid-cols-2 gap-3">
           <SelectFilter label="City" value={city} onChange={setCity} options={cities} />
           <SelectFilter label="ZIP" value={zip} onChange={setZip} options={zips} />
           <SelectFilter label="Territory" value={territory} onChange={setTerritory} options={territories} />
           <SelectFilter label="Owner" value={owner} onChange={setOwner} options={owners} />
           <SelectFilter label="Status" value={status} onChange={setStatus} options={statuses} />
         </div>
+        </details>
         <PlacesSearch here={here} />
       </div>
-      <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+      <p aria-live="polite" className="border-b border-slate-100 px-5 py-3 text-xs font-medium text-[#66758B]">{filtered.length} of {accounts.length} practices</p>
+      <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-slate-50/50 p-3">
         {filtered.length === 0 ? <li className="rounded-2xl bg-[#F5F7FA] p-4 text-sm">No offices match these filters.</li> : null}
         {filtered.map((account) => (
           <li key={account.id}>
             <button
               type="button"
-              className={`w-full rounded-2xl p-3 text-left ring-1 ${selectedId === account.id ? "bg-[#E7F8F3] ring-[#19B78A]" : "bg-white ring-slate-200"}`}
+              aria-pressed={selectedId === account.id}
+              className={`w-full rounded-2xl p-4 text-left ring-1 transition-colors ${selectedId === account.id ? "bg-[#E7F8F3] ring-[#19B78A]" : "bg-white ring-slate-200 hover:bg-slate-50"}`}
               onClick={() => {
                 setSelectedId(account.id);
                 setMode("map");
                 if (account.lat != null && account.lng != null) setFocus([account.lat, account.lng]);
               }}
             >
-              <p className="font-medium text-[#10263E]">{account.name}</p>
+              <div className="mb-2 flex items-center gap-2"><MapPin className="size-4 shrink-0" style={{ color: COLORS[account.tone] }} aria-hidden="true" /><p className="flex-1 text-sm font-semibold text-[#10263E]">{account.name}</p><ArrowUpRight className="size-4 text-slate-400" aria-hidden="true" /></div>
               <p className="text-sm text-[#66758B]">{account.specialty} · {account.city}</p>
               <p className="mt-1 text-xs text-[#66758B]">Last visit {account.lastVisit ?? "not yet"}</p>
             </button>
@@ -234,9 +239,9 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
   );
 
   return (
-    <div className="flex h-full min-h-[32rem]">
-      <aside className="hidden w-[22rem] shrink-0 border-r border-slate-200 bg-white md:flex md:flex-col">{list}</aside>
-      <div className="relative min-w-0 flex-1">
+    <div className="flex h-full min-h-[32rem] gap-3 bg-[#f4f6f8] p-3 md:p-4">
+      <aside className="hidden w-[20rem] shrink-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm md:flex md:flex-col xl:w-[22rem]">{list}</aside>
+      <div className="relative min-w-0 flex-1 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
       <div className="absolute inset-x-3 top-3 z-20 space-y-2 rounded-2xl bg-white/95 p-2 shadow-sm md:hidden">
         <div className="flex gap-2">
           <input
@@ -292,7 +297,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
               <p className="text-sm text-[#66758B]">{selected.street}, {selected.city}, {selected.state} {selected.zip}</p>
               <p className="text-sm">{selected.specialty}</p>
             </div>
-            <button type="button" className="text-sm text-[#66758B]" onClick={() => setSelectedId(null)} aria-label="Close office card">Close</button>
+            <button type="button" className="min-h-11 rounded-xl px-3 text-sm text-[#66758B] hover:bg-slate-100" onClick={() => setSelectedId(null)} aria-label="Close office card">Close</button>
           </div>
           <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
             <div><dt className="text-[#66758B]">Last check-in</dt><dd>{selected.lastVisit ?? "Not yet visited"}</dd></div>
@@ -403,7 +408,7 @@ function PlacesSearch({ here }: { here: { lat: number; lng: number } | null }) {
 
 function FilterChip({ active, children, onClick }: { active: boolean; children: React.ReactNode; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className={`h-9 shrink-0 rounded-full px-3 text-xs font-medium ${active ? "bg-[#10263E] text-white" : "bg-white text-[#14243A] ring-1 ring-slate-200"}`}>
+    <button type="button" aria-pressed={active} onClick={onClick} className={`min-h-11 shrink-0 rounded-full px-3 text-xs font-medium ${active ? "bg-[#10263E] text-white shadow-sm" : "bg-white text-[#14243A] ring-1 ring-slate-200 hover:bg-slate-50"}`}>
       {children}
     </button>
   );

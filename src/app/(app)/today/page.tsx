@@ -99,7 +99,7 @@ export default async function TodayPage() {
         <MetricCard label="Pending confirmations" value={String(pendingConfirmations.length)} hint="Waiting on the office" />
         <MetricCard label="Follow-ups due" value={String(dueToday.length)} hint={`${staleAccounts} offices quiet for ${settings.staleBriefingDays} days`} />
       </div>
-      <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <section className="mt-6 rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-white p-6 shadow-sm">
         <h2 className="font-semibold text-[#10263E]">This month&apos;s focus</h2>
         {themes.length === 0 ? <p className="mt-2 text-sm text-[#66758B]">No published theme applies to you today.</p> : null}
         <ul className="mt-3 space-y-3">
@@ -113,13 +113,13 @@ export default async function TodayPage() {
           ))}
         </ul>
       </section>
-      <section className="mt-4">
+      <section className="mt-8">
         <h2 className="font-semibold text-[#10263E]">AI visit intelligence</h2>
-        <p className="mt-1 text-sm text-[#66758B]">Open follow-ups and saved route stops. A missing CRM sync is not shown as zero referrals.</p>
+        <p className="mt-1 text-sm text-[#66758B]">Make your next conversation count. Recommendations use your saved visits, follow-ups, and available CRM data.</p>
         {cards.length === 0 ? <p className="mt-3 text-sm text-[#66758B]">No open follow-up or saved stop needs a recommendation.</p> : null}
         <ul className="mt-3 grid gap-3 lg:grid-cols-2">
           {cards.map((card) => (
-            <li key={card.accountId} className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+            <li key={card.accountId} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="font-semibold text-[#10263E]">{card.name}</p>
               <p className="text-xs text-[#66758B]">Last visit: {card.lastVisit}</p>
               <p className="mt-2 text-sm">{card.referralLabel}</p>
@@ -134,7 +134,7 @@ export default async function TodayPage() {
         </ul>
       </section>
       <div className="mt-6 grid items-start gap-4 lg:grid-cols-3">
-        <section className="rounded-2xl bg-[#10263E] p-5 text-white lg:col-span-1">
+        <section className="rounded-2xl bg-gradient-to-br from-[#10263E] to-[#214d5b] p-6 text-white shadow-lg shadow-slate-900/10 lg:col-span-1">
           <p className="text-xs font-medium tracking-wide text-white/60">SUGGESTED NEXT STOP</p>
           {nextStop ? (
             <>
