@@ -30,7 +30,10 @@ export default async function CheckInPage({ params }: { params: Promise<{ id: st
   const theme = themes.find((item) => themeApplies(item, { specialty: account.specialty, territoryId: account.territoryId }, formatInTimeZone(now, user.timezone, "yyyy-MM-dd"))) ?? null;
   return (
     <CheckInForm
+      key={`${user.organizationId}:${user.id}:${account.id}`}
       accountId={account.id}
+      userId={user.id}
+      organizationId={user.organizationId}
       accountName={account.name}
       contacts={account.contacts.map((contact) => ({ id: contact.id, name: contact.name, roleLabel: contact.roleLabel }))}
       theme={theme ? { id: theme.id, title: theme.title } : null}

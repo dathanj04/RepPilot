@@ -5,25 +5,30 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Mic } from "lucide-react";
 import { ACTIVITIES, CONTACT_ROLES, INTERACTION_TYPES, NEXT_STEPS, OUTCOMES } from "@/lib/domain/catalog";
+import { draftStorageKey, readCheckInDraft } from "@/lib/domain/check-in-draft";
 import { extractDictationAction, saveCheckInAction } from "@/lib/actions";
 
 type Contact = { id: string; name: string; roleLabel: string };
 
 export function CheckInForm({
   accountId,
+  userId,
+  organizationId,
   accountName,
   contacts,
   theme,
   brief,
 }: {
   accountId: string;
+  userId: string;
+  organizationId: string;
   accountName: string;
   contacts: Contact[];
   theme: { id: string; title: string } | null;
   brief?: ReactNode;
 }) {
   const router = useRouter();
-  const draftKey = `reppilot-draft-${accountId}`;
+  const draftKey = draftStorageKey(organizationId, userId, accountId);
   const [type, setType] = useState("office_visit");
   const [outcome, setOutcome] = useState<string | null>("completed");
   const [roles, setRoles] = useState<string[]>([]);
@@ -43,25 +48,34 @@ export function CheckInForm({
   const [saving, setSaving] = useState(false);
   const [draftOnDevice, setDraftOnDevice] = useState(false);
 
-  useEffect(() => {
-    const raw = localStorage.getItem(draftKey);
-    if (!raw) return;
-    const timer = window.setTimeout(() => {
-      try {
-        const draft = JSON.parse(raw) as { summary?: string; type?: string };
-        if (draft.summary) setSummary(draft.summary);
-        if (draft.type) setType(draft.type);
-        setDraftOnDevice(true);
-      } catch {
-        localStorage.removeItem(draftKey);
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [draftKey]);
+  const [draftReady, setDraftReady] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem(draftKey, JSON.stringify({ summary, type, outcome, activities, steps }));
-  }, [draftKey, summary, type, outcome, activities, steps]);
+    const timer = window.setTimeout(() => {
+      try {
+        // Legacy drafts were shared by all signed-in users of this browser.
+        localStorage.removeItem(`reppilot-draft-${accountId}`);
+        const draft = readCheckInDraft(localStorage.getItem(draftKey));
+        if (draft) {
+          setSummary(draft.summary); setType(draft.type); setOutcome(draft.outcome);
+          setRoles(draft.roles); setContactId(draft.contactId); setOtherName(draft.otherName);
+          setActivities(draft.activities); setSteps(draft.steps); setFollowUpDate(draft.followUpDate);
+          setQuestions(draft.questions); setChallenges(draft.challenges);
+          setResourcesRequested(draft.resourcesRequested); setDiscussedTheme(draft.discussedTheme);
+          setDraftOnDevice(true);
+        }
+      } catch { /* Storage can be unavailable in a private browser. */ }
+      setDraftReady(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [draftKey, accountId]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({ summary, type, outcome, roles, contactId, otherName, activities, steps, followUpDate, questions, challenges, resourcesRequested, discussedTheme }));
+    } catch { /* Saving a check-in must still work when draft storage is blocked. */ }
+  }, [draftReady, draftKey, summary, type, outcome, roles, contactId, otherName, activities, steps, followUpDate, questions, challenges, resourcesRequested, discussedTheme]);
 
   function toggle(list: string[], value: string, setList: (next: string[]) => void) {
     setList(list.includes(value) ? list.filter((item) => item !== value) : [...list, value]);
@@ -111,7 +125,11 @@ export function CheckInForm({
     };
     recognition.onend = () => setListening(false);
     setListening(true);
-    recognition.start();
+    try { recognition.start(); }
+    catch {
+      setListening(false);
+      setError("Microphone access could not start. You can type the note instead.");
+    }
   }
 
   const needsDate = steps.some((step) => NEXT_STEPS.find((item) => item.id === step)?.needsDate);
@@ -132,29 +150,32 @@ export function CheckInForm({
         const taskTitles = steps.includes("none")
           ? []
           : steps.map((step) => NEXT_STEPS.find((item) => item.id === step)?.label || "Custom task");
-        const result = await saveCheckInAction({
-          accountId,
-          type,
-          outcome: type === "note" ? null : outcome,
-          summary,
-          activities,
-          participants,
-          tasks: taskTitles.map((title) => ({ title, dueDate: needsDate ? followUpDate || null : null })),
-          occurredAt: new Date().toISOString(),
-          questions,
-          challenges,
-          resourcesRequested,
-          discussedThemeId: discussedTheme && theme ? theme.id : null,
-        });
-        setSaving(false);
-        if (!result.ok) {
-          setError(result.error);
-          return;
-        }
-        localStorage.removeItem(draftKey);
-        toast.success("Check-in saved");
-        router.push(`/accounts/${accountId}?tab=history&saved=1`);
-        router.refresh();
+        try {
+          const result = await saveCheckInAction({
+            accountId,
+            type,
+            outcome: type === "note" ? null : outcome,
+            summary,
+            activities,
+            participants,
+            tasks: taskTitles.map((title) => ({ title, dueDate: needsDate ? followUpDate || null : null })),
+            occurredAt: new Date().toISOString(),
+            questions,
+            challenges,
+            resourcesRequested,
+            discussedThemeId: discussedTheme && theme ? theme.id : null,
+          });
+          if (!result.ok) {
+            setError(result.error);
+            return;
+          }
+          try { localStorage.removeItem(draftKey); } catch { /* Optional local draft storage. */ }
+          toast.success("Check-in saved");
+          router.push(`/accounts/${accountId}?tab=history&saved=1`);
+          router.refresh();
+        } catch {
+          setError("Check-in could not be saved. Your draft is still here; check your connection and try again.");
+        } finally { setSaving(false); }
       }}
     >
       <div>
@@ -166,7 +187,7 @@ export function CheckInForm({
       {draftOnDevice ? <p className="text-xs text-[#66758B]">A draft is stored on this device. It is not saved to RepPilot until you tap Save Check-In.</p> : null}
       {provider ? (
         <p className="rounded-xl bg-[#E7F8F3] px-3 py-2 text-xs">
-          {provider === "gemini" ? "Gemini drafted these fields." : "AI provider is not connected. This draft used on-device keyword extraction."} Review it before saving. Nothing is stored until you save.
+          {provider === "gemini" ? "Gemini drafted these fields." : "AI provider is not connected. This draft used keyword extraction."} Review it before saving. Nothing is stored until you save.
         </p>
       ) : null}
 

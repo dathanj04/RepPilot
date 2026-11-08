@@ -1,0 +1,594 @@
+{
+  "scope": "Isolated local production server; fictional seeded accounts. Fixture IDs normalized. Not browser, device, or live deployment verification.",
+  "checks": [
+    {
+      "role": "REP",
+      "path": "/today",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/map",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/accounts",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/accounts/new",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/route",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/calendar",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/meetings",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/meetings/new",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/lunches",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/lunches/new",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/tasks",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/reports",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/spending",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/settings",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/notifications",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/more",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/accounts/{fixture-id}",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/accounts/{fixture-id}/check-in",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "REP",
+      "path": "/accounts/{fixture-id}/edit",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/today",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/map",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/accounts",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/accounts/new",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/route",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/calendar",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/meetings",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/meetings/new",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/lunches",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/lunches/new",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/tasks",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/reports",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/spending",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/settings",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/notifications",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/more",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/manager",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/manager/themes",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "MANAGER",
+      "path": "/admin",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/today",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/map",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/accounts",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/accounts/new",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/route",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/calendar",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/meetings",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/meetings/new",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/lunches",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/lunches/new",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/tasks",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/reports",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/spending",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/settings",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/notifications",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/more",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/manager",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/manager/themes",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "ORG_ADMIN",
+      "path": "/admin",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/today",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/map",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/accounts",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/accounts/new",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/route",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/calendar",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/meetings",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/meetings/new",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/lunches",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/lunches/new",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/tasks",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/reports",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/spending",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/settings",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/notifications",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/more",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/manager",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/manager/themes",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "COMPLIANCE_ADMIN",
+      "path": "/admin",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "PLATFORM_ADMIN",
+      "path": "/platform",
+      "status": 200,
+      "redirect": null,
+      "renderError": false
+    },
+    {
+      "role": "public",
+      "path": "/login",
+      "status": 200,
+      "redirect": null
+    },
+    {
+      "role": "public",
+      "path": "/signup",
+      "status": 200,
+      "redirect": null
+    },
+    {
+      "role": "public",
+      "path": "/privacy",
+      "status": 307,
+      "redirect": "/login"
+    },
+    {
+      "role": "public",
+      "path": "/terms",
+      "status": 307,
+      "redirect": "/login"
+    },
+    {
+      "role": "public",
+      "path": "/support",
+      "status": 307,
+      "redirect": "/login"
+    },
+    {
+      "role": "public",
+      "path": "/delete-account",
+      "status": 307,
+      "redirect": "/login"
+    },
+    {
+      "role": "public",
+      "path": "/api/health",
+      "status": 200,
+      "redirect": null
+    },
+    {
+      "role": "REP",
+      "path": "POST /login",
+      "status": 303,
+      "redirect": "/today",
+      "sessionSet": true,
+      "loginError": false
+    }
+  ]
+}

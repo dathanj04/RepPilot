@@ -8,6 +8,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { parseOrgSettings } from "@/lib/org-settings";
 import { consumeSharedRateLimit } from "@/lib/domain/rate-limit-store";
 import { hashToken } from "@/lib/domain/tokens";
+import { escapeHtml } from "@/lib/email/templates";
 import { deliverEmail } from "@/lib/email/send";
 import {
   acceptProposedTime,
@@ -73,7 +74,7 @@ export async function decideMeetingAction(formData: FormData) {
           to: request.requesterEmail,
           subject: `Meeting confirmed with ${request.invitation.createdBy.name}`,
           text: `${request.invitation.createdBy.name} approved the meeting request from ${request.officeName}. This message confirms the time that was pending.`,
-          html: `<p>${request.invitation.createdBy.name} approved the meeting request from ${request.officeName}.</p>`,
+          html: `<p>${escapeHtml(request.invitation.createdBy.name)} approved the meeting request from ${escapeHtml(request.officeName)}.</p>`,
           idempotencyKey: `meeting-confirmed:${request.id}`,
         });
       }
