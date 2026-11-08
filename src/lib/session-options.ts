@@ -1,18 +1,23 @@
+import { createHash } from "node:crypto";
 import type { SessionOptions } from "iron-session";
 
 export type SessionData = {
   userId: string;
   organizationId: string;
   roleKey: string;
+  credentialVersion: string;
 };
 
-function sessionPassword() {
+export function sessionPassword() {
   const password = process.env.SESSION_PASSWORD?.trim() ?? "";
-  if (password.length >= 32) return password;
-  if (process.env.NODE_ENV === "production") {
+  if (password.length < 32) {
     throw new Error("SESSION_PASSWORD must be at least 32 characters.");
   }
-  return "development-only-password-must-be-32";
+  return password;
+}
+
+export function credentialVersion(passwordHash: string) {
+  return createHash("sha256").update(passwordHash).digest("hex").slice(0, 16);
 }
 
 export const sessionOptions: SessionOptions = {

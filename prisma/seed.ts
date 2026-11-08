@@ -4,7 +4,13 @@ import { prisma } from "../src/lib/db";
 import { computeReminderInstants, reminderIdempotencyKey } from "../src/lib/domain/reminders";
 import { issueSecureLink } from "../src/lib/services/links";
 
-const PASSWORD = "RepPilot-demo-2026";
+function seedPassword() {
+  const value = process.env.SEED_PASSWORD?.trim() ?? "";
+  if (value.length < 12) {
+    throw new Error("SEED_PASSWORD must be at least 12 characters. Do not store it in the repository.");
+  }
+  return value;
+}
 
 const roles = [
   { key: "REP", name: "Representative", description: "Field representative", scope: "organization" },
@@ -28,7 +34,7 @@ function assertSeedAllowed() {
 
 async function main() {
   assertSeedAllowed();
-  const passwordHash = await hash(PASSWORD, 10);
+  const passwordHash = await hash(seedPassword(), 10);
   for (const role of roles) {
     await prisma.role.upsert({
       where: { key: role.key },
@@ -480,7 +486,7 @@ async function main() {
   });
 
   console.log("Seeded Example Healthcare Services");
-  console.log(`Demo password: ${PASSWORD}`);
+  console.log("Demo passwords stay in SEED_PASSWORD and are not printed.");
   console.log(`Summit invitation: ${process.env.APP_URL}/i/${summitLink.token}`);
   console.log(`Northside office link: ${process.env.APP_URL}/o/${officeLink.token}`);
 }

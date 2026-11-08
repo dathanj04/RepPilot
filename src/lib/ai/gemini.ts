@@ -1,8 +1,4 @@
-import {
-  extractCheckInDeterministic,
-  parseModelExtraction,
-  type CheckInExtraction,
-} from "../domain/extraction";
+import { extractCheckInDeterministic, type CheckInExtraction } from "../domain/extraction";
 import { narrativeUsesOnlyAllowedNumbers } from "../domain/briefing";
 import { logEvent } from "../logger";
 
@@ -46,20 +42,7 @@ export async function extractCheckIn(input: {
   now: Date;
   timeZone: string;
 }): Promise<{ extraction: CheckInExtraction; provider: "gemini" | "deterministic" }> {
-  const fallback = extractCheckInDeterministic(input);
-  const model = await geminiJson(
-    `You extract a healthcare field visit note. Return only JSON with keys interactionType, outcome, contactNames, contactRoles, summary, completedActivities, suggestedTasks, warnings.
-Allowed interactionType: office_visit, educational_lunch, coffee_breakfast, phone_call, virtual_meeting, drop_off, follow_up, event, note, other, or null.
-Allowed outcome: completed, scheduled, rescheduled, no_show, canceled, or null.
-Allowed contactRoles: physician, office_manager, front_desk, medical_assistant, referral_coordinator, practice_administrator, other.
-Allowed completedActivities: introduced_services, provided_program_overview, left_educational_materials, discussed_referral_process, answered_questions, met_office_manager, scheduled_lunch, completed_educational_lunch, sent_resources, no_contact_available, other.
-Rules: Do not invent meetings, contacts, activities, referrals, or agreements. If unclear, use null or empty arrays. Do not include patient names or diagnoses; add a warning instead. Interpret relative dates in timezone ${input.timeZone} with today ${input.now.toISOString().slice(0, 10)}. suggestedTasks items are {title, dueDate as YYYY-MM-DD or null}.
-Transcript:\n${input.transcript}`,
-    "check_in_extract",
-  );
-  const parsed = parseModelExtraction(model);
-  if (!parsed) return { extraction: fallback, provider: "deterministic" };
-  return { extraction: parsed, provider: "gemini" };
+  return { extraction: extractCheckInDeterministic(input), provider: "deterministic" };
 }
 
 export async function polishBriefing(calculated: string, allowedNumbers: number[]) {

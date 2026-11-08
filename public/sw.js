@@ -1,5 +1,4 @@
 const SESSION_CACHE = "reppilot-preview-session";
-const SESSION_URL = "https://reppilot.invalid/session";
 let previewToken = "";
 
 self.addEventListener("install", () => {
@@ -8,7 +7,8 @@ self.addEventListener("install", () => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
-    await restorePreviewToken();
+    previewToken = "";
+    await caches.delete(SESSION_CACHE);
     await self.clients.claim();
   })());
 });
@@ -18,7 +18,6 @@ self.addEventListener("message", (event) => {
   if (!data || typeof data !== "object") return;
   if (data.type === "preview-session" && typeof data.token === "string") {
     previewToken = data.token;
-    event.waitUntil(storePreviewToken(data.token));
   }
   if (data.type === "preview-session-clear") {
     previewToken = "";
@@ -55,13 +54,3 @@ async function withPreviewSession(request) {
   }
 }
 
-async function storePreviewToken(token) {
-  const cache = await caches.open(SESSION_CACHE);
-  await cache.put(SESSION_URL, new Response(token));
-}
-
-async function restorePreviewToken() {
-  const cache = await caches.open(SESSION_CACHE);
-  const stored = await cache.match(SESSION_URL);
-  if (stored) previewToken = await stored.text();
-}

@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { sessionPassword } from "../session-options";
 
 export function googleCalendarConfigured() {
   const id = process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
@@ -15,10 +16,7 @@ export function microsoftCalendarConfigured() {
 type OAuthState = { userId: string; organizationId: string; provider: "google" | "microsoft"; nonce: string; exp: number };
 
 function secret() {
-  const value = process.env.SESSION_PASSWORD?.trim() ?? "";
-  if (value.length >= 32) return value;
-  if (process.env.NODE_ENV === "production") throw new Error("SESSION_PASSWORD must be at least 32 characters.");
-  return "development-only-password-must-be-32";
+  return sessionPassword();
 }
 
 export function signOAuthState(input: Omit<OAuthState, "nonce" | "exp"> & { ttlMs?: number }) {

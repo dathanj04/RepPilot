@@ -1,7 +1,8 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { prisma } from "./db";
-import { getSession } from "./session";
+import { credentialVersion } from "./session-options";
+import { clearPreviewSession, getSession } from "./session";
 
 export type CurrentUser = {
   id: string;
@@ -28,7 +29,11 @@ export async function getCurrentUser(): Promise<CurrentUser> {
     },
     include: { user: true, role: true, organization: true },
   });
-  if (!membership) redirect("/login");
+  if (!membership || session.credentialVersion !== credentialVersion(membership.user.passwordHash)) {
+    session.destroy();
+    await clearPreviewSession();
+    redirect("/login");
+  }
 
   return {
     id: membership.user.id,

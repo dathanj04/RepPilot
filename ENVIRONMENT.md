@@ -8,13 +8,14 @@ The variable list is maintained in `ENVIRONMENT_VARIABLES.md`. Copy `.env.exampl
 | `DIRECT_URL` | For migrations | Direct Neon URL used by `prisma migrate deploy`. Locally it can match `DATABASE_URL` |
 | `DATABASE_URL_TEST` | For tests | Separate database used by `tests/workflows.test.ts` |
 | `APP_ENV` | Yes on a host | `development`, `staging`, or `production`. Production refuses the demo seed |
-| `SESSION_PASSWORD` | Yes | iron-session password, at least 32 characters |
+| `SESSION_PASSWORD` | Yes | iron-session password, at least 32 random characters. There is no built-in fallback |
+| `SEED_PASSWORD` | For local seed | At least 12 characters. Used only by `npm run db:seed`. Do not commit it |
 | `TOKEN_ENCRYPTION_KEY` | Yes | Base64 32-byte key for secure-link ciphertext |
 | `CRON_SECRET` | For cron | Bearer token for `/api/cron/reminders` |
 | `APP_URL` | Yes | Absolute origin used inside emails and copied links |
 | `NEXT_PUBLIC_APP_URL` | Yes | Same origin for the browser |
 | `NEXT_PUBLIC_DEMO_LOGIN` | No | Set to `true` only on a private demo. Production leaves it unset so seeded passwords are not rendered |
-| `GEMINI_API_KEY` | No | Enables Gemini extraction and briefing polish |
+| `GEMINI_API_KEY` | No | Enables briefing polish. Visit notes are not sent to the model |
 | `GEMINI_MODEL` | No | Defaults to `gemini-2.5-flash` |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | No | Enables the Google Maps JavaScript map |
 | `GOOGLE_MAPS_API_KEY` | No | Server key for Geocoding, Places API (New), and Routes. Absent key leaves those calls unmade |

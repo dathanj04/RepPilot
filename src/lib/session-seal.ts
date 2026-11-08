@@ -39,8 +39,13 @@ export async function unsealSession(seal: string | undefined | null): Promise<Se
   if (!seal) return null;
   try {
     const data = await unsealData<SessionData>(seal, { password: sessionOptions.password });
-    if (!data.userId || !data.organizationId || !data.roleKey) return null;
-    return { userId: data.userId, organizationId: data.organizationId, roleKey: data.roleKey };
+    if (!data.userId || !data.organizationId || !data.roleKey || !data.credentialVersion) return null;
+    return {
+      userId: data.userId,
+      organizationId: data.organizationId,
+      roleKey: data.roleKey,
+      credentialVersion: data.credentialVersion,
+    };
   } catch {
     return null;
   }

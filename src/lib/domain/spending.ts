@@ -35,6 +35,11 @@ export function summarizeSpending(rows: SpendingRow[], year: number) {
   };
 }
 
+export function csvCell(value: string) {
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return `"${safe.replaceAll('"', '""')}"`;
+}
+
 export function formatCents(cents: number): string {
   const sign = cents < 0 ? "-" : "";
   const absolute = Math.abs(cents);

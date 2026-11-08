@@ -14,6 +14,7 @@ export async function getSession() {
       session.userId = data.userId;
       session.organizationId = data.organizationId;
       session.roleKey = data.roleKey;
+      session.credentialVersion = data.credentialVersion;
     }
   }
   return session;
@@ -34,7 +35,7 @@ export async function publishPreviewSession(data: SessionData) {
     secure: true,
     sameSite: "lax",
     path: "/",
-    maxAge: sessionOptions.ttl,
+    maxAge: 60 * 60,
   });
 }
 

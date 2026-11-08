@@ -22,7 +22,7 @@ This build is a working application with a real PostgreSQL database. Several ext
 
 ## Demo sign-in
 
-Password for every seeded person: `RepPilot-demo-2026`
+Seeded people use the password in your local `SEED_PASSWORD`. That value is not stored in this repository.
 
 | Email | Role |
 | --- | --- |

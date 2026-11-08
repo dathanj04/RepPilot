@@ -3,7 +3,7 @@ import { formatStraightLine, straightLineMiles } from "./distance";
 import { classifyAccount } from "./markers";
 import { evaluateMealPolicy, canRecordOrder, exceptionIsProhibited, perPersonCents } from "./policy";
 import { assertCostParts, budgetRemainingCents, cateringGates, receiptFileAllowed } from "./catering";
-import { summarizeSpending } from "./spending";
+import { csvCell, summarizeSpending } from "./spending";
 import { computeReminderInstants, reminderAction, rangesOverlap } from "./reminders";
 import { evaluateConfirmationLink, evaluateSlotSelection } from "./invitations";
 import { extractCheckInDeterministic, parseModelExtraction, resolveRelativeDate } from "./extraction";
@@ -138,6 +138,10 @@ describe("policy", () => {
 });
 
 describe("spending", () => {
+  it("neutralizes spreadsheet formulas in exported cells", () => {
+    expect(csvCell("=SUM(A1)")).toBe(`"'=SUM(A1)"`);
+    expect(csvCell("Northside")).toBe(`"Northside"`);
+  });
   it("keeps recorded spending separate from future commitments", () => {
     const summary = summarizeSpending(
       [

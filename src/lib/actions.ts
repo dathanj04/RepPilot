@@ -17,6 +17,7 @@ import { buildAccountBrief, draftFollowUpEmail } from "./domain/briefing";
 import { deliverEmail } from "./email/send";
 import { renderInvitationEmail } from "./email/templates";
 import { consumeSharedRateLimit } from "./domain/rate-limit-store";
+import { credentialVersion } from "./session-options";
 import { recommendStops } from "./domain/routing";
 import { isProfileTimezone } from "./domain/accounts";
 import { findDuplicateAccount } from "./services/accounts";
@@ -58,6 +59,8 @@ export async function loginAction(formData: FormData) {
   await ensureRoles();
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
+  const attempts = await consumeSharedRateLimit(prisma, `login:${email || "blank"}`, 8, 15 * 60_000);
+  if (!attempts.ok) return { error: "Too many sign-in attempts. Wait a few minutes and try again." };
   const user = await prisma.user.findUnique({
     where: { email },
     include: { memberships: { include: { role: true } } },
@@ -68,14 +71,17 @@ export async function loginAction(formData: FormData) {
   const membership = user.memberships[0];
   if (!membership) return { error: "This account is not in an organization." };
   const session = await getSession();
+  const version = credentialVersion(user.passwordHash);
   session.userId = user.id;
   session.organizationId = membership.organizationId;
   session.roleKey = membership.role.key;
+  session.credentialVersion = version;
   await session.save();
   await publishPreviewSession({
     userId: user.id,
     organizationId: membership.organizationId,
     roleKey: membership.role.key,
+    credentialVersion: version,
   });
   redirect(membership.role.key === "PLATFORM_ADMIN" ? "/platform" : "/today");
 }
@@ -134,10 +140,18 @@ export async function signupAction(formData: FormData) {
     data: { organizationId: organization.id, plan: "basic", status: "demo", priceMonthlyCents: 2900 },
   });
   const session = await getSession();
+  const version = credentialVersion(passwordHash);
   session.userId = user.id;
   session.organizationId = organization.id;
   session.roleKey = "ORG_ADMIN";
+  session.credentialVersion = version;
   await session.save();
+  await publishPreviewSession({
+    userId: user.id,
+    organizationId: organization.id,
+    roleKey: "ORG_ADMIN",
+    credentialVersion: version,
+  });
   redirect("/onboarding");
 }
 
@@ -266,6 +280,18 @@ export async function updateProfileAction(formData: FormData) {
     data.passwordHash = await hash(nextPassword, 10);
   }
   await prisma.user.update({ where: { id: user.id }, data });
+  if (data.passwordHash) {
+    const version = credentialVersion(data.passwordHash);
+    const session = await getSession();
+    session.credentialVersion = version;
+    await session.save();
+    await publishPreviewSession({
+      userId: user.id,
+      organizationId: user.organizationId,
+      roleKey: user.roleKey,
+      credentialVersion: version,
+    });
+  }
   await prisma.auditLog.create({
     data: {
       organizationId: user.organizationId,
