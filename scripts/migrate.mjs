@@ -1,22 +1,49 @@
-import pg from "pg";
 import { spawnSync } from "node:child_process";
+import pg from "pg";
 
-const url = process.env.DATABASE_URL?.trim() ?? "";
-if (!url) {
+const pooled = process.env.DATABASE_URL?.trim() ?? "";
+const direct = process.env.DATABASE_URL_UNPOOLED?.trim() || process.env.DIRECT_URL?.trim() || pooled;
+
+if (!direct) {
   console.log("migrate: DATABASE_URL is not set, skipping");
   process.exit(0);
 }
 
-const migrate = spawnSync("npx", ["prisma", "migrate", "deploy"], { stdio: "inherit" });
-if (migrate.status !== 0) process.exit(migrate.status ?? 1);
+function redact(text) {
+  return String(text).replace(/postgres(?:ql)?:\/\/\S+/gi, "postgresql://redacted");
+}
 
-const password = process.env.SEED_PASSWORD?.trim() ?? "";
-if (password.length < 12) {
-  console.log("bootstrap: skipped, reviewer seed password is not configured");
+function localHost(connectionString) {
+  return /@(localhost|127\.0\.0\.1)(:|\/)/.test(connectionString);
+}
+
+function pgConfig(connectionString) {
+  if (localHost(connectionString) || /[?&]sslmode=/i.test(connectionString)) return { connectionString };
+  return { connectionString, ssl: { rejectUnauthorized: true } };
+}
+
+function run(command, args, env) {
+  const result = spawnSync(command, args, { env, encoding: "utf8" });
+  const output = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
+  if (output) console.log(redact(output));
+  return result.status === 0;
+}
+
+const prismaEnv = { ...process.env, DATABASE_URL: direct, DIRECT_URL: direct };
+const migrated = run(process.execPath, ["node_modules/prisma/build/index.js", "migrate", "deploy"], prismaEnv);
+if (!migrated) {
+  console.error("migrate: database setup did not finish. The server will try again on startup.");
   process.exit(0);
 }
 
-const client = new pg.Client({ connectionString: url });
+const password = process.env.SEED_PASSWORD?.trim() ?? "";
+const tokenKey = process.env.TOKEN_ENCRYPTION_KEY?.trim() ?? "";
+if (password.length < 12 || !tokenKey) {
+  console.log("bootstrap: skipped, reviewer seed is not fully configured");
+  process.exit(0);
+}
+
+const client = new pg.Client({ ...pgConfig(direct), connectionTimeoutMillis: 15000 });
 try {
   await client.connect();
   const count = await client.query('select count(*)::int as count from "User"');
@@ -28,12 +55,13 @@ try {
   }
 } catch {
   try { await client.end(); } catch { /* already closed */ }
-  console.error("bootstrap: could not read whether accounts exist");
-  process.exit(1);
+  console.error("bootstrap: could not read whether accounts exist. The server will try again on startup.");
+  process.exit(0);
 }
 
-const seed = spawnSync("npx", ["tsx", "prisma/seed.ts"], {
-  stdio: "inherit",
-  env: { ...process.env, BOOTSTRAP_EMPTY_DATABASE: "true" },
+const seeded = run(process.execPath, ["node_modules/tsx/dist/cli.mjs", "prisma/seed.ts"], {
+  ...prismaEnv,
+  BOOTSTRAP_EMPTY_DATABASE: "true",
 });
-process.exit(seed.status ?? 1);
+if (!seeded) console.error("bootstrap: reviewer accounts were not created. The server will try again on startup.");
+process.exit(0);
