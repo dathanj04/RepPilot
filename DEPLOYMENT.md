@@ -6,7 +6,7 @@ The app is a Next.js server application. It needs a long-lived Node server or a 
 
 1. Set every required variable in `ENVIRONMENT.md`. Use a unique `SESSION_PASSWORD`, `TOKEN_ENCRYPTION_KEY`, and `CRON_SECRET`.
 2. Set `APP_URL` and `NEXT_PUBLIC_APP_URL` to the public origin.
-3. `npm run build` compiles the site, then attempts `prisma migrate deploy`. A database the build cannot reach does not fail the compile. The server retries that setup in the background after it is already accepting pages. Reviewer accounts are created only when the database has no users, `SEED_PASSWORD` is at least 12 characters, and `TOKEN_ENCRYPTION_KEY` is set.
+3. `npm run build` compiles the site, then attempts `prisma migrate deploy`. A database the build cannot reach does not fail the compile. Reviewer accounts are created only when the database has no users, `SEED_PASSWORD` is at least 12 characters, and `TOKEN_ENCRYPTION_KEY` is set.
 4. Run `npm start` after the build. The start script binds port `43123`. Change the port in `package.json` if the host expects another port.
 5. Schedule `POST /api/cron/reminders` with `Authorization: Bearer $CRON_SECRET` at least every 15 minutes. The Today page also processes due reminders for the signed-in organization, which is convenient in demo and not a substitute for the cron job.
 6. Add Resend, map, and Gemini keys only after the accounts that own them are approved for this use.

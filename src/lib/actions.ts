@@ -43,11 +43,6 @@ async function ensureRoles() {
   }
 }
 
-function slugify(value: string) {
-  const base = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40);
-  return base || "organization";
-}
-
 export async function loginFormAction(
   _previous: { error: string } | null,
   formData: FormData,
@@ -104,51 +99,14 @@ export async function signupFormAction(
 }
 
 export async function signupAction(formData: FormData) {
-  await ensureRoles();
-  const name = String(formData.get("name") || "").trim();
-  const email = String(formData.get("email") || "").trim().toLowerCase();
-  const password = String(formData.get("password") || "");
-  const organizationName = String(formData.get("organization") || "").trim();
-  if (name.length < 2 || organizationName.length < 2) {
-    return { error: "Add your name and organization." };
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Enter a valid email." };
-  if (password.length < 8) return { error: "Use at least 8 characters for the password." };
-  if (await prisma.user.findUnique({ where: { email } })) {
-    return { error: "An account with that email already exists. Sign in instead." };
-  }
-  const role = await prisma.role.findUniqueOrThrow({ where: { key: "ORG_ADMIN" } });
-  let slug = slugify(organizationName);
-  if (await prisma.organization.findUnique({ where: { slug } })) {
-    slug = `${slug}-${Math.floor(Math.random() * 10000)}`;
-  }
-  const passwordHash = await hash(password, 10);
-  const user = await prisma.user.create({
-    data: { name, email, passwordHash, timezone: "America/Chicago" },
+  const { createOrganizationAccount } = await import("./signup");
+  const result = await createOrganizationAccount({
+    name: String(formData.get("name") || ""),
+    email: String(formData.get("email") || ""),
+    password: String(formData.get("password") || ""),
+    organization: String(formData.get("organization") || ""),
   });
-  const organization = await prisma.organization.create({
-    data: {
-      name: organizationName,
-      slug,
-      timezone: "America/Chicago",
-      settings: parseOrgSettings({}),
-      branding: { displayName: organizationName, emailFromName: organizationName },
-    },
-  });
-  await prisma.organizationMembership.create({
-    data: { organizationId: organization.id, userId: user.id, roleId: role.id },
-  });
-  await prisma.subscription.create({
-    data: { organizationId: organization.id, plan: "basic", status: "demo", priceMonthlyCents: 2900 },
-  });
-  const session = await getSession();
-  const version = credentialVersion(passwordHash);
-  session.userId = user.id;
-  session.organizationId = organization.id;
-  session.roleKey = "ORG_ADMIN";
-  session.credentialVersion = version;
-  await session.save();
-  await clearPreviewSession();
+  if ("error" in result) return result;
   redirect("/onboarding");
 }
 
