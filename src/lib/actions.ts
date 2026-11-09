@@ -93,8 +93,14 @@ export async function signupFormAction(
   _previous: { error: string } | null,
   formData: FormData,
 ) {
-  const result = await signupAction(formData);
-  return result ?? { error: "The account was not created." };
+  try {
+    const result = await signupAction(formData);
+    return result ?? { error: "The account was not created." };
+  } catch (error) {
+    const digest = typeof error === "object" && error && "digest" in error ? String((error as { digest?: unknown }).digest) : "";
+    if (digest.startsWith("NEXT_REDIRECT")) throw error;
+    return { error: "The account could not be created. Check the details and try again." };
+  }
 }
 
 export async function signupAction(formData: FormData) {

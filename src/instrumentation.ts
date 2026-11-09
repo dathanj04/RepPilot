@@ -3,8 +3,12 @@ import { reportError } from "@/lib/monitoring";
 
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  const { migrateOnStart } = await import("./instrumentation-node");
-  await migrateOnStart();
+  try {
+    const { migrateOnStart } = await import("./instrumentation-node");
+    migrateOnStart();
+  } catch {
+    // A database setup failure must not stop the server from serving pages.
+  }
 }
 
 export const onRequestError: Instrumentation.onRequestError = async (error, request, context) => {
