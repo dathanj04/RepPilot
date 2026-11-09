@@ -3,11 +3,17 @@
 Audit date: November 8, 2026 (America/Chicago).
 Baseline: main commit `2c55613`, including security PR #1. The fixes accompanying this report have not been deployed to the Grok-hosted app.
 
-**Verdict: NOT READY for App Store or Google Play submission.** The web application has working tested server workflows, but this repository does not yet contain a distributable native app. A successful Next.js build is not an iOS or Android release build. Store approval cannot be guaranteed by this audit.
+**Verdict: NOT READY for App Store or Google Play submission.** Account deletion now removes sign-in and personal records, and iOS and Android projects exist. Signed store binaries, a reviewer-reachable host, physical devices, and provider cleanup are still open. Store approval cannot be guaranteed by this audit.
 
 ## Follow-up status
 
-Privacy, support and deletion-intake pages have since been added to main by PR #3. The owner confirmed `Johnson Strategic Outreach and Solutions DBA Rep Pilot LLC`, support at `dathan@abagrowth.com`, and a 30-day verified-deletion-request window. Deadline disclosure and operator due dates are included in the follow-up change. The original evidence below describes the earlier audit baseline; its public-URL failures are historical. Actual deletion fulfillment, backup-retention configuration and native submission work remain open. The verdict remains NOT READY.
+Privacy, support, and deletion pages name Johnson Strategic Outreach and Solutions DBA Rep Pilot LLC and dathan@abagrowth.com. Password confirmation erases sign-in, profile, calendar credentials, notifications, and AI records. Organization visit and spending records remain under the name Deleted user. dathan@abagrowth.com is the operator for backup and provider cleanup within 30 days.
+
+`android/` and `ios/` are Capacitor projects for `com.reppilot.app`. Android release signing reads a keystore that is not in git. A signed IPA still requires Xcode and the Apple Developer account. CRM referral sync and card billing are excluded from this version. Store privacy answers are in STORE_PRIVACY.md. Reviewer setup is in REVIEWER_ACCESS.md.
+
+The original evidence below describes the earlier audit baseline. Its “no deletion page” and “no native project” rows are historical.
+
+Emulated phone layouts on November 8, 2026: iPhone-sized 390×844 and Pixel-sized 412×915 viewports loaded privacy, support, and account deletion with HTTP 200, the legal name, the support email, and no horizontal overflow. A disposable account confirmed its password in the phone layout, the server removed sign-in and membership, and the public completion page loaded. This is not a physical-device or VoiceOver/TalkBack pass. Android and iOS release signatures still belong to the developer accounts.
 
 ## Verified evidence
 

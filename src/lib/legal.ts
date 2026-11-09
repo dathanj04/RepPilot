@@ -5,3 +5,4 @@ export const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}`;
 export const DELETION_MAILTO = `${SUPPORT_MAILTO}?subject=${encodeURIComponent("RepPilot account deletion request")}`;
 
 export const DELETION_PROCESSING_DAYS = 30;
+export const DELETION_OPERATOR_EMAIL = SUPPORT_EMAIL;

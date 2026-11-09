@@ -20,7 +20,12 @@ const roles = [
   { key: "PLATFORM_ADMIN", name: "Platform administrator", description: "RepPilot platform operations", scope: "platform" },
 ];
 
-function assertSeedAllowed() {
+async function assertSeedAllowed() {
+  if (process.env.BOOTSTRAP_EMPTY_DATABASE === "true") {
+    const existing = await prisma.user.count();
+    if (existing > 0) throw new Error("Refusing to bootstrap a database that already has accounts.");
+    return;
+  }
   const env = process.env.APP_ENV || process.env.VERCEL_ENV || "";
   if (env === "production") {
     throw new Error("Demo seed is disabled when APP_ENV or VERCEL_ENV is production.");
@@ -33,7 +38,7 @@ function assertSeedAllowed() {
 }
 
 async function main() {
-  assertSeedAllowed();
+  await assertSeedAllowed();
   const passwordHash = await hash(seedPassword(), 10);
   for (const role of roles) {
     await prisma.role.upsert({
@@ -487,8 +492,10 @@ async function main() {
 
   console.log("Seeded Example Healthcare Services");
   console.log("Demo passwords stay in SEED_PASSWORD and are not printed.");
-  console.log(`Summit invitation: ${process.env.APP_URL}/i/${summitLink.token}`);
-  console.log(`Northside office link: ${process.env.APP_URL}/o/${officeLink.token}`);
+  if (process.env.BOOTSTRAP_EMPTY_DATABASE !== "true") {
+    console.log(`Summit invitation: ${process.env.APP_URL}/i/${summitLink.token}`);
+    console.log(`Northside office link: ${process.env.APP_URL}/o/${officeLink.token}`);
+  }
 }
 
 main()

@@ -4,6 +4,8 @@ import { requirePlatformAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logoutAction } from "@/lib/actions";
 import { formatCents } from "@/lib/domain/spending";
+import { integrationStatus } from "@/lib/integrations/status";
+import { DELETION_OPERATOR_EMAIL } from "@/lib/legal";
 
 export const instant = false;
 export const metadata = { title: "Platform" };
@@ -29,8 +31,9 @@ export default async function PlatformPage() {
         </form>
       </div>
       <p className="mt-3 text-sm text-[#66758B]">
-        This surface lists organizations and plan labels. It does not open representative notes, clinic links, or office records.
+        This surface lists organizations and plan labels. It does not open representative notes, clinic links, or office records. Account-deletion cleanup is assigned to {DELETION_OPERATOR_EMAIL}.
       </p>
+      <IntegrationStatus />
       <ul className="mt-4 space-y-2">
         {organizations.map((organization) => (
           <li key={organization.id} className="rounded-2xl bg-white p-4 text-sm ring-1 ring-slate-200">
@@ -45,4 +48,25 @@ export default async function PlatformPage() {
       </ul>
     </main>
   );
+}
+
+function IntegrationStatus() {
+  const status = integrationStatus();
+  const rows = [
+    ["Google Calendar", status.googleCalendar],
+    ["Microsoft 365", status.microsoftCalendar],
+    ["Email delivery", status.email],
+    ["Map search and drive time", status.mapsServer],
+    ["Google map tiles", status.mapsBrowser],
+    ["Briefing polish", status.gemini],
+    ["CRM referral sync", status.crm],
+    ["Card billing", status.billing],
+  ] as const;
+  return <section className="mt-6 rounded-2xl bg-white p-4 text-sm ring-1 ring-slate-200">
+    <h2 className="font-medium">Launch connections</h2>
+    <p className="mt-1 text-[#66758B]">Configured means the secret is present. It does not mean a live provider call succeeded. CRM sync and card billing are not part of this version.</p>
+    <ul className="mt-3 space-y-1">
+      {rows.map(([label, on]) => <li key={label}>{label}: {on ? "configured" : "not connected"}</li>)}
+    </ul>
+  </section>;
 }

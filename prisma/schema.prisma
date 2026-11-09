@@ -1034,8 +1034,9 @@ model SecureLinkToken {
   @@index([meetingRequestId])
 }
 
-// Queue for verified deletion initiation. No email/password copies are stored.
-// A request is not equivalent to completed deletion; operator processing is required.
+// Evidence of a verified deletion. No email or password is stored.
+// COMPLETED means sign-in and personal records were erased. Organization business
+// records remain. Backup and provider cleanup stays with the assigned operator.
 model AccountDeletionRequest {
   id          String    @id @default(cuid())
   userId      String    @unique

@@ -6,11 +6,11 @@ The app is a Next.js server application. It needs a long-lived Node server or a 
 
 1. Set every required variable in `ENVIRONMENT.md`. Use a unique `SESSION_PASSWORD`, `TOKEN_ENCRYPTION_KEY`, and `CRON_SECRET`.
 2. Set `APP_URL` and `NEXT_PUBLIC_APP_URL` to the public origin.
-3. Run `npx prisma migrate deploy` against the production database.
-4. Run `npm run build` and `npm start`. The start script binds port `43123`. Change the port in `package.json` if the host expects another port.
+3. `npm run build` runs `prisma migrate deploy` when `DATABASE_URL` is set, including the email-body cleanup. It then seeds reviewer accounts only when the database has no users and `SEED_PASSWORD` is at least 12 characters. A database that already has accounts is left alone.
+4. Run `npm start` after the build. The start script binds port `43123`. Change the port in `package.json` if the host expects another port.
 5. Schedule `POST /api/cron/reminders` with `Authorization: Bearer $CRON_SECRET` at least every 15 minutes. The Today page also processes due reminders for the signed-in organization, which is convenient in demo and not a substitute for the cron job.
 6. Add Resend, map, and Gemini keys only after the accounts that own them are approved for this use.
-7. Do not seed demonstration data in a production organization.
+7. Do not reseed a database that already has customer accounts. The empty-database bootstrap is only for a new reviewer environment.
 
 ## Vercel
 
@@ -27,7 +27,7 @@ Use one Vercel project with Production and Preview, or two projects if you want 
 | Preview | `staging` | Neon `staging` | `staging.yourdomain` |
 | Production | `production` | Neon `production` | `app.yourdomain` |
 
-Set these in the Vercel environment, not in git: `DATABASE_URL`, `DIRECT_URL`, `SESSION_PASSWORD`, `TOKEN_ENCRYPTION_KEY`, `CRON_SECRET`, `APP_URL`, `NEXT_PUBLIC_APP_URL`, `APP_ENV`, `RESEND_API_KEY`, `EMAIL_FROM`, `SENTRY_DSN`. Use different session, token, and cron secrets per environment. Leave `NEXT_PUBLIC_DEMO_LOGIN` unset. Do not add a seed command to the build.
+Set these in the Vercel environment, not in git: `DATABASE_URL`, `DIRECT_URL`, `SESSION_PASSWORD`, `TOKEN_ENCRYPTION_KEY`, `CRON_SECRET`, `APP_URL`, `NEXT_PUBLIC_APP_URL`, `APP_ENV`, `RESEND_API_KEY`, `EMAIL_FROM`, `SENTRY_DSN`, and `SEED_PASSWORD` for a brand-new reviewer database. Use different session, token, and cron secrets per environment. Leave `NEXT_PUBLIC_DEMO_LOGIN` unset. The build seeds only an empty database.
 
 `APP_URL` and `NEXT_PUBLIC_APP_URL` must be the https origin of that environment. Session cookies are `Secure` when `NODE_ENV` is production, which Vercel sets for both Preview and Production.
 

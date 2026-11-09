@@ -10,19 +10,17 @@ The owner confirmed the spelling correction to "Solutions" and a 30-day deletion
 
 - Public, unauthenticated `/privacy`, `/support`, and `/delete-account` pages, linked from login, signup and Settings.
 - Protected `/delete-account/confirm` form reachable from Settings and a web browser without reinstalling an app. Identity is derived from the server session; submitted user IDs/emails are ignored.
-- Current-password verification and explicit confirmation before a request is recorded, shared database rate limiting, unique per-user idempotency, and accurate pending status. Passwords and extra email copies are not stored in the queue.
-- Platform-admin-only `/platform/deletion-requests`, linked from `/platform`. Organizations and ordinary users cannot access the global queue.
-- Migration adds AccountDeletionRequest. A request is not account deletion. No user or organization is deleted by submitting the form.
+- Current-password verification and explicit confirmation. A successful confirmation erases sign-in, profile, calendar credentials, notifications, and AI records, then signs the person out. Organization visit, meeting, and spending records remain under the name Deleted user.
+- Shared database rate limiting, unique per-user idempotency, and no password or extra email copy in the queue.
+- Platform-admin-only `/platform/deletion-requests`, linked from `/platform`. The assigned operator is dathan@abagrowth.com. The queue can retry a pending request or erase an account that was requested by email after ownership is confirmed.
+- Migration adds AccountDeletionRequest. Completing a request does not delete the organization or other members.
 
 ## Release blockers that remain
 
-1. Approve operational retention details; legal spelling and a 30-day processing window are confirmed.
-2. Meet the confirmed 30-day verified-request processing deadline. Public pages disclose it, confirmed requests show their expected completion date, and the operator queue flags overdue requests. The deadline is based on the original request timestamp; resubmission does not restart it.
-3. Assign someone to monitor the operator queue. There is no email/page notification or automated deletion worker in this change. Verify the support mailbox receives requests.
-4. Implement and test fulfillment across the complete data inventory, including user-generated content, shared organizational records, provider-held copies and backups. No "completed" action is provided until fulfillment can be verified.
-5. Establish exact backup/metadata retention, lawful retention exceptions, and provider cleanup procedures. Do not use vague shared-business ownership as an exemption from deleting personal data.
-6. Publish to hosting accessible to reviewers; verify live mailbox, pages and session cookies. These code changes do not change the current Grok host or DNS.
-7. Finish other store-readiness work, including native binaries and permission/AI-sharing consent. A privacy page does not implement user consent to send personal data to third-party AI.
+1. dathan@abagrowth.com still clears backup copies and provider-held mail or calendar data within 30 days. The app does not call those providers’ deletion APIs.
+2. Establish the exact backup-retention schedule and tell the person when a copy will age out.
+3. Publish a reviewer-accessible host, rotate the session secret, and apply migrations on that database.
+4. Native store binaries still need the account owner’s signing keys and a physical-device pass. A privacy page does not implement consent before sending text to a third-party AI provider.
 
 ## Handling a pending request
 
@@ -38,9 +36,9 @@ The owner confirmed the spelling correction to "Solutions" and a 30-day deletion
 
 - All three public URLs load without a session or configured session secret.
 - Confirmation URL redirects unauthenticated visitors to login.
-- Valid user can submit from the app; wrong password/unchecked confirmation do not create records; extra userId field cannot target a different account.
-- Refresh/repeated submit does not create duplicates and does not erase the original timestamp.
-- Pending request does not say account erased and does not erase account data.
+- Valid user can submit from the app; wrong password or an unchecked confirmation does not erase the account. An extra userId field cannot target a different account.
+- Repeating a completed deletion does not create a second request.
+- A completed deletion removes sign-in, profile, calendar credentials, notifications, and AI records. Organization visit records remain. Other members stay.
 - Only platform admins see the processing queue; ordinary users cannot read other requests.
 - Recheck privacy statements against deployed integrations; retained historical delivery bodies require the prior redaction migration.
 - Actual deletion and confirmation remain an explicit untested release blocker until a fulfillment implementation exists.

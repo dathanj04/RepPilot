@@ -42,6 +42,16 @@ yarn-error.log*
 # local uploads
 /uploads
 
+# native signing material and machine SDK paths
+*.jks
+*.keystore
+android/keystore.properties
+android/local.properties
+android/.gradle
+android/app/build
+ios/App/Pods
+ios/DerivedData
+
 # vercel
 .vercel
 
