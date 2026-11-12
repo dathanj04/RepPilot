@@ -1,3 +1,4 @@
+import { newTrial } from "./domain/trial";
 import { hash } from "bcryptjs";
 import { prisma } from "./db";
 import { clearPreviewSession, getSession } from "./session";
@@ -72,7 +73,7 @@ export async function createOrganizationAccount(input: {
       data: { organizationId: organization.id, userId: user.id, roleId: role.id },
     });
     await tx.subscription.create({
-      data: { organizationId: organization.id, plan: "basic", status: "demo", priceMonthlyCents: 2900 },
+      data: { organizationId: organization.id, plan: "basic", status: "trialing", ...newTrial() },
     });
     return { userId: user.id, organizationId: organization.id };
   });
