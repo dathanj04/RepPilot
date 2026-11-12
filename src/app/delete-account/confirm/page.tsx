@@ -12,7 +12,7 @@ export const metadata = { title: "Confirm account deletion request" };
 
 export default async function ConfirmDeletionPage({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
   await connection();
-  const user = await getCurrentUser();
+  const user = await getCurrentUser({ allowExpiredTrial: true });
   const { notice } = await searchParams;
   const request = await prisma.accountDeletionRequest.findUnique({ where: { userId: user.id } });
   return <PublicPage title="Request account deletion">

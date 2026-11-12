@@ -8,7 +8,7 @@ import { clearPreviewSession, getSession } from "../session";
 import { fulfillAccountDeletion, requestAccountDeletion } from "./deletion";
 
 export async function requestAccountDeletionAction(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await getCurrentUser({ allowExpiredTrial: true });
   const result = await requestAccountDeletion(prisma, {
     // Identity comes from the authenticated session, never a submitted ID or email.
     userId: user.id,
