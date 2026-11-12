@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';import {scheduling} from '../worker/scheduling.mjs';
+const records=new Map();const env={PROVIDER_PORTAL_URL:'https://provider.test',BUCKET:{async get(k){const r=records.get(k);return r?{body:r.value,httpEtag:r.etag}:null;},async put(k,value,{onlyIf}){const old=records.get(k);if(onlyIf.etagDoesNotMatch==='*'&&old||onlyIf.etagMatches&&old?.etag!==`"${onlyIf.etagMatches}"`)return null;const etag='"'+crypto.randomUUID()+'"';records.set(k,{value,etag});return {httpEtag:etag};}}};
+records.set('workspaces/owner.json',{value:JSON.stringify({state:{practices:[{id:'p1',name:'QA Clinic'}],settings:{name:'QA Rep'}}}),etag:'"workspace"'});
+async function call(body,path='/api/scheduling',user='owner'){const r=await scheduling(new Request('https://rep.test'+path,{method:body?'POST':'GET',headers:{Origin:'https://rep.test',...(user?{'oai-authenticated-user-id':user}:{})},...(body?{body:JSON.stringify(body)}:{})}),env);return {status:r.status,data:await r.json()};}
+assert.equal((await call(null,'/api/scheduling',null)).status,401);
+for(let i=1;i<=4;i++)assert.equal((await call({action:'slot',start:new Date(Date.now()+i*86400000).toISOString()})).status,200);
+let link=await call({action:'link',practiceId:'p1'});assert.equal(link.status,200);let tok=link.data.url.split('#')[1];const path='/api/provider/'+tok;
+let provider=await call(null,path,null);assert.equal(provider.data.direct,true);assert.equal(provider.data.slots.length,4);assert.equal(provider.data.links,undefined);
+const payload={slotId:provider.data.slots[0].id,contact:'Office team',email:'qa@example.test',attendees:8,purpose:'Referral overview',foodPreferences:'Mediterranean or tacos',dietaryRestrictions:'2 vegetarian meals; 1 nut-free meal'};
+assert.equal((await call({...payload,attendees:-1},path,null)).status,400);
+let booked=await call(payload,path,null);assert.equal(booked.data.request.status,'Confirmed');let details=(await call(null,path,null)).data.requests[0];assert.equal(details.foodPreferences,payload.foodPreferences);assert.equal(details.dietaryRestrictions,payload.dietaryRestrictions);assert.equal((await call()).data.requests[0].dietaryRestrictions,payload.dietaryRestrictions);assert.equal((await call(payload,path,null)).status,409);
+link=await call({action:'link',practiceId:'p1',requestOnly:true});const second='/api/provider/'+link.data.url.split('#')[1];
+assert.equal((await call(payload,second,null)).status,409);
+const slots=(await call(null,second,null)).data.slots;let pending=await call({...payload,slotId:slots[0].id},second,null);assert.equal(pending.data.request.status,'Pending');const id=pending.data.request.id;
+assert.equal((await call({action:'approve',id},'/api/scheduling','someone-else')).status,404);
+assert.equal((await call({action:'propose',id,slotId:slots[1].id,note:'Another time'})).status,200);
+assert.equal((await call({action:'accept-proposal',id},second,null)).data.request.status,'Confirmed');
+assert.equal((await call({action:'cancel',id})).status,200);
+const admin=(await call()).data;assert.equal(admin.requests.length,2);
+const expiry=JSON.parse(records.get('scheduling/v1.json').value);expiry.links[0].directUntil=0;records.set('scheduling/v1.json',{value:JSON.stringify(expiry),etag:'"expired"'});assert.equal((await call(null,path,null)).data.direct,false);
+assert.equal((await call(null,'/api/provider/bad',null)).status,404);
+const current=(await call()).data.links[0];assert.equal((await call({action:'revoke',id:current.id})).status,200);assert.equal((await call(null,path,null)).status,404);
+console.log('PASS: direct booking, approval requests, no double booking, proposal acceptance, cancellation, expiry, revocation, owner isolation, validation.');

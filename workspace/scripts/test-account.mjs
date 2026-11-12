@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import worker from '../dist/server/index.js';
+const rows=new Map();const env={TEAM_MANAGER_EMAIL:'manager@test.invalid',BUCKET:{async get(k){const v=rows.get(k);return v?{body:v}:null;},async put(k,v,{onlyIf}={}){if(onlyIf?.etagDoesNotMatch==='*'&&rows.has(k))return null;rows.set(k,v);return {httpEtag:'"1"'};},async list({prefix}){return {objects:[...rows.keys()].filter(k=>k.startsWith(prefix)).map(key=>({key})),truncated:false};}}};
+const req=(user='alice',body,email='alice@test.invalid',origin='https://rep.test',admin=false)=>new Request('https://rep.test/api/account'+(admin?'?admin=1':''),{method:body?'POST':'GET',headers:{...(user?{'oai-authenticated-user-id':user,'oai-authenticated-user-email':email}:{}),Origin:origin},...(body?{body:JSON.stringify(body)}:{})});
+assert.equal((await worker.fetch(req(null),env)).status,401);
+assert.equal((await worker.fetch(req('alice',{confirmation:'DELETE'},undefined,'https://evil.test'),env)).status,403);
+assert.equal((await worker.fetch(req('alice',{confirmation:'yes'}),env)).status,400);
+let r=await worker.fetch(req('alice',{confirmation:'DELETE'}),env);assert.equal(r.status,201);const first=(await r.json()).request;
+assert.equal(first.status,'requested');assert.ok(Date.parse(first.targetBy)>Date.now());
+r=await worker.fetch(req('alice',{confirmation:'DELETE'}),env);assert.equal((await r.json()).request.id,first.id);assert.equal(rows.size,1);
+assert.equal((await(await worker.fetch(req('bob'),env)).json()).request,null);
+assert.equal((await worker.fetch(req('bob',null,'bob@test.invalid','https://rep.test',true),env)).status,403);
+r=await worker.fetch(req('manager',null,'manager@test.invalid','https://rep.test',true),env);assert.equal((await r.json()).requests.length,1);
+const native=new Request('https://rep.test/api/billing',{method:'POST',headers:{'User-Agent':'RepPilotNative/1.0','oai-authenticated-user-id':'alice',Origin:'https://rep.test'},body:'{}'});assert.equal((await worker.fetch(native,env)).status,403);
+console.log('PASS: deletion authentication, origin, explicit confirmation, idempotency, owner isolation, restricted manager queue, and native checkout blocking.');

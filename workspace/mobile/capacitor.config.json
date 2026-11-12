@@ -1,0 +1,18 @@
+{
+  "appId": "com.reppilot.app",
+  "appName": "RepPilot",
+  "webDir": "www",
+  "server": {
+    "url": "https://reppilot-demo.dathanjohnson826.chatgpt.site",
+    "cleartext": false,
+    "androidScheme": "https",
+    "errorPath": "offline.html"
+  },
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "appendUserAgent": " RepPilotNative/1.0"
+}

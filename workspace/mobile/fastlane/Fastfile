@@ -1,0 +1,38 @@
+def required_env(key)
+  value = ENV[key]
+  UI.user_error!("Set #{key} securely before running this lane") if value.nil? || value.empty?
+  value
+end
+
+def check_release
+  sh("cd .. && npm run check:release")
+end
+
+platform :ios do
+  desc "Build a signed IPA after release evidence passes; does not submit for review"
+  lane :archive do
+    check_release
+    team = required_env("APPLE_TEAM_ID")
+    sh("cd .. && npx cap sync ios")
+    build_app(workspace: "ios/App/App.xcworkspace", scheme: "App", export_method: "app-store", export_team_id: team, output_directory: "artifacts/ios")
+  end
+
+  desc "Upload an already-built IPA to TestFlight, without App Review submission"
+  lane :testflight do
+    key = app_store_connect_api_key(key_id: required_env("ASC_KEY_ID"), issuer_id: required_env("ASC_ISSUER_ID"), key_filepath: required_env("ASC_KEY_FILE"))
+    upload_to_testflight(api_key: key, ipa: required_env("REPPILOT_IPA_PATH"), skip_waiting_for_build_processing: true)
+  end
+end
+
+platform :android do
+  desc "Build a signed Android app bundle after release evidence passes"
+  lane :bundle do
+    check_release
+    sh("cd .. && npm run android:release")
+  end
+
+  desc "Upload a signed AAB to Play internal testing as a draft"
+  lane :internal do
+    upload_to_play_store(package_name: "com.reppilot.app", json_key: required_env("PLAY_SERVICE_ACCOUNT_FILE"), aab: required_env("REPPILOT_AAB_PATH"), track: "internal", release_status: "draft", skip_upload_metadata: true, skip_upload_images: true, skip_upload_screenshots: true)
+  end
+end

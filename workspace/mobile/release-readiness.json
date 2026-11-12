@@ -1,0 +1,14 @@
+{
+  "status":"internal-testing-only",
+  "checks":{
+    "deviceSignInVerified":false,
+    "reviewerAccessVerified":false,
+    "publicPrivacyAndSupportVerified":false,
+    "accountDeletionVerified":false,
+    "storePaymentPolicyVerified":false,
+    "nativeFunctionalityVerified":false,
+    "deviceFlowsVerified":false,
+    "privacyDisclosuresVerified":false,
+    "signingAndStoreRecordsVerified":false
+  }
+}

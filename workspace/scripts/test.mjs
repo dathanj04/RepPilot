@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import worker from '../dist/server/index.js';
+const objects=new Map();const env={BUCKET:{async get(k){const r=objects.get(k);return r?{body:r.body,httpEtag:r.etag}:null;},async put(k,body,{onlyIf}){const old=objects.get(k);if(onlyIf.etagDoesNotMatch==='*'&&old||onlyIf.etagMatches&&old?.etag!==`"${onlyIf.etagMatches}"`)return null;const etag='"'+crypto.randomUUID()+'"';objects.set(k,{body,etag});return {httpEtag:etag};}}};
+const req=(method='GET',body,user='owner',tag)=>new Request('https://reppilot.test/api/workspace',{method,headers:{...(user?{'oai-authenticated-user-id':user}:{}),Origin:'https://reppilot.test',...(tag?{'If-Match':tag}:{} )},...(body?{body:JSON.stringify(body)}:{})});
+const state={practices:[],visits:[{id:'visit-1',summary:'Follow up'}],tasks:[],route:[],lunches:[],referralLog:[],settings:{},theme:{}};
+assert.equal((await worker.fetch(req('GET',null,null),env)).status,401);
+let r=await worker.fetch(req(),env);assert.deepEqual(await r.json(),{state:null});
+r=await worker.fetch(req('PUT',state,'owner','"new"'),env);assert.equal(r.status,200);const tag=r.headers.get('ETag');
+r=await worker.fetch(req(),env);assert.deepEqual((await r.json()).state,state);
+assert.equal((await worker.fetch(req('PUT',state,'owner','"new"'),env)).status,409);
+assert.equal((await worker.fetch(req('PUT',state,'owner','"stale"'),env)).status,409);
+assert.equal((await worker.fetch(req('PUT',state,'owner',tag),env)).status,200);
+assert.deepEqual(await (await worker.fetch(req('GET',null,'someone-else'),env)).json(),{state:null});
+const cross=req('PUT',state,'owner',tag);cross.headers.set('Origin','https://other.test');assert.equal((await worker.fetch(cross,env)).status,403);
+assert.equal((await worker.fetch(new Request('https://reppilot.test/'),env)).status,200);
+console.log('PASS: authentication, owner isolation, persistence, revision conflicts, origin checks, assets.');

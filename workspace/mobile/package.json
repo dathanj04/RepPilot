@@ -1,0 +1,16 @@
+{
+  "name":"reppilot-mobile",
+  "version":"1.0.0",
+  "private":true,
+  "type":"module",
+  "scripts":{
+    "sync":"cap sync",
+    "check":"node scripts/preflight.mjs",
+    "check:release":"node scripts/preflight.mjs --release",
+    "android:debug":"cap sync android && cd android && ./gradlew assembleDebug",
+    "android:release":"npm run check:release && cap sync android && cd android && ./gradlew bundleRelease",
+    "ios:open":"cap sync ios && cap open ios"
+  },
+  "dependencies":{"@capacitor/core":"7.6.10","@capacitor/android":"7.6.10","@capacitor/ios":"7.6.10"},
+  "devDependencies":{"@capacitor/cli":"7.6.10"}
+}
