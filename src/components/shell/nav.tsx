@@ -72,7 +72,7 @@ export function BottomNav({ unread }: { unread: number }) {
     { href: "/more", label: "More", icon: "more" },
   ];
   return (
-    <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
+    <nav aria-label="Mobile navigation" className="mobile-bottom-nav fixed inset-x-3 bottom-3 z-40 rounded-[1.75rem] border border-white/80 bg-white/95 px-1 pb-0 shadow-[0_8px_40px_-12px_rgba(16,38,62,0.28)] backdrop-blur-xl md:hidden">
       <ul className="grid grid-cols-5">
         {items.map((item) => {
           const Icon = ICONS[item.icon];
@@ -83,11 +83,11 @@ export function BottomNav({ unread }: { unread: number }) {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex h-20 flex-col items-center justify-center gap-1 text-[11px] font-medium",
-                  active ? "text-[#10263E]" : "text-[#66758B]",
+                  "flex h-[68px] flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-semibold transition-colors",
+                  active ? "text-[#087f5b]" : "text-[#66758B]",
                 )}
               >
-                <span className={cn("relative rounded-xl px-4 py-1.5", active && "bg-emerald-50")}>
+                <span className={cn("relative rounded-xl px-3 py-1.5", active && "bg-[#dff5eb]")}>
                   <Icon className={cn("size-5", item.href === "/today" && "size-6")} />
                   {item.href === "/more" && unread > 0 ? (
                     <span className="absolute -top-1 -right-2 grid min-w-4 place-items-center rounded-full bg-[#D94B4B] px-1 text-[10px] text-white">

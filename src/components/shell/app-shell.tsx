@@ -46,10 +46,10 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         </form>
       </aside>
       <div className="flex h-dvh flex-col md:pl-64">
-        <header className="z-30 flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur-xl md:px-8">
-          <div>
-            <p className="text-sm font-semibold text-[#10263E]">{user.organizationName}</p>
-            <p className="text-xs text-[#66758B]">{user.name}</p>
+        <header className="app-mobile-header z-30 flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur-xl md:px-8">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-[#10263E] truncate">{user.organizationName}</p>
+            <p className="text-xs text-[#66758B] truncate">{user.name}</p>
           </div>
           <div className="flex items-center gap-3">
           <Link href="/accounts/new" className="hidden h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium transition-colors hover:bg-slate-50 sm:inline-flex"><Plus className="size-4" aria-hidden="true" /> Add practice</Link>
@@ -64,7 +64,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             Demonstration organization. Offices, lunches, and spending are fictional.
           </p>
         ) : null}
-        <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">{children}</div>
+        <div className="mobile-workspace min-h-0 flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">{children}</div>
       </div>
       <BottomNav unread={unread} />
     </div>

@@ -134,3 +134,18 @@
   a, button, input, textarea, select { touch-action: manipulation; }
   :focus-visible { outline: 2px solid #087f5b; outline-offset: 3px; }
 }
+
+/* Field-friendly mobile surfaces and safe-area spacing. */
+@media (max-width: 767px) {
+  .app-mobile-header { height: calc(4.25rem + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); padding-inline: 1.25rem; gap: 1rem; border-bottom-color: #e8edf0; }
+  .mobile-workspace { background: #f4f7f6; padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)); overscroll-behavior-y: contain; }
+  .mobile-bottom-nav { bottom: max(.75rem, env(safe-area-inset-bottom)); }
+  .mobile-page { overflow-wrap: anywhere; }
+  .mobile-page > div:first-child > :last-child:not(:first-child) { max-width: 100%; }
+  .mobile-workspace input:not([type=checkbox]):not([type=radio]), .mobile-workspace textarea, .mobile-workspace select, .login-page input { font-size: 16px; }
+  .mobile-workspace [data-slot=button], .mobile-workspace [data-slot=input], .mobile-workspace [data-slot=select-trigger] { min-height: 44px; }
+  .mobile-workspace [data-slot=card] { border-radius: 1.25rem; box-shadow: 0 3px 14px -10px rgb(16 38 62 / .18); }
+  .mobile-workspace [data-slot=tabs-list] { max-width: 100%; overflow-x: auto; justify-content: flex-start; }
+  .mobile-workspace [data-slot=dialog-content] { max-height: calc(100dvh - 2rem); overflow-y: auto; border-radius: 1.5rem; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
