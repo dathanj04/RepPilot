@@ -13,11 +13,11 @@ import { PageFrame } from "@/components/ui/page";
 export const instant = false;
 export const metadata = { title: "Billing" };
 
-export default async function BillingPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string }> }) {
+export default async function BillingPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string; checkout?: string }> }) {
   await connection();
   const user = await getCurrentUser({ allowExpiredTrial: true });
   if (user.roleKey === "PLATFORM_ADMIN") redirect("/platform");
-  const { saved, error } = await searchParams;
+  const { saved, error, checkout } = await searchParams;
   const profile = await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { billingName: true, billingEmail: true } });
   const subscription = await prisma.subscription.findUnique({ where: { organizationId: user.organizationId } });
   const configured = stripeConfigured();
@@ -46,7 +46,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           <form action={saveBillingDetailsAction} className="mt-4 space-y-4"><label className="block text-sm font-medium" htmlFor="billingName">Billing name<input id="billingName" name="billingName" defaultValue={profile.billingName || user.name} minLength={2} maxLength={120} required autoComplete="name" className="mt-2 h-12 w-full rounded-lg border border-slate-300 px-3 text-base" /></label><label className="block text-sm font-medium" htmlFor="billingEmail">Billing email<input id="billingEmail" name="billingEmail" type="email" defaultValue={profile.billingEmail || user.email} maxLength={254} required autoComplete="email" className="mt-2 h-12 w-full rounded-lg border border-slate-300 px-3 text-base" /></label><button type="submit" className="min-h-11 rounded-lg bg-[#10263e] px-4 text-sm font-medium text-white">Save my billing details</button></form><p className="mt-3 text-xs leading-5 text-slate-500">Confirm your payment details securely in Stripe at checkout.</p>
         </section>
         <section aria-labelledby="payments-heading" className="rounded-xl border border-slate-200 bg-white p-6"><h2 id="payments-heading" className="font-semibold">Payments & invoices</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-600">After your 14-day trial, a paid subscription is required to access RepPilot and workspace data. Checkout is hosted securely by Stripe. Nothing is charged automatically at trial expiry.</p>
+          {checkout === "complete" && expired ? <p role="status" className="mt-3 text-sm text-amber-900">Waiting for Stripe to confirm payment. Refresh this page shortly. Access stays locked until payment is confirmed.</p> : null}
+          <p className="mt-3 text-sm leading-6 text-slate-600">After your 14-day trial, a paid subscription is required to access RepPilot and workspace data. Checkout is hosted securely by Stripe. If you already opened checkout, it resumes that session; review its plan and total before confirming. Nothing is charged automatically at trial expiry.</p>
           {!configured ? <p role="status" className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Stripe setup is awaiting activation. Contact support if your trial has ended.</p> : null}
           {expired ? <div className="mt-4 space-y-3">{Object.entries(BILLING_PLANS).map(([key, plan]) => <form key={key} action={startCheckoutAction} className="rounded-lg border border-slate-200 p-4"><input type="hidden" name="plan" value={key} /><p className="font-medium">{plan.label}</p><p className="mt-1 text-sm text-slate-600">{plan.amount}, plus applicable tax. Renews until canceled.</p><button disabled={!configured} className="mt-3 min-h-11 rounded-lg bg-[#087f5b] px-4 text-sm font-medium text-white disabled:opacity-50">Subscribe with Stripe</button></form>)}</div> : trial ? <p className="mt-4 text-sm text-slate-600">Your free trial is still running. Subscription checkout opens when it ends.</p> : <Link href="/today" className="mt-4 inline-block underline">Return to workspace</Link>}
           {subscription?.stripeCustomerId ? <form action={openBillingPortalAction}><button disabled={!configured} className="mt-4 min-h-11 rounded-lg border px-4 text-sm font-medium disabled:opacity-50">Manage payment & invoices</button></form> : null}
