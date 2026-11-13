@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { BILLING_PLANS, stripeConfigured } from "@/lib/stripe";
-import { startCheckoutAction, openBillingPortalAction } from "@/lib/billing-actions";
+import { startCheckoutAction, openBillingPortalAction, selectTrialPlanAction } from "@/lib/billing-actions";
 import { saveBillingDetailsAction } from "@/lib/billing-actions";
 import { SUPPORT_MAILTO } from "@/lib/legal";
 import { AppShell } from "@/components/shell/app-shell";
@@ -13,12 +13,12 @@ import { PageFrame } from "@/components/ui/page";
 export const instant = false;
 export const metadata = { title: "Billing" };
 
-export default async function BillingPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string; checkout?: string }> }) {
+export default async function BillingPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string; checkout?: string; planSaved?: string }> }) {
   await connection();
   const user = await getCurrentUser({ allowExpiredTrial: true });
   if (user.roleKey === "PLATFORM_ADMIN") redirect("/platform");
-  const { saved, error, checkout } = await searchParams;
-  const profile = await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { billingName: true, billingEmail: true } });
+  const { saved, error, checkout, planSaved } = await searchParams;
+  const profile = await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { billingName: true, billingEmail: true, billingPlanPreference: true } });
   const subscription = await prisma.subscription.findUnique({ where: { organizationId: user.organizationId } });
   const configured = stripeConfigured();
   const expired = user.trialDaysLeft === 0;
@@ -29,7 +29,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       <section aria-labelledby="plan-heading" className="rounded-xl border border-slate-200 bg-white p-6">
         <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="plan-heading" className="text-base font-semibold">Workspace subscription</h2><span className={`rounded-md px-2.5 py-1 text-xs font-medium ${expired ? "bg-amber-50 text-amber-900" : "bg-emerald-50 text-emerald-900"}`}>{expired ? "Trial ended" : trial ? "Free trial" : "Active"}</span></div>
         <p className="mt-5 text-2xl font-semibold">{trial ? "14-day free trial" : "RepPilot Business"}</p>
-        <p className="mt-2 text-sm text-slate-600">{expired ? "Your free workspace access has ended. Choose a subscription below to restore access after Stripe confirms payment." : trial ? `${user.trialDaysLeft} ${user.trialDaysLeft === 1 ? "day" : "days"} remaining. No credit card required and no automatic charge.` : "Your workspace has a verified paid subscription."}</p>
+        <p className="mt-2 text-sm text-slate-600">{expired ? "Your free workspace access has ended. Choose a subscription in Payments & invoices to restore access after Stripe confirms payment." : trial ? `${user.trialDaysLeft} ${user.trialDaysLeft === 1 ? "day" : "days"} remaining. No credit card required and no automatic charge.` : "Your workspace has a verified paid subscription."}</p>
         <dl className="mt-6 divide-y divide-slate-100 text-sm">
           <div className="flex justify-between gap-4 py-3"><dt className="text-slate-500">Plan</dt><dd className="font-medium capitalize">{trial ? "Free trial" : "Business"}</dd></div>
           {trial ? <div className="flex justify-between gap-4 py-3"><dt className="text-slate-500">Trial price</dt><dd className="font-medium">$0</dd></div> : null}
@@ -49,7 +49,22 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           {checkout === "complete" && expired ? <p role="status" className="mt-3 text-sm text-amber-900">Waiting for Stripe to confirm payment. Refresh this page shortly. Access stays locked until payment is confirmed.</p> : null}
           <p className="mt-3 text-sm leading-6 text-slate-600">After your 14-day trial, a paid subscription is required to access RepPilot and workspace data. Checkout is hosted securely by Stripe. If you already opened checkout, it resumes that session; review its plan and total before confirming. Nothing is charged automatically at trial expiry.</p>
           {!configured ? <p role="status" className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Stripe setup is awaiting activation. Contact support if your trial has ended.</p> : null}
-          {expired ? <div className="mt-4 space-y-3">{Object.entries(BILLING_PLANS).map(([key, plan]) => <form key={key} action={startCheckoutAction} className="rounded-lg border border-slate-200 p-4"><input type="hidden" name="plan" value={key} /><p className="font-medium">{plan.label}</p><p className="mt-1 text-sm text-slate-600">{plan.amount}, plus applicable tax. Renews until canceled.</p><button disabled={!configured} className="mt-3 min-h-11 rounded-lg bg-[#087f5b] px-4 text-sm font-medium text-white disabled:opacity-50">Subscribe with Stripe</button></form>)}</div> : trial ? <p className="mt-4 text-sm text-slate-600">Your free trial is still running. Subscription checkout opens when it ends.</p> : <Link href="/today" className="mt-4 inline-block underline">Return to workspace</Link>}
+          {trial ? <div className="mt-5 space-y-3" aria-labelledby="plan-options-heading">
+            <h3 id="plan-options-heading" className="font-medium">Choose your billing option</h3>
+            {!expired ? <p className="text-sm leading-6 text-slate-600">Compare billing options and save your preference now. Your trial remains free for the full 14 days. You’ll complete Stripe Checkout after it ends; saving a choice does not schedule a payment.</p> : null}
+            {planSaved === "1" ? <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">Your preference is saved. Your trial is still free and no payment has been scheduled.</p> : null}
+            {Object.entries(BILLING_PLANS).map(([key, plan]) => {
+              const selected = profile.billingPlanPreference === key;
+              return <form key={key} action={expired ? startCheckoutAction : selectTrialPlanAction} className={`rounded-lg border p-4 ${selected ? "border-emerald-600 bg-emerald-50/40" : "border-slate-200"}`}>
+                <input type="hidden" name="plan" value={key} />
+                <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-medium">{plan.label}</p>{selected ? <span className="rounded bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-900">Your preference</span> : null}</div>
+                <p className="mt-2 text-lg font-semibold">{plan.amount}</p>
+                <p className="mt-1 text-sm text-slate-600">{key === "annual" ? "Billed annually. Save $112.20 per year compared with monthly billing." : "Billed monthly."}</p>
+                <p className="mt-2 text-xs leading-5 text-slate-500">Plus applicable tax. Once purchased, renews until canceled.</p>
+                <button disabled={expired && !configured} className="mt-4 min-h-11 rounded-lg bg-[#087f5b] px-4 text-sm font-medium text-white disabled:opacity-50">{expired ? "Subscribe with Stripe" : selected ? "Keep this preference" : "Choose this option"}</button>
+              </form>;
+            })}
+          </div> : <Link href="/today" className="mt-4 inline-block underline">Return to workspace</Link>}
           {subscription?.stripeCustomerId ? <form action={openBillingPortalAction}><button disabled={!configured} className="mt-4 min-h-11 rounded-lg border px-4 text-sm font-medium disabled:opacity-50">Manage payment & invoices</button></form> : null}
           <a className="mt-4 inline-block text-sm underline" href={`${SUPPORT_MAILTO}?subject=RepPilot%20billing`}>Contact billing support</a>
         </section>

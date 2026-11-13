@@ -17,6 +17,7 @@ model User {
   passwordHash       String
   billingName        String?
   billingEmail       String?
+  billingPlanPreference String?
   phone              String?
   timezone           String   @default("America/Chicago")
   title              String?

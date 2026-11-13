@@ -15,6 +15,17 @@ export async function saveBillingDetailsAction(form: FormData) {
   redirect("/billing?saved=1");
 }
 
+// Saving a preference does not create a Stripe customer or subscription.
+export async function selectTrialPlanAction(form: FormData) {
+  const user = await getCurrentUser({ allowExpiredTrial: true });
+  const plan = String(form.get("plan") || "");
+  if (!Object.hasOwn(BILLING_PLANS, plan)) redirect("/billing?error=Choose%20a%20listed%20plan.");
+  if (user.trialDaysLeft === null || user.trialDaysLeft <= 0) redirect("/billing?error=Your%20trial%20has%20ended.%20Choose%20a%20subscription%20below.");
+  await prisma.user.update({ where: { id: user.id }, data: { billingPlanPreference: plan } });
+  revalidatePath("/billing");
+  redirect("/billing?planSaved=1");
+}
+
 export async function startCheckoutAction(form: FormData) {
   const user = await getCurrentUser({ allowExpiredTrial: true });
   const planKey = String(form.get("plan"));
