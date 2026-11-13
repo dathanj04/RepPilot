@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+import { workspaceAccess } from "@/lib/workspace-access";
 import { connection } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/domain/tokens";
@@ -24,6 +26,7 @@ export default async function InvitationPage({ params }: { params: Promise<{ tok
       },
     },
   });
+  if (link && !await workspaceAccess(prisma, link.organizationId)) notFound();
   const invitation = link?.invitation;
   if (!link || !invitation) {
     return (

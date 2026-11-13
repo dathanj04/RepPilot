@@ -1,3 +1,4 @@
+import { workspaceAccess } from "../workspace-access";
 import type { Db } from "../db";
 import { decryptString, encryptString } from "../domain/crypto";
 import { generateToken, hashToken } from "../domain/tokens";
@@ -45,7 +46,8 @@ export function revealToken(ciphertext: string) {
 
 export async function findActiveLink(db: Db, token: string, purpose: string) {
   const tokenHash = hashToken(token);
-  return db.secureLinkToken.findFirst({
+  const link = await db.secureLinkToken.findFirst({
     where: { tokenHash, purpose, revokedAt: null },
   });
+  return link && await workspaceAccess(db, link.organizationId) ? link : null;
 }

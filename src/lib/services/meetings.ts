@@ -1,3 +1,4 @@
+import { workspaceAccess } from "../workspace-access";
 import type { Db } from "../db";
 import { appUrl } from "../permissions";
 import {
@@ -92,6 +93,7 @@ export async function submitMeetingRequest(
   const link = await db.secureLinkToken.findFirst({
     where: { tokenHash: input.tokenHash, purpose: "scheduling" },
   });
+  if (link && !await workspaceAccess(db, link.organizationId)) return { ok: false as const, error: "This workspace is unavailable. Please contact the representative." };
   if (!link?.schedulingInvitationId) return { ok: false as const, error: "This scheduling invitation link is not valid." };
   const officeName = input.officeName.trim();
   const requesterName = input.requesterName.trim();
@@ -187,6 +189,7 @@ export async function requestReplacementInvitation(
     where: { tokenHash: input.tokenHash, purpose: "scheduling" },
     include: { schedulingInvitation: true },
   });
+  if (link && !await workspaceAccess(db, link.organizationId)) return { ok: false as const, error: "This workspace is unavailable. Please contact the representative." };
   const invitation = link?.schedulingInvitation;
   if (!invitation) return { ok: false as const, error: "This scheduling invitation link is not valid." };
   const access = invitationAccess({
@@ -426,6 +429,7 @@ export async function acceptProposedTime(db: Db, input: { tokenHash: string; now
     where: { tokenHash: input.tokenHash, purpose: "scheduling_reply", revokedAt: null },
     include: { meetingRequest: { include: { invitation: true } } },
   });
+  if (link && !await workspaceAccess(db, link.organizationId)) return { ok: false as const, error: "This workspace is unavailable. Please contact the representative." };
   const request = link?.meetingRequest;
   if (!link || !request?.proposedStartsAt || !request.proposedEndsAt) return { ok: false as const, error: "This proposal link is not valid." };
   if (link.expiresAt <= input.now) return { ok: false as const, error: "This proposal link has expired." };

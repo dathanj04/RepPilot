@@ -10,7 +10,7 @@ import { BottomNav, SideNav, type NavItem } from "./nav";
 export async function AppShell({ children, allowExpiredTrial = false }: { children: React.ReactNode; allowExpiredTrial?: boolean }) {
   await connection();
   const user = await requireAppUser({ allowExpiredTrial });
-  const unread = await prisma.notification.count({
+  const unread = user.trialDaysLeft === 0 ? 0 : await prisma.notification.count({
     where: { userId: user.id, organizationId: user.organizationId, readAt: null },
   });
   const items: NavItem[] = [

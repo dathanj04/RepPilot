@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+import { workspaceAccess } from "@/lib/workspace-access";
 import { connection } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/domain/tokens";
@@ -17,6 +19,7 @@ export default async function ConfirmationPage({ params }: { params: Promise<{ t
       booking: { include: { account: true, representative: true, organization: true } },
     },
   });
+  if (link && !await workspaceAccess(prisma, link.organizationId)) notFound();
   const booking = link?.booking;
   if (!link || !booking) {
     return (

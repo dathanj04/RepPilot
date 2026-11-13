@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+import { workspaceAccess } from "@/lib/workspace-access";
 import { connection } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/domain/tokens";
@@ -15,6 +17,7 @@ export default async function OfficePage({ params }: { params: Promise<{ token: 
     where: { tokenHash: hashToken(token), purpose: "office" },
     include: { account: true, organization: true },
   });
+  if (link && !await workspaceAccess(prisma, link.organizationId)) notFound();
   if (!link?.account || link.revokedAt || link.expiresAt <= new Date()) {
     return (
       <PublicShell eyebrow="RepPilot AI" title="This office link is not active.">
