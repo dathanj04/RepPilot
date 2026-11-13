@@ -38,7 +38,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const lead = getDay(monthStart);
 
   return (
-    <PageFrame title="Calendar" subtitle="Internal lunches and follow-ups live here. External calendars stay disconnected until OAuth succeeds.">
+    <PageFrame title="Calendar" subtitle="Your scheduled lunches and follow-ups.">
       {notice ? <p className="mb-3 rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-slate-200">{notice}</p> : null}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.8fr)]">
         <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">

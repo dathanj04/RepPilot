@@ -29,7 +29,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const done = tasks.filter((task) => task.status === "DONE");
 
   return (
-    <PageFrame title="Tasks" subtitle="Follow-ups stay short. Add an office, a date, and a priority, then mark them done from the field.">
+    <PageFrame title="Tasks" subtitle="Track follow-ups and upcoming deadlines.">
       {notice ? <p className="mb-4 rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-slate-200">{notice}</p> : null}
       <div className="grid gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
         <form action={createTaskAction} className="grid h-fit gap-2 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
