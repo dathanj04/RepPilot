@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { csvCell, formatCents } from "@/lib/domain/spending";
 
 export async function GET(request: Request) {
-  const user = await getCurrentUser({ allowExpiredTrial: true });
+  const user = await getCurrentUser();
   const accountId = new URL(request.url).searchParams.get("account");
   const rows = await prisma.officeSpendingEntry.findMany({
     where: {

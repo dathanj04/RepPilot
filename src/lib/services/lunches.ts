@@ -1,3 +1,4 @@
+import { workspaceAccess } from "../workspace-access";
 import type { Db } from "../db";
 import { evaluateSlotSelection, evaluateConfirmationLink } from "../domain/invitations";
 import { rangesOverlap, computeReminderInstants, reminderIdempotencyKey } from "../domain/reminders";
@@ -109,6 +110,7 @@ export async function acceptInvitationSlot(
   const link = await db.secureLinkToken.findFirst({
     where: { tokenHash: input.tokenHash, purpose: "invitation", revokedAt: null },
   });
+  if (link && !await workspaceAccess(db, link.organizationId)) return { ok: false as const, error: "This workspace is unavailable. Please contact the representative." };
   if (!link?.invitationId) {
     return { ok: false as const, error: "This invitation link is not valid." };
   }
@@ -271,6 +273,7 @@ export async function confirmLunch(
     where: { tokenHash: input.tokenHash, purpose: "lunch_confirmation", revokedAt: null },
     include: { booking: true },
   });
+  if (link && !await workspaceAccess(db, link.organizationId)) return { ok: false as const, error: "This workspace is unavailable. Please contact the representative." };
   if (!link?.booking) {
     return { ok: false as const, error: "This confirmation link is not valid." };
   }
@@ -342,6 +345,7 @@ export async function requestLunchChange(
     },
     include: { booking: true },
   });
+  if (link && !await workspaceAccess(db, link.organizationId)) return { ok: false as const, error: "This workspace is unavailable. Please contact the representative." };
   if (!link?.booking) return { ok: false as const, error: "This link cannot request a change." };
   if (link.booking.status === "CANCELED") {
     return { ok: false as const, error: "This lunch was canceled." };

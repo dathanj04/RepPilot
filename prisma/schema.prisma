@@ -121,6 +121,9 @@ model Subscription {
   plan              String
   status            String
   priceMonthlyCents Int?
+  stripeCustomerId  String? @unique
+  billingPayerUserId String?
+  stripeCheckoutId String?
   trialStartedAt    DateTime?
   trialEndsAt       DateTime?
   createdAt         DateTime @default(now())

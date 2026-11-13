@@ -5,8 +5,7 @@ export function newTrial(now = new Date()) {
   return { trialStartedAt: now, trialEndsAt: new Date(now.getTime() + TRIAL_DAYS * DAY_MS) };
 }
 
-export function trialAccess(subscription: { status: string; trialStartedAt: Date | null; trialEndsAt: Date | null } | null, now = new Date()) {
-  if (subscription?.status === "active") return { allowed: true, daysLeft: null, endsAt: null };
+export function trialAccess(subscription: { status: string; trialStartedAt: Date | null; trialEndsAt: Date | null } | null, now = new Date()): { allowed: boolean; daysLeft: number | null; endsAt: string | null } {
   const start = subscription?.trialStartedAt?.getTime();
   const end = subscription?.trialEndsAt?.getTime();
   const valid = subscription?.status === "trialing" && start != null && end != null && Number.isFinite(start) && Number.isFinite(end) && start <= now.getTime() && end > start;

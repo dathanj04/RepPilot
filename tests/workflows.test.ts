@@ -1,5 +1,6 @@
 import "dotenv/config";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+vi.mock("server-only", () => ({}));
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createPrisma } from "../src/lib/db";
 import { hashToken } from "../src/lib/domain/tokens";
 import { saveCheckIn } from "../src/lib/services/checkins";
@@ -33,6 +34,7 @@ async function fixture() {
   const orgB = await prisma.organization.create({
     data: { name: "Test Org B", slug: `test-b-${Date.now()}`, timezone: "America/Chicago" },
   });
+  await prisma.subscription.createMany({ data: [orgA, orgB].map(org => ({ organizationId: org.id, plan: "basic", status: "trialing", trialStartedAt: new Date(), trialEndsAt: new Date(Date.now() + 14 * 86400000) })) });
   const user = await prisma.user.create({
     data: {
       email: `rep-${Date.now()}@example-health.test`,

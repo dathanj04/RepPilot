@@ -1,4 +1,5 @@
 "use server";
+import { workspaceAccess } from "./workspace-access";
 
 import { hash, compare } from "bcryptjs";
 import { revalidatePath } from "next/cache";
@@ -986,6 +987,7 @@ export async function clinicRespondAction(payload: {
   }
   if (payload.intent === "change" || payload.intent === "request") {
     const link = await prisma.secureLinkToken.findFirst({ where: { tokenHash, revokedAt: null }, include: { booking: true, account: true } });
+    if (link && !await workspaceAccess(prisma, link.organizationId)) return { error: "This workspace is unavailable." };
     if (payload.intent === "request" && link?.accountId && !link.bookingId) {
       const rep = await prisma.accountAssignment.findFirst({ where: { accountId: link.accountId }, include: { user: true } });
       if (rep) {

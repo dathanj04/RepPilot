@@ -1,4 +1,5 @@
 import "server-only";
+import { hasPaidAccess } from "./stripe";
 import { trialAccess } from "./domain/trial";
 import { redirect } from "next/navigation";
 import { prisma } from "./db";
@@ -38,7 +39,10 @@ export async function getCurrentUser(options: { allowExpiredTrial?: boolean } = 
     redirect("/login");
   }
 
-  const access = trialAccess(membership.organization.subscription);
+  let access = trialAccess(membership.organization.subscription);
+  if (!access.allowed && await hasPaidAccess(membership.organization.subscription?.stripeCustomerId, membership.organizationId)) {
+    access = { allowed: true, daysLeft: null, endsAt: null };
+  }
   if (!options.allowExpiredTrial && membership.role.key !== "PLATFORM_ADMIN" && !access.allowed) redirect("/trial-ended");
 
   return {
