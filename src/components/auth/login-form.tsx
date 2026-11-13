@@ -26,14 +26,14 @@ export function LoginForm() {
     <form action={formAction} className="space-y-5">
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" name="email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} className="h-[52px] rounded-xl border-slate-200 bg-slate-50/80 px-4 text-base focus:bg-white" required />
+        <Input id="email" name="email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} className="h-12 rounded-lg border-slate-300 bg-white px-3 text-base" required />
       </div>
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
-        <Input id="password" name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className="h-[52px] rounded-xl border-slate-200 bg-slate-50/80 px-4 text-base focus:bg-white" required />
+        <Input id="password" name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className="h-12 rounded-lg border-slate-300 bg-white px-3 text-base" required />
       </div>
       {state?.error ? <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{state.error}</p> : null}
-      <Button type="submit" className="h-[52px] w-full rounded-xl bg-[#087f5b] text-sm font-semibold text-white shadow-[0_6px_18px_-8px_rgba(8,127,91,0.5)] hover:bg-[#076b4d]" disabled={pending}>
+      <Button type="submit" className="h-12 w-full rounded-lg bg-[#087f5b] text-sm font-semibold text-white hover:bg-[#076b4d]" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}
       </Button>
       {demoLogin ? <div className="space-y-2 pt-2">
@@ -53,7 +53,7 @@ export function LoginForm() {
         </div>
       </div> : null}
       <p className="text-sm text-[#66758B]">
-        New organization? <Link className="font-medium text-[#10263E] underline" href="/signup">Create one</Link>
+        New to RepPilot? <Link className="font-medium text-[#10263E] underline" href="/signup">Start a free trial</Link>
       </p>
     </form>
   );

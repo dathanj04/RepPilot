@@ -95,60 +95,26 @@ export default async function TodayPage() {
     <PageFrame title={greeting} subtitle={briefing} action={<Link className="inline-flex h-11 items-center rounded-xl bg-[#10263E] px-4 text-sm font-medium text-white" href="/map">Open map</Link>}>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Visits planned" value={String(visits.length)} hint="Saved route stops" />
-        <MetricCard label="Lunches scheduled" value={String(lunches.length)} hint="Still ahead of you" />
-        <MetricCard label="Pending confirmations" value={String(pendingConfirmations.length)} hint="Waiting on the office" />
+        <MetricCard label="Lunches scheduled" value={String(lunches.length)} hint="Upcoming appointments" />
+        <MetricCard label="Pending confirmations" value={String(pendingConfirmations.length)} hint="Awaiting a response" />
         <MetricCard label="Follow-ups due" value={String(dueToday.length)} hint={`${staleAccounts} offices quiet for ${settings.staleBriefingDays} days`} />
       </div>
-      <section className="mt-6 rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-white p-6 shadow-sm">
-        <h2 className="font-semibold text-[#10263E]">This month&apos;s focus</h2>
-        {themes.length === 0 ? <p className="mt-2 text-sm text-[#66758B]">No published theme applies to you today.</p> : null}
-        <ul className="mt-3 space-y-3">
-          {themes.map((theme) => (
-            <li key={theme.id}>
-              <p className="font-medium">{theme.title}</p>
-              <p className="text-sm text-[#66758B]">{theme.description}</p>
-              {theme.talkingPoints[0] ? <p className="mt-1 text-sm">{theme.talkingPoints[0]}</p> : null}
-              {theme.resources.length > 0 ? <p className="mt-1 text-xs text-[#66758B]">Resources: {theme.resources.join(", ")}</p> : null}
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section className="mt-8">
-        <h2 className="font-semibold text-[#10263E]">AI visit intelligence</h2>
-        <p className="mt-1 text-sm text-[#66758B]">Make your next conversation count. Recommendations use your saved visits, follow-ups, and available CRM data.</p>
-        {cards.length === 0 ? <p className="mt-3 text-sm text-[#66758B]">No open follow-up or saved stop needs a recommendation.</p> : null}
-        <ul className="mt-3 grid gap-3 lg:grid-cols-2">
-          {cards.map((card) => (
-            <li key={card.accountId} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="font-semibold text-[#10263E]">{card.name}</p>
-              <p className="text-xs text-[#66758B]">Last visit: {card.lastVisit}</p>
-              <p className="mt-2 text-sm">{card.referralLabel}</p>
-              <p className="mt-1 text-sm">{card.reason}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Link className="inline-flex h-10 items-center rounded-xl bg-white px-3 text-sm ring-1 ring-slate-200" href={`/accounts/${card.accountId}`}>View practice</Link>
-                <Link className="inline-flex h-10 items-center rounded-xl bg-white px-3 text-sm ring-1 ring-slate-200" href={`/accounts/${card.accountId}#brief`}>Prepare for visit</Link>
-                <Link className="inline-flex h-10 items-center rounded-xl bg-[#19B78A] px-3 text-sm font-semibold text-[#06281f]" href={`/accounts/${card.accountId}/check-in`}>Start check-in</Link>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
       <div className="mt-6 grid items-start gap-4 lg:grid-cols-3">
-        <section className="rounded-2xl bg-gradient-to-br from-[#10263E] to-[#214d5b] p-6 text-white shadow-lg shadow-slate-900/10 lg:col-span-1">
-          <p className="text-xs font-medium tracking-wide text-white/60">SUGGESTED NEXT STOP</p>
+        <section className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-1">
+          <p className="text-xs font-medium tracking-wide text-slate-500">Next stop</p>
           {nextStop ? (
             <>
               <h2 className="mt-2 text-xl font-semibold">{nextStop.name}</h2>
-              <p className="mt-1 text-sm text-white/70">{nextStop.street}, {nextStop.city}</p>
-              <p className="mt-3 text-xs text-white/60">Driving time is not shown. Open the map for the office pin.</p>
+              <p className="mt-1 text-sm text-slate-500">{nextStop.street}, {nextStop.city}</p>
+              <p className="mt-3 text-xs text-slate-500">Driving time is not shown. Open the map for the office pin.</p>
               <div className="mt-4 flex gap-2">
-                <Link className="inline-flex h-11 items-center rounded-xl bg-[#19B78A] px-4 text-sm font-semibold text-[#06281f]" href={`/accounts/${nextStop.id}/check-in`}>Check in</Link>
-                <Link className="inline-flex h-11 items-center rounded-xl bg-white/10 px-4 text-sm font-medium" href={`/accounts/${nextStop.id}`}>Account</Link>
+                <Link className="inline-flex h-11 items-center rounded-xl bg-[#087f5b] px-4 text-sm font-semibold text-white" href={`/accounts/${nextStop.id}/check-in`}>Check in</Link>
+                <Link className="inline-flex h-11 items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium" href={`/accounts/${nextStop.id}`}>Account</Link>
               </div>
             </>
-          ) : <p className="mt-3 text-sm text-white/70">No suggested stop yet. Add offices or save a route.</p>}
+          ) : <p className="mt-3 text-sm text-slate-500">No suggested stop yet. Add offices or save a route.</p>}
         </section>
-        <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+        <section className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-semibold text-[#10263E]">Today&apos;s visits</h2>
             <Link className="text-sm font-medium text-[#10263E]" href="/route">Route</Link>
@@ -169,7 +135,7 @@ export default async function TodayPage() {
           </ul>
         </section>
         <section className="space-y-4">
-          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-semibold text-[#10263E]">Upcoming lunches</h2>
               <Link className="text-sm font-medium text-[#10263E]" href="/lunches">All</Link>
@@ -186,7 +152,7 @@ export default async function TodayPage() {
               ))}
             </ul>
           </div>
-          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-semibold text-[#10263E]">Follow-ups</h2>
               <Link className="text-sm font-medium text-[#10263E]" href="/tasks">Tasks</Link>
@@ -205,6 +171,39 @@ export default async function TodayPage() {
           </div>
         </section>
       </div>
+      {themes.length > 0 ? <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
+        <h2 className="font-semibold text-[#10263E]">This month&apos;s focus</h2>
+        <ul className="mt-3 space-y-3">
+          {themes.map((theme) => (
+            <li key={theme.id}>
+              <p className="font-medium">{theme.title}</p>
+              <p className="text-sm text-[#66758B]">{theme.description}</p>
+              {theme.talkingPoints[0] ? <p className="mt-1 text-sm">{theme.talkingPoints[0]}</p> : null}
+              {theme.resources.length > 0 ? <p className="mt-1 text-xs text-[#66758B]">Resources: {theme.resources.join(", ")}</p> : null}
+            </li>
+          ))}
+        </ul>
+      </section> : null}
+      <section className="mt-8">
+        <h2 className="font-semibold text-[#10263E]">Visit preparation</h2>
+        <p className="mt-1 text-sm text-[#66758B]">Review recent visits, open follow-ups, and available referral data.</p>
+        {cards.length === 0 ? <p className="mt-3 text-sm text-[#66758B]">No open follow-up or saved stop needs a recommendation.</p> : null}
+        <ul className="mt-3 grid gap-3 lg:grid-cols-2">
+          {cards.map((card) => (
+            <li key={card.accountId} className="rounded-xl border border-slate-200 bg-white p-5">
+              <p className="font-semibold text-[#10263E]">{card.name}</p>
+              <p className="text-xs text-[#66758B]">Last visit: {card.lastVisit}</p>
+              <p className="mt-2 text-sm">{card.referralLabel}</p>
+              <p className="mt-1 text-sm">{card.reason}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link className="inline-flex h-10 items-center rounded-xl bg-white px-3 text-sm ring-1 ring-slate-200" href={`/accounts/${card.accountId}`}>View practice</Link>
+                <Link className="inline-flex h-10 items-center rounded-xl bg-white px-3 text-sm ring-1 ring-slate-200" href={`/accounts/${card.accountId}#brief`}>Prepare for visit</Link>
+                <Link className="inline-flex h-10 items-center rounded-xl bg-[#19B78A] px-3 text-sm font-semibold text-[#06281f]" href={`/accounts/${card.accountId}/check-in`}>Start check-in</Link>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
     </PageFrame>
   );
 }

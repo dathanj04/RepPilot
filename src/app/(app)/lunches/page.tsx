@@ -45,7 +45,7 @@ export default async function LunchesPage() {
   return (
     <PageFrame
       title="Lunches"
-      subtitle="Invitations, upcoming visits, confirmations, and completed meals stay in separate lists."
+      subtitle="Manage invitations, confirmations, and upcoming lunches."
       action={<Link href="/lunches/new" className="inline-flex h-11 items-center rounded-xl bg-[#10263E] px-4 text-sm font-medium text-white">Schedule</Link>}
     >
       <section className="mb-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">

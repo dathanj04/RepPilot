@@ -14,8 +14,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     where: { userId: user.id, organizationId: user.organizationId, readAt: null },
   });
   const items: NavItem[] = [
-    { href: "/today", label: "Dashboard", icon: "today" },
-    { href: "/map", label: "My Territory", icon: "map" },
+    { href: "/today", label: "Today", icon: "today" },
+    { href: "/map", label: "Territory", icon: "map" },
     { href: "/accounts", label: "Accounts", icon: "accounts" },
     { href: "/route", label: "Route Planner", icon: "route" },
     { href: "/calendar", label: "Calendar", icon: "calendar" },
@@ -35,8 +35,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     <div className="h-dvh overflow-hidden bg-background text-foreground">
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col overflow-y-auto border-r border-white/5 bg-[#0c2035] text-white md:flex">
         <Link href="/today" className="flex items-center gap-3 px-6 py-7">
-          <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[#b5f4dd] text-[#10263E]"><Compass className="size-6" aria-hidden="true" /></span>
-          <span><span className="block text-xl font-semibold tracking-tight">RepPilot<span className="ml-1 text-[#b5f4dd]">AI</span></span><span className="mt-0.5 block text-[11px] tracking-wide text-slate-400">YOUR TERRITORY. IN FOCUS.</span></span>
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#b5f4dd] text-[#10263E]"><Compass className="size-6" aria-hidden="true" /></span>
+          <span><span className="block text-xl font-semibold tracking-tight">RepPilot</span><span className="mt-0.5 block text-[11px] text-slate-400">Territory management</span></span>
         </Link>
         <SideNav items={items} />
         <form action={logoutAction} className="border-t border-white/10 p-3">
