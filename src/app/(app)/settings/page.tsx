@@ -18,7 +18,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     ["/reports", "Reports"],
     ["/delete-account/confirm", "Delete account"],
   ];
-  if (canManageOrg(user.roleKey)) links.unshift(["/billing", "Billing & subscription"]);
+  links.unshift(["/billing", "Billing & subscription"]);
   if (canViewTeam(user.roleKey)) links.push(["/manager", "Team"]);
   if (canManageOrg(user.roleKey) || user.roleKey === "COMPLIANCE_ADMIN") links.push(["/admin", "Organization"]);
 

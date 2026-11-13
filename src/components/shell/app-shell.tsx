@@ -25,7 +25,7 @@ export async function AppShell({ children, allowExpiredTrial = false }: { childr
     { href: "/reports", label: "Reports", icon: "spending" },
     { href: "/settings", label: "Settings", icon: "settings" },
   ];
-  if (canManageOrg(user.roleKey)) items.splice(items.findIndex((item) => item.href === "/settings"), 0, { href: "/billing", label: "Billing", icon: "billing" });
+  items.splice(items.findIndex((item) => item.href === "/settings"), 0, { href: "/billing", label: "Billing", icon: "billing" });
   if (canViewTeam(user.roleKey)) items.push({ href: "/manager", label: "Team", icon: "admin" });
   if (canManageOrg(user.roleKey) || user.roleKey === "COMPLIANCE_ADMIN") {
     items.push({ href: "/admin", label: "Admin", icon: "admin" });
@@ -60,7 +60,7 @@ export async function AppShell({ children, allowExpiredTrial = false }: { childr
           </Link>
           </div>
         </header>
-        {user.trialDaysLeft !== null && user.trialEndsAt ? <div role="status" className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-100 bg-emerald-50 px-5 py-2.5 text-xs text-emerald-950 md:px-8"><span><strong>{user.trialDaysLeft} {user.trialDaysLeft === 1 ? "day" : "days"} left</strong> in your free trial · Ends {new Date(user.trialEndsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })} (UTC)</span><Link className="font-semibold underline underline-offset-2" href={canManageOrg(user.roleKey) ? "/billing" : "/trial-ended"}>{canManageOrg(user.roleKey) ? "Billing & trial" : "Trial details"}</Link></div> : null}
+        {user.trialDaysLeft !== null && user.trialEndsAt ? <div role="status" className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-100 bg-emerald-50 px-5 py-2.5 text-xs text-emerald-950 md:px-8"><span><strong>{user.trialDaysLeft} {user.trialDaysLeft === 1 ? "day" : "days"} left</strong> in your free trial · Ends {new Date(user.trialEndsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })} (UTC)</span><Link className="font-semibold underline underline-offset-2" href="/billing">Billing & trial</Link></div> : null}
         {user.isDemo ? (
           <p className="border-b border-emerald-100 bg-emerald-50 px-4 py-2 text-center text-xs text-emerald-900">
             Demonstration organization. Offices, lunches, and spending are fictional.

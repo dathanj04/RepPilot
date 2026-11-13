@@ -38,8 +38,8 @@ export async function createOrganizationAccount(input: {
   const name = input.name.trim();
   const email = input.email.trim().toLowerCase();
   const password = input.password;
-  const organizationName = input.organization.trim();
-  if (name.length < 2 || organizationName.length < 2) return { error: "Add your name and organization." };
+  const organizationName = input.organization.trim() || `${name}’s workspace`;
+  if (name.length < 2 || organizationName.length < 2) return { error: "Add your name and a workspace name of at least 2 characters." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Enter a valid email." };
   if (password.length < 8) return { error: "Use at least 8 characters for the password." };
 

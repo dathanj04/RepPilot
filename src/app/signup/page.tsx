@@ -41,12 +41,12 @@ export default function SignupPage() {
   }
 
   return (
-    <AuthLayout title="Create your workspace" description="Start your 14-day free trial. No credit card required and no automatic charge.">
+    <AuthLayout title="Create your workspace" description="Start your 14-day free trial. For individuals and teams. No credit card required and no automatic charge.">
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2"><Label htmlFor="name">Your name</Label><Input id="name" name="name" className="h-12" required /></div>
         <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" className="h-12" required /></div>
         <div className="space-y-2"><Label htmlFor="password">Password</Label><Input id="password" name="password" type="password" className="h-12" required minLength={8} /></div>
-        <div className="space-y-2"><Label htmlFor="organization">Organization</Label><Input id="organization" name="organization" className="h-12" required /></div>
+        <div className="space-y-2"><Label htmlFor="organization">Workspace or company name (optional)</Label><Input id="organization" name="organization" className="h-12" placeholder="Leave blank to use your name" /></div>
         {error ? <p className="text-sm text-[#D94B4B]">{error}</p> : null}
         <Button className="h-12 w-full" type="submit" disabled={pending}>{pending ? "Creating…" : "Start free trial"}</Button>
       </form>
