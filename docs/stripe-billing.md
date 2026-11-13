@@ -1,6 +1,6 @@
 # Stripe billing and access
 
-The original server-created trial lasts exactly 14 days. Checkout opens only after it ends; no card is charged automatically at expiry. An expired workspace can access billing, support, sign-out and account deletion, but cannot access app pages, exports, receipts, calendar connections, or public scheduling/office links.
+The original server-created trial lasts exactly 14 days. Monthly and annual options are visible during the trial, and each user can save a personal billing preference without creating a Stripe customer, subscription or scheduled payment. Checkout opens only after the trial ends; no card is charged automatically at expiry. An expired workspace can access billing, support, sign-out and account deletion, but cannot access app pages, exports, receipts, calendar connections, or public scheduling/office links.
 
 After expiry every protected server request verifies the bound customer's current Stripe subscription using an uncached request. Access requires the live approved Business price, matching organization metadata, active status, a paid latest invoice, and an unexpired item period. Checkout query strings, local `active` flags and browser state never grant access. Missing credentials, errors, unpaid/past-due/paused/canceled subscriptions fail closed. Cancellation at period end retains access through the paid period.
 
