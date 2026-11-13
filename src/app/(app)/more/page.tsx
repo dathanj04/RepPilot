@@ -21,6 +21,7 @@ export default async function MorePage() {
     ["/notifications", "Alerts"],
     ["/onboarding", "Setup checklist"],
   ];
+  if (canManageOrg(user.roleKey)) links.unshift(["/billing", "Billing & subscription"]);
   if (canViewTeam(user.roleKey)) links.push(["/manager", "Team"]);
   if (canManageOrg(user.roleKey) || user.roleKey === "COMPLIANCE_ADMIN") links.push(["/admin", "Admin"]);
 

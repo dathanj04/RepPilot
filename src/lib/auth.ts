@@ -56,8 +56,8 @@ export async function getCurrentUser(options: { allowExpiredTrial?: boolean } = 
   };
 }
 
-export async function requireAppUser() {
-  const user = await getCurrentUser();
+export async function requireAppUser(options: { allowExpiredTrial?: boolean } = {}) {
+  const user = await getCurrentUser(options);
   if (user.roleKey === "PLATFORM_ADMIN") redirect("/platform");
   return user;
 }

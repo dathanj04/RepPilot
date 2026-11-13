@@ -89,6 +89,22 @@ export default async function TodayPage() {
     focusThemes(prisma, { organizationId: user.organizationId, userId: user.id, timeZone: user.timezone, now }),
   ]);
 
+  if (accounts.length === 0 && tasks.length === 0 && lunches.length === 0 && !route?.stops.length) {
+    return <PageFrame title={greeting} subtitle="Add your practices to start planning visits and tracking follow-ups.">
+      <section className="max-w-4xl rounded-xl border border-slate-200 bg-white p-6 sm:p-8">
+        <p className="text-xs font-medium text-slate-500">New workspace</p>
+        <h2 className="mt-2 text-xl font-semibold">Set up your territory</h2>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">Your dashboard will fill in as you add practices, save routes, and record visits. Start with one practice or import a list.</p>
+        <div className="mt-6 flex flex-wrap gap-3"><Link href="/accounts/new" className="inline-flex min-h-11 items-center rounded-lg bg-[#087f5b] px-4 text-sm font-medium text-white">Add your first practice</Link><Link href="/accounts#account-import" className="inline-flex min-h-11 items-center rounded-lg border border-slate-200 px-4 text-sm font-medium">Import accounts from CSV</Link></div>
+        <div className="mt-8 grid gap-6 border-t border-slate-100 pt-6 sm:grid-cols-3">
+          <div><h3 className="text-sm font-semibold">1. Add practices</h3><p className="mt-2 text-sm leading-6 text-slate-500">Keep addresses, contacts, and notes together.</p></div>
+          <div><h3 className="text-sm font-semibold">2. Plan a route</h3><p className="mt-2 text-sm leading-6 text-slate-500">Choose stops for your next field day.</p></div>
+          <div><h3 className="text-sm font-semibold">3. Record visits</h3><p className="mt-2 text-sm leading-6 text-slate-500">Save the conversation and set the next follow-up.</p></div>
+        </div>
+      </section>
+    </PageFrame>;
+  }
+
   const visits = route?.stops ?? [];
 
   return (

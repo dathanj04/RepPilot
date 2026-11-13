@@ -74,7 +74,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
           ))}
         </ul>
       )}
-      <div className="mt-6"><ImportAccounts /></div>
+      <div id="account-import" className="mt-6 scroll-mt-6"><ImportAccounts /></div>
     </PageFrame>
   );
 }
