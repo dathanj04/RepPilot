@@ -104,7 +104,7 @@ try{
  await ip.getByRole("navigation",{name:"Mobile navigation"}).getByRole("note").waitFor();
  assert.equal((await ip.request.get("http://localhost:43123/api/reports/spending")).status(),403);
  await ip.goto("http://localhost:43123/lunches");
- await ip.waitForURL(/\\/billing\\?upgrade=business/);
+ await ip.waitForURL(url=>url.pathname==="/billing"&&url.searchParams.get("upgrade")==="business");
  await ip.getByRole("heading",{name:"Individual monthly",exact:true}).waitFor();
  await individual.close();
  assert.deepEqual(errors,[]);
