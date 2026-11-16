@@ -1,4 +1,5 @@
 "use server";
+import { sendLunchConfirmation } from "./email/lunch-confirmation";
 import { deliverInvitationEmail } from "./email/invitation-delivery";
 import { workspaceAccess } from "./workspace-access";
 
@@ -1001,7 +1002,9 @@ export async function clinicRespondAction(payload: {
       attendeeCount: payload.attendees,
       deliveryInstructions: payload.deliveryInstructions,
     });
-    return result.ok ? { ok: true as const, message: "Thank you. The lunch is confirmed." } : { error: result.error };
+    if (!result.ok) return { error: result.error };
+    const delivery = await sendLunchConfirmation(result.bookingId, "confirmed");
+    return { ok: true as const, message: delivery.status === "sent" ? "Thank you. The lunch is confirmed. A confirmation email with a calendar invitation has been sent to the office." : "Thank you. The lunch is confirmed, but the confirmation email could not be delivered. Please contact your representative." };
   }
   if (payload.intent === "change" || payload.intent === "request") {
     const link = await prisma.secureLinkToken.findFirst({ where: { tokenHash, revokedAt: null }, include: { booking: true, account: true } });
