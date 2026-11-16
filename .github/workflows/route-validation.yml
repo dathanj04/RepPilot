@@ -22,13 +22,15 @@ jobs:
           POSTGRES_DB: route_test
         ports: ['5432:5432']
         options: >-
-          --health-cmd pg_isready
+          --health-cmd 'pg_isready -U route_test -d route_test'
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
     env:
       DATABASE_URL: postgresql://route_test:route_test_only@localhost:5432/route_test
       ROUTE_DB_INTEGRATION: 'true'
+      SESSION_PASSWORD: route-ci-session-password-at-least-32-characters
+      NEXT_PUBLIC_TOMTOM_API_KEY: route-ci-placeholder-key-not-a-real-key
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -42,3 +44,7 @@ jobs:
       - run: npx vitest run src
       - run: npx tsc --noEmit
       - run: npm run build
+      - run: npm install --no-save --package-lock=false playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: npx tsx scripts/route-browser-seed.ts
+      - run: node scripts/route-browser-check.mjs
