@@ -1,3 +1,5 @@
+import { hasBusinessCompliance } from "@/lib/compliance-access";
+import { COMPLIANCE_UPGRADE } from "@/lib/domain/compliance-access";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -27,6 +29,7 @@ export default async function LunchDetailPage({
 }) {
   await connection();
   const user = await requireAppUser();
+  const businessCompliance = await hasBusinessCompliance(user);
   const { id } = await params;
   const { notice } = await searchParams;
   const lunch = await prisma.lunchBooking.findFirst({
@@ -131,6 +134,10 @@ export default async function LunchDetailPage({
       ) : null}
       <section className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
         <h2 className="font-semibold">Meal compliance & order review</h2>
+        {!businessCompliance ? <div aria-disabled="true" title={COMPLIANCE_UPGRADE} className="mt-3 rounded-xl bg-slate-100 p-4 text-slate-500"><p>Business feature · Compliance review</p><p className="mt-1 text-sm">{COMPLIANCE_UPGRADE}</p><Link href="/billing" className="mt-2 inline-flex min-h-11 items-center underline">View Business plans</Link></div> : null}
+        <fieldset disabled={!businessCompliance} className={!businessCompliance ? "hidden" : "contents"}>
+        <p className="mt-2 text-sm">Compliance decisions are reviewed by your account administrator.</p>
+        {canReviewCompliance(user.roleKey) ? <Link href="/compliance" className="inline-flex min-h-11 items-center text-sm font-semibold underline">Open compliance reviews & policy setup</Link> : null}
         <p className="text-sm">Office: {lunch.account.name}</p>
         <p className="text-sm">Sponsor: {user.organizationName}</p>
         <p className="mt-2 text-sm">Order total: {formatCents(amountCents)} · Eligible attendees: {attendees} · Cost per attendee: {preview.decision.perPersonCents != null ? formatCents(preview.decision.perPersonCents) : "—"}</p>
@@ -142,7 +149,8 @@ export default async function LunchDetailPage({
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
           <Status label="Meeting approval" value={lunch.purpose.length > 8 ? "Documented" : "Missing"} />
           <Status label="Budget review" value={gate.allowed ? "Clear" : "Blocked"} />
-          <Status label="Compliance review" value={preview.decision.result} />
+          <Status label="Policy checks" value={preview.decision.result} />
+          <Status label="Administrator review" value={lunch.order?.approvalStatus ?? "NOT_REQUESTED"} />
           <Status label="Policy exception" value={exception?.status ?? "None"} />
           <Status label="Order submission" value={gate.allowed ? "Eligible" : "SUBMISSION BLOCKED"} />
         </div>
@@ -162,8 +170,9 @@ export default async function LunchDetailPage({
           </form>
         ) : null}
         {canReviewCompliance(user.roleKey) && exception?.status === "pending" ? (
-          <p className="mt-2 text-xs">Review this request on the team page.</p>
+          <p className="mt-2 text-xs">Review this request on the compliance page.</p>
         ) : null}
+        </fieldset>
       </section>
       <section className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
         <h2 className="font-semibold">Order catering</h2>
@@ -184,7 +193,7 @@ export default async function LunchDetailPage({
         {lunch.order?.approvalStatus === "PENDING" ? (
           <p className="mt-2 text-sm">
             {approvalGate.meetingApproved
-              ? "Waiting for a manager or compliance reviewer. The representative on this lunch cannot approve the catering."
+              ? "Waiting for your account administrator. The representative on this lunch cannot approve the catering."
               : "The office asked for catering. Approve the lunch time first. Catering still needs a separate reviewer, and no order is placed."}
           </p>
         ) : null}

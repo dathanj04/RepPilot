@@ -3,7 +3,7 @@ export function canManageOrg(roleKey: string) {
 }
 
 export function canReviewCompliance(roleKey: string) {
-  return roleKey === "ORG_ADMIN" || roleKey === "COMPLIANCE_ADMIN";
+  return roleKey === "ORG_ADMIN";
 }
 
 export function canViewTeam(roleKey: string) {

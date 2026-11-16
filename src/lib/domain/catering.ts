@@ -7,7 +7,7 @@ const RECEIPT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "applica
 
 const MEETING_APPROVED = new Set(["SCHEDULED", "CONFIRMED", "CHANGE_REQUESTED", "COMPLETED"]);
 
-export const CATERING_REVIEW_ROLES = ["MANAGER", "COMPLIANCE_ADMIN", "ORG_ADMIN"] as const;
+export const CATERING_REVIEW_ROLES = ["ORG_ADMIN"] as const;
 
 export type CostParts = {
   subtotalCents: number | null;
