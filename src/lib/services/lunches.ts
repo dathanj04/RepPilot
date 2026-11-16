@@ -281,11 +281,11 @@ export async function confirmLunch(
     revoked: Boolean(link.revokedAt),
     expiresAt: link.expiresAt,
     now: input.now,
-    bookingStatus: link.booking.status,
+    bookingStatus: link.booking!.status,
   });
   if (!decision.ok) return { ok: false as const, error: decision.reason };
 
-  const attendees = input.attendeeCount ?? link.booking.confirmedAttendees ?? link.booking.expectedAttendees;
+  const attendees = input.attendeeCount ?? link.booking!.confirmedAttendees ?? link.booking!.expectedAttendees;
   if (!Number.isFinite(attendees) || attendees < 1 || attendees > 200) {
     return { ok: false as const, error: "Enter an attendee count between 1 and 200." };
   }
@@ -295,49 +295,49 @@ export async function confirmLunch(
     const live=await tx.secureLinkToken.findFirst({where:{id:link.id,revokedAt:null},include:{booking:true}});
     if(!live?.booking||["CANCELED","COMPLETED"].includes(live.booking.status))return false;
   await tx.lunchBooking.update({
-    where: { id: link.booking.id },
+    where: { id: link.booking!.id },
     data: {
       status: "CONFIRMED",
       confirmedAt: input.now,
-      confirmedByName: input.responderName?.trim() || link.booking.confirmedByName,
+      confirmedByName: input.responderName?.trim() || link.booking!.confirmedByName,
       confirmedAttendees: attendees,
       deliveryInstructions: input.deliveryInstructions?.trim()
         ? input.deliveryInstructions.trim().slice(0, 500)
-        : link.booking.deliveryInstructions,
+        : link.booking!.deliveryInstructions,
     },
   });
   await tx.lunchConfirmation.upsert({
-    where: { bookingId: link.booking.id },
+    where: { bookingId: link.booking!.id },
     update: { confirmedAt: input.now, attendeeCount: attendees },
-    create: { bookingId: link.booking.id, confirmedAt: input.now, attendeeCount: attendees },
+    create: { bookingId: link.booking!.id, confirmedAt: input.now, attendeeCount: attendees },
   });
   await tx.notification.create({
     data: {
-      organizationId: link.booking.organizationId,
-      userId: link.booking.representativeId,
+      organizationId: link.booking!.organizationId,
+      userId: link.booking!.representativeId,
       kind: "lunch_confirmed",
       title: "Lunch confirmed",
       body:
-        attendees === link.booking.expectedAttendees
+        attendees === link.booking!.expectedAttendees
           ? "The office confirmed the educational lunch."
           : `The office confirmed the lunch and updated attendance to ${attendees}.`,
-      href: `/lunches/${link.booking.id}`,
+      href: `/lunches/${link.booking!.id}`,
     },
   });
   await tx.auditLog.create({
     data: {
-      organizationId: link.booking.organizationId,
+      organizationId: link.booking!.organizationId,
       actorId: null,
       action: "lunch.confirmed",
       entityType: "LunchBooking",
-      entityId: link.booking.id,
+      entityId: link.booking!.id,
       metadata: { attendees },
     },
   });
     return true;
   });
   if(!changed)return {ok:false as const,error:"This lunch changed or was canceled. Please contact your representative."};
-  return { ok: true as const, bookingId: link.booking.id, attendees };
+  return { ok: true as const, bookingId: link.booking!.id, attendees };
 }
 
 export async function requestLunchChange(
@@ -354,7 +354,7 @@ export async function requestLunchChange(
   });
   if (link && !await workspaceAccess(db, link.organizationId,true)) return { ok: false as const, error: "This workspace is unavailable. Please contact the representative." };
   if (!link?.booking) return { ok: false as const, error: "This link cannot request a change." };
-  if (link.booking.status === "CANCELED") {
+  if (link.booking!.status === "CANCELED") {
     return { ok: false as const, error: "This lunch was canceled." };
   }
   const message = input.message.trim();
@@ -366,26 +366,26 @@ export async function requestLunchChange(
     if(!live?.booking||live.booking.status==="CANCELED")return false;
   await tx.lunchChangeRequest.create({
     data: {
-      organizationId: link.booking.organizationId,
-      bookingId: link.booking.id,
+      organizationId: link.booking!.organizationId,
+      bookingId: link.booking!.id,
       message,
       requestedAttendees: input.requestedAttendees ?? null,
     },
   });
-  if (link.booking.status !== "COMPLETED") {
+  if (link.booking!.status !== "COMPLETED") {
     await tx.lunchBooking.update({
-      where: { id: link.booking.id },
+      where: { id: link.booking!.id },
       data: { status: "CHANGE_REQUESTED" },
     });
   }
   await tx.notification.create({
     data: {
-      organizationId: link.booking.organizationId,
-      userId: link.booking.representativeId,
+      organizationId: link.booking!.organizationId,
+      userId: link.booking!.representativeId,
       kind: "lunch_change_requested",
       title: "Office requested a change",
       body: message,
-      href: `/lunches/${link.booking.id}`,
+      href: `/lunches/${link.booking!.id}`,
     },
   });
     return true;
