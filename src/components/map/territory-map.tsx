@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { matchesZipFilter, validZipFilter } from "@/lib/maps/zip-filter";
 import { useRouter } from "next/navigation";
 import { LassoLayer } from "./lasso-layer";
 import { insideLasso, type MapPoint } from "@/lib/maps/lasso";
@@ -102,7 +103,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
   const [tone, setTone] = useState<MarkerTone | "all">("all");
   const [specialty, setSpecialty] = useState("all");
   const [city, setCity] = useState("all");
-  const [zip, setZip] = useState("all");
+  const [zip, setZip] = useState("");
   const [territory, setTerritory] = useState("all");
   const [owner, setOwner] = useState("all");
   const [status, setStatus] = useState("all");
@@ -140,7 +141,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
     if (tone !== "all" && account.tone !== tone) return false;
     if (specialty !== "all" && account.specialty !== specialty) return false;
     if (city !== "all" && account.city !== city) return false;
-    if (zip !== "all" && account.zip !== zip) return false;
+    if (!matchesZipFilter(account.zip, zip)) return false;
     if (territory !== "all" && account.territory !== territory) return false;
     if (owner !== "all" && account.owner !== owner) return false;
     if (status !== "all" && account.status !== status) return false;
@@ -186,6 +187,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
           className="h-11 w-full rounded-xl border border-slate-200 bg-[#F5F7FA] px-3 text-sm"
           aria-label="Filter saved accounts"
         />
+        <ZipFilter value={zip} onChange={setZip} options={zips} />
         <div className="flex flex-wrap gap-2">
           <FilterChip active={tone === "all"} onClick={() => setTone("all")}>All</FilterChip>
           {MARKER_TONES.map((item) => (
@@ -206,7 +208,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
         </div>
         <details className="group rounded-xl border border-slate-200 bg-slate-50/60 p-3"><summary className="flex min-h-8 cursor-pointer items-center gap-2 text-xs font-semibold text-[#10263E]"><SlidersHorizontal className="size-4" aria-hidden="true" /> More filters</summary><div className="mt-3 grid grid-cols-2 gap-3">
           <SelectFilter label="City" value={city} onChange={setCity} options={cities} />
-          <SelectFilter label="ZIP" value={zip} onChange={setZip} options={zips} />
+
           <SelectFilter label="Territory" value={territory} onChange={setTerritory} options={territories} />
           <SelectFilter label="Owner" value={owner} onChange={setOwner} options={owners} />
           <SelectFilter label="Status" value={status} onChange={setStatus} options={statuses} />
@@ -318,6 +320,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
             {mode === "map" ? "List" : "Map"}
           </button>
         </div>
+        <ZipFilter value={zip} onChange={setZip} options={zips} />
         <details data-office-search className="rounded-xl border border-slate-200 bg-white" onToggle={event => { if (event.currentTarget.open) event.currentTarget.scrollTop = 0; }}>
           <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-semibold text-[#10263E]">Find new offices</summary>
           <PlacesSearch here={here} area={searchArea} onResults={receivePlaces} saved={savedDiscoveries} onSaved={markSaved} compact />
@@ -399,6 +402,16 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
       </div>
     </div>
   );
+}
+
+function ZipFilter({value,onChange,options}:{value:string;onChange:(value:string)=>void;options:string[]}) {
+ const id=useId();const valid=validZipFilter(value);
+ return <div className="rounded-xl bg-slate-50 p-2">
+  <label htmlFor={id} className="text-xs font-medium text-[#10263E]">Filter saved accounts by ZIP code</label>
+  <div className="mt-1 flex gap-2"><input id={id} list={`${id}-options`} value={value} onChange={event=>onChange(event.target.value)} placeholder="75068, 75034" aria-invalid={!valid} aria-describedby={`${id}-help`} className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm"/><button type="button" disabled={!value} onClick={()=>onChange("")} className="min-h-11 rounded-lg border bg-white px-3 text-xs disabled:opacity-40">Clear ZIPs</button></div>
+  <datalist id={`${id}-options`}>{options.map(zip=><option key={zip} value={zip}/>)}</datalist>
+  <p id={`${id}-help`} className={`mt-1 text-xs ${valid?"text-slate-500":"text-red-700"}`}>{valid?"Enter one or more ZIPs, separated by commas. Applies to saved dots and the account list.":"Use complete five-digit ZIP codes, separated by commas."}</p>
+ </div>;
 }
 
 function SelectFilter({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: string[] }) {
