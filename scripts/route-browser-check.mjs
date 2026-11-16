@@ -100,7 +100,7 @@ try{
  await ip.getByRole("heading",{name:"More",exact:true}).waitFor();
  const locked=ip.getByRole("navigation",{name:"Mobile navigation"}).getByRole("button",{name:"Lunch & Learns",exact:true});
  assert.equal(await locked.getAttribute("aria-disabled"),"true");
- await locked.click();
+ const lockBox=await locked.boundingBox();assert.ok(lockBox);await ip.touchscreen.tap(lockBox.x+lockBox.width/2,lockBox.y+lockBox.height/2);
  await ip.getByRole("navigation",{name:"Mobile navigation"}).getByRole("note").waitFor();
  assert.equal((await ip.request.get("http://localhost:43123/api/reports/spending")).status(),403);
  await ip.goto("http://localhost:43123/lunches");
@@ -108,6 +108,6 @@ try{
  await ip.getByRole("heading",{name:"Individual monthly",exact:true}).waitFor();
  await individual.close();
  assert.deepEqual(errors,[]);
- console.log("PASS: mobile 16-office create, optimize, manual reorder, duration edit, save, reload, separate-session reopen, numbered map, road polyline, Go link, route/More scrolling.");
+ console.log("PASS: mobile 16-office create, optimize, manual reorder, duration edit, save, reload, separate-session reopen, numbered map, road polyline, Go link, route/More scrolling, four subscription options, persisted lunch cancellation, Individual upgrade locks and reports denial.");
 }catch(e){await writeFile("route-browser-results/server.log",serverOutput);console.error(serverOutput.slice(-6000));throw e;}
 finally{await browser?.close();server.kill("SIGTERM");}
