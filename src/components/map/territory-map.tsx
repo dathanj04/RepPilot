@@ -299,7 +299,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
     <div className="flex h-full min-h-[32rem] gap-3 bg-[#f4f6f8] p-3 md:p-4">
       <aside className="hidden w-[20rem] shrink-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm md:flex md:flex-col xl:w-[22rem]">{list}</aside>
       <div className="relative min-w-0 flex-1 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
-      <div className="absolute inset-x-3 top-3 z-20 max-h-[65%] overflow-y-auto space-y-2 rounded-2xl bg-white/95 p-2 shadow-sm md:hidden">
+      <div className="absolute inset-x-3 top-3 z-20 max-h-[40%] overflow-y-auto space-y-2 rounded-2xl bg-white/95 p-2 shadow-sm md:hidden">
         <div className="flex gap-2">
           <input
             value={query}
@@ -312,10 +312,14 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
             {mode === "map" ? "List" : "Map"}
           </button>
         </div>
-        <details className="rounded-xl border border-slate-200 bg-white">
+        <details data-office-search className="rounded-xl border border-slate-200 bg-white" onToggle={event => { if (event.currentTarget.open) event.currentTarget.scrollTop = 0; }}>
           <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-semibold text-[#10263E]">Find new offices</summary>
-          <PlacesSearch here={here} area={searchArea} onResults={receivePlaces} saved={savedDiscoveries} onSaved={markSaved} />
+          <PlacesSearch here={here} area={searchArea} onResults={receivePlaces} saved={savedDiscoveries} onSaved={markSaved} compact />
         </details>
+        {discovered.length > 0 ? <details className="rounded-xl border border-slate-200 bg-white">
+          <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-semibold">{discovered.length} offices found · View results</summary>
+          <ul className="max-h-40 overflow-y-auto space-y-2 p-2" aria-label="Mobile office results">{discovered.map(place => <li key={discoveryKey(place)} className="rounded-lg border border-slate-200 p-2 text-sm"><p className="font-medium">{place.name}</p><p className="text-xs text-slate-500">{place.street}, {place.city}</p><DiscoveredOfficeForm place={place} query={discoveryQuery} savedId={savedDiscoveries[discoveryKey(place)]} onSaved={markSaved} /></li>)}</ul>
+        </details> : null}
         <div className="flex gap-2 overflow-x-auto pb-1">
           <FilterChip active={tone === "all"} onClick={() => setTone("all")}>All</FilterChip>
           {MARKER_TONES.map((item) => (
@@ -404,7 +408,7 @@ function SelectFilter({ label, value, onChange, options }: { label: string; valu
   );
 }
 
-function PlacesSearch({ here, area, onResults, saved, onSaved }: { here: { lat: number; lng: number } | null; area: SearchArea | null; onResults: (places: PlaceCandidate[], query?: string) => void; saved: Record<string,string>; onSaved: (place: PlaceCandidate, id: string) => void }) {
+function PlacesSearch({ here, area, onResults, saved, onSaved, compact = false }: { compact?: boolean; here: { lat: number; lng: number } | null; area: SearchArea | null; onResults: (places: PlaceCandidate[], query?: string) => void; saved: Record<string,string>; onSaved: (place: PlaceCandidate, id: string) => void }) {
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [places, setPlaces] = useState<Awaited<ReturnType<typeof searchPlacesAction>>["places"]>([]);
@@ -422,6 +426,10 @@ function PlacesSearch({ here, area, onResults, saved, onSaved }: { here: { lat: 
       setPlaces(result.places);
       onResults(result.places, query);
       setMessage(result.message);
+      if (compact && result.places.length) {
+        const panel = document.querySelector<HTMLDetailsElement>("details[data-office-search]");
+        if (panel) panel.open = false;
+      }
     } catch { setMessage("Office search could not finish. Please try again."); }
     finally { setPending(false); }
   }
@@ -447,7 +455,7 @@ function PlacesSearch({ here, area, onResults, saved, onSaved }: { here: { lat: 
       </div>
       {message ? <p role="status" className="mt-2 text-xs text-[#66758B]">{message}</p> : null}
       {places.length ? <button type="button" className="mt-2 min-h-11 text-xs underline" onClick={() => { setPlaces([]); onResults([]); setMessage(null); }}>Clear search results</button> : null}
-      <ul aria-label="Discovered offices" className="mt-2 space-y-3">
+      <ul hidden={compact} aria-label="Discovered offices" className="mt-2 space-y-3">
         {places.map((place) => (
           <li key={`${place.name}-${place.zip}-${place.street}`} className="rounded-lg bg-white p-2 text-sm ring-1 ring-slate-200">
             <p className="font-medium">{place.name}</p>
