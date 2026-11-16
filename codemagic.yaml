@@ -1,0 +1,50 @@
+workflows:
+  ios-testflight:
+    name: RepPilot iOS TestFlight upload
+    max_build_duration: 45
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: RepPilot Apple
+    environment:
+      node: 22
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: app.reppilot.mobile
+      vars:
+        CAPACITOR_PLATFORM: ios
+        APP_STORE_APPLE_ID: "6835507363"
+    scripts:
+      - name: Install dependencies
+        script: npm ci
+      - name: Generate native icons
+        script: |
+          set -euo pipefail
+          python3 -m venv /tmp/reppilot-icons
+          /tmp/reppilot-icons/bin/pip install Pillow==11.3.0
+          /tmp/reppilot-icons/bin/python scripts/mobile-icons.py
+      - name: Validate and sync iOS
+        script: |
+          set -euo pipefail
+          node scripts/mobile-preflight.mjs --ios
+          npx --no-install cap sync ios
+      - name: Apply signing profiles
+        script: xcode-project use-profiles
+      - name: Set unique build number
+        script: |
+          set -euo pipefail
+          cd ios/App
+          agvtool new-version -all "$(date -u +%Y%m%d%H%M)"
+      - name: Archive and export signed app
+        script: |
+          set -euo pipefail
+          xcode-project build-ipa --workspace ios/App/App.xcworkspace --scheme App
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false
+        submit_to_app_store: false

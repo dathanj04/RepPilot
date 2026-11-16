@@ -8,7 +8,8 @@ if (target.protocol !== "https:" || target.username || target.password || target
 }
 
 const config: CapacitorConfig = {
-  appId: "com.reppilot.app",
+  // Preserve the existing Android package; Apple registered the separate iOS ID.
+  appId: process.env.CAPACITOR_PLATFORM === "android" ? "com.reppilot.app" : "app.reppilot.mobile",
   appName: "RepPilot",
   webDir: "mobile/www",
   appendUserAgent: " RepPilotNative/1.0",
