@@ -62,7 +62,7 @@ export async function startCheckoutAction(form: FormData) {
     }
     if(previous.status==="open")await stripeRequest("checkout/sessions/"+encodeURIComponent(previous.id)+"/expire",new URLSearchParams());
    }
-   const session=await stripeRequest<CheckoutSession>("checkout/sessions",params,"reppilot-checkout-"+user.organizationId+"-"+planKey+"-"+params.get("mode")+"-"+(subscription.stripeCheckoutId||"initial"));
+   const session=await stripeRequest<CheckoutSession>("checkout/sessions",params,"reppilot-checkout-"+CATALOG_VERSION+"-"+user.organizationId+"-"+planKey+"-"+params.get("mode")+"-"+(subscription.stripeCheckoutId||"initial"));
    if(session.status!=="open")throw Error("Refresh Subscriptions and try again.");
    await tx.subscription.update({where:{id:subscription.id},data:{stripeCheckoutId:session.id}});
    await tx.user.update({where:{id:user.id},data:{billingPlanPreference:planKey}});

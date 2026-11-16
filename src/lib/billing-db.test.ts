@@ -10,7 +10,7 @@ vi.mock("./stripe",async original=>({...await original<typeof import("./stripe")
  stripeRequest:async(path:string,params?:URLSearchParams)=>{
   if(path==="customers"){state.customerCalls++;return {id:"cus_isolated"};}
   if(path==="checkout/sessions"){state.checkoutCalls++;return {id:"cs_isolated",mode:"setup",status:"open",url:"https://checkout.stripe.com/c/pay/isolated"};}
-  if(path==="checkout/sessions/cs_isolated")return {id:"cs_isolated",mode:"setup",status:state.complete?"complete":"open",url:"https://checkout.stripe.com/c/pay/isolated",customer:"cus_isolated",client_reference_id:state.user.organizationId,livemode:true,setup_intent:"seti_verified",metadata:{organizationId:state.user.organizationId,planKey:"annual",billingFlow:"trial_card_v1",consent:"yes"}};
+  if(path==="checkout/sessions/cs_isolated")return {id:"cs_isolated",mode:"setup",status:state.complete?"complete":"open",url:"https://checkout.stripe.com/c/pay/isolated",customer:"cus_isolated",client_reference_id:state.user.organizationId,livemode:true,setup_intent:"seti_verified",metadata:{organizationId:state.user.organizationId,planKey:"annual",billingFlow:"trial_card_v1",consent:"yes",catalogVersion:"20261116-v2"}};
   if(path==="setup_intents/seti_verified")return {customer:"cus_isolated",status:"succeeded",payment_method:"pm_verified",livemode:true};
   if(path==="subscriptions"){state.subscriptionCalls++;expect(params!.get("trial_end")).toBe(String(Math.ceil(end.getTime()/1000)));state.created=true;return {id:"sub_once"};}
   throw Error("Unexpected Stripe path "+path);
