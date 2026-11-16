@@ -154,3 +154,6 @@
 .auth-screen [data-slot=button] { border-radius: .5rem; min-height: 48px; }
 
 .auth-screen nav[aria-label="Privacy and support"] { justify-content: center; font-size: 12px; }
+
+/* Preserve Census tile transparency while giving county outlines a distinct color. */
+.county-boundary-tiles img { filter: brightness(0) saturate(100%) invert(28%) sepia(95%) saturate(4900%) hue-rotate(252deg) brightness(95%) contrast(95%); }

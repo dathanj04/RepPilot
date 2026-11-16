@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import Link from "next/link";
 import { matchesZipFilter, validZipFilter } from "@/lib/maps/zip-filter";
 import { useRouter } from "next/navigation";
+import { CountyLayer } from "./county-layer";
 import { LassoLayer } from "./lasso-layer";
 import { insideLasso, type MapPoint } from "@/lib/maps/lasso";
 import { optimizeRouteAction } from "@/lib/maps/route-actions";
@@ -108,6 +109,9 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
   const [owner, setOwner] = useState("all");
   const [status, setStatus] = useState("all");
   const router = useRouter();
+  const [countiesShown, setCountiesShown] = useState(false);
+  const [countyError, setCountyError] = useState(false);
+  const countyFailed = useCallback(() => setCountyError(true), []);
   const [accountsMinimized, setAccountsMinimized] = useState(false);
   const [lasso, setLasso] = useState(false);
   const [routing, setRouting] = useState(false);
@@ -258,11 +262,12 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
     finally { setRouting(false); }
   }
 
-  const canvas = lasso || tomtomMapsKey || discovered.length > 0 || googleFailed || !googleMapsKey ? (
+  const canvas = countiesShown || lasso || tomtomMapsKey || discovered.length > 0 || googleFailed || !googleMapsKey ? (
     <MapContainer center={center} zoom={10} className="h-full w-full" zoomControl={false}>
       {tomtomMapsKey && !tomtomFailed ? <TileLayer attribution='<a href="https://www.tomtom.com/copyright/">&copy; TomTom</a> &copy; OpenStreetMap' maxZoom={22} url={`https://api.tomtom.com/maps/orbis/display/raster/tile/{z}/{x}/{y}?apiVersion=2&style=street-light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} eventHandlers={{ tileerror: () => setTomtomFailed(true) }} /> : <TileLayer attribution='&copy; OpenStreetMap' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />}
       {tomtomMapsKey && !tomtomFailed && showTraffic ? <TileLayer attribution="Traffic &copy; TomTom" maxZoom={22} opacity={0.8} url={`https://api.tomtom.com/maps/orbis/traffic/flow/raster/tile/{z}/{x}/{y}?apiVersion=2&style=light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} /> : null}
       {lasso ? <LassoLayer onComplete={finishLasso} onCancel={cancelLasso} /> : null}
+      {countiesShown ? <CountyLayer onError={countyFailed} /> : null}
       <MapEvents onZoom={setZoom} onArea={setSearchArea} />
       <Recenter center={focus} accuracy={here && focus?.[0] === here.lat && focus?.[1] === here.lng ? here.accuracy : undefined} />
       {discovered.map((place, index) => <CircleMarker key={`discovered-${place.lat}-${place.lng}-${index}`} center={[place.lat, place.lng]} radius={10} pathOptions={{ color: "white", weight: 2, fillColor: savedDiscoveries[discoveryKey(place)] ? "#087f5b" : "#7c3aed", fillOpacity: 1 }}>
@@ -353,6 +358,8 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
       {mode === "list" && !accountsMinimized ? <div className="relative z-0 h-full bg-white pt-28 md:hidden">{list}</div> : <div className="relative z-0 h-full isolate">{canvas}</div>}
 
       <div className="absolute right-3 bottom-24 z-20 flex flex-col gap-2 md:bottom-3">
+        <button type="button" aria-pressed={countiesShown} className={`min-h-11 rounded-xl px-3 text-sm font-medium shadow-sm ring-1 ring-slate-200 ${countiesShown ? "bg-violet-700 text-white" : "bg-white text-[#10263E]"}`} onClick={() => { setCountiesShown(value => !value); setCountyError(false); setMode("map"); }}>County outlines {countiesShown ? "on" : "off"}</button>
+        {countiesShown && countyError ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">Some Census county outlines could not load. Toggle off and on to retry.</p> : null}
         <button type="button" disabled={routing} aria-pressed={lasso} className="h-11 rounded-xl bg-[#10263E] px-3 text-sm font-medium text-white shadow-sm disabled:opacity-60" onClick={() => { setMode("map"); setLasso(!lasso); setRouteNote(""); }}>
           {routing ? "Creating route…" : lasso ? "Cancel lasso" : "Lasso route"}
         </button>
