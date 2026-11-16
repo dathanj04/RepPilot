@@ -113,7 +113,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
   const [countiesShown, setCountiesShown] = useState(false);
   const [countyError, setCountyError] = useState(false);
   const countyFailed = useCallback(() => setCountyError(true), []);
-  const [accountsMinimized, setAccountsMinimized] = useState(false);
+  const [accountsMinimized, setAccountsMinimized] = useState(true);
   const [lasso, setLasso] = useState(false);
   const [routing, setRouting] = useState(false);
   const [routeNote, setRouteNote] = useState("");
@@ -303,13 +303,13 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
   );
 
   return (
-    <div className="flex h-full min-h-[32rem] gap-3 bg-[#f4f6f8] p-3 md:p-4">
+    <div className="territory-map-screen flex h-full min-h-[32rem] gap-3 bg-[#f4f6f8] p-3 md:p-4">
       <aside className={`hidden shrink-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm md:flex md:flex-col ${accountsMinimized ? "w-14" : "w-[20rem] xl:w-[22rem]"}`}>
         <button type="button" aria-expanded={!accountsMinimized} aria-label={accountsMinimized ? "Expand saved accounts" : "Minimize saved accounts"} className="flex min-h-11 shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-3 text-sm font-semibold" onClick={() => setAccountsMinimized(value => !value)}>{accountsMinimized ? "→" : <><span>Saved accounts</span><span>←</span></>}</button>
         {!accountsMinimized ? list : null}
       </aside>
-      <div className="relative min-w-0 flex-1 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
-      <div className="absolute inset-x-3 top-3 z-20 max-h-[40%] overflow-y-auto space-y-2 rounded-2xl bg-white/95 p-2 shadow-sm md:hidden">
+      <div className="territory-map-canvas relative min-w-0 flex-1 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+      <div className="territory-map-search absolute inset-x-3 top-3 z-20 max-h-[40%] overflow-y-auto space-y-2 rounded-2xl bg-white/95 p-2 shadow-sm md:hidden">
         <button type="button" aria-expanded={!accountsMinimized} className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-sm font-semibold" onClick={() => { setAccountsMinimized(value => !value); setMode("map"); }}><span>Saved accounts & office search</span><span>{accountsMinimized ? "Expand" : "Minimize"}</span></button>
         <div hidden={accountsMinimized} className="space-y-2">
         <div className="flex gap-2">
@@ -355,7 +355,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
 
       {mode === "list" && !accountsMinimized ? <div className="relative z-0 h-full bg-white pt-28 md:hidden">{list}</div> : <div className="relative z-0 h-full isolate">{canvas}</div>}
 
-      <div className="absolute right-3 bottom-24 z-20 flex flex-col gap-2 md:bottom-3">
+      <div className="territory-map-tools absolute right-3 bottom-24 z-20 flex flex-col gap-2 md:bottom-3">
         <button type="button" aria-pressed={zipcodesShown} title="U.S. Census ZIP Code Tabulation Areas (ZCTAs)" className={`min-h-11 rounded-xl px-3 text-sm font-medium shadow-sm ring-1 ring-slate-200 ${zipcodesShown ? "bg-blue-700 text-white" : "bg-white text-[#10263E]"}`} onClick={() => { setZipcodesShown(value => !value); setZipcodeError(false); setMode("map"); }}>Zipcode outlines {zipcodesShown ? "on" : "off"}</button>
         {zipcodesShown && zoom < 8 ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">Zoom in to see ZIP-code boundaries.</p> : null}
         {zipcodesShown && zipcodeError ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">Some ZIP-area outlines could not load. Toggle off and on to retry.</p> : null}
