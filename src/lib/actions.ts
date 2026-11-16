@@ -23,7 +23,7 @@ import { credentialVersion } from "./session-options";
 import { recommendStops } from "./domain/routing";
 import { isProfileTimezone } from "./domain/accounts";
 import { findDuplicateAccount } from "./services/accounts";
-import { parseOrgSettings, type OrgSettings } from "./org-settings";
+import { parseOrgSettings, orgSettingsSchema, type OrgSettings } from "./org-settings";
 import { safeWebsiteUrl } from "./domain/urls";
 import { geocodeAddress } from "./maps/service";
 
@@ -820,7 +820,7 @@ export async function updateOrgAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!canManageOrg(user.roleKey)) redirect("/admin?notice=Only an organization administrator can change these settings.");
   const requestedCap = formData.get("cap");
-  if (requestedCap != null && (!Number.isFinite(Number(requestedCap)) || Number(requestedCap) < 0)) redirect("/admin?notice=Enter%20a%20valid%20nonnegative%20company%20meal%20cap.");
+  if (requestedCap != null && (!Number.isFinite(Number(requestedCap)) || Number(requestedCap) < 0)) return { ok: false as const, error: "Enter a valid nonnegative company meal cap." };
   const org = await prisma.organization.findUniqueOrThrow({ where: { id: user.organizationId } });
   const settings = parseOrgSettings(org.settings);
   settings.recentVisitDays = Number(formData.get("recentVisitDays") || settings.recentVisitDays);
@@ -831,7 +831,11 @@ export async function updateOrgAction(formData: FormData) {
   settings.workdayStart = String(formData.get("workdayStart") || settings.workdayStart);
   settings.workdayEnd = String(formData.get("workdayEnd") || settings.workdayEnd);
   settings.aiEnabled = formData.get("aiEnabled") === "on";
-  await prisma.organization.update({
+  const validated = orgSettingsSchema.safeParse(settings);
+  if (!validated.success) return { ok: false as const, error: "Enter positive whole numbers for visit days and invitation hours." };
+  const complianceEnabled = await hasBusinessCompliance(user);
+  await prisma.$transaction(async tx => {
+  await tx.organization.update({
     where: { id: org.id },
     data: {
       name: String(formData.get("name") || org.name),
@@ -839,11 +843,11 @@ export async function updateOrgAction(formData: FormData) {
       branding: { displayName: String(formData.get("name") || org.name), emailFromName: String(formData.get("emailFromName") || org.name) },
     },
   });
-  if (await hasBusinessCompliance(user)) {
+  if (complianceEnabled) {
   const cap = Number(formData.get("cap") || 25);
-  const active = await prisma.mealPolicy.findFirst({ where: { organizationId: org.id, active: true } });
+  const active = await tx.mealPolicy.findFirst({ where: { organizationId: org.id, active: true } });
   if (active) {
-    await prisma.mealPolicy.update({
+    await tx.mealPolicy.update({
       where: { id: active.id },
       data: {
         perPersonCapCents: Math.round(cap * 100),
@@ -852,7 +856,7 @@ export async function updateOrgAction(formData: FormData) {
       },
     });
   } else if (formData.get("createPolicy") === "on") {
-    await prisma.mealPolicy.create({
+    await tx.mealPolicy.create({
       data: {
         organizationId: org.id,
         name: "Internal Meal Policy",
@@ -866,11 +870,12 @@ export async function updateOrgAction(formData: FormData) {
       },
     });
   }
-  if (active || formData.get("createPolicy") === "on") await prisma.auditLog.create({ data: { organizationId: org.id, actorId: user.id, action: active ? "meal_policy.updated" : "meal_policy.created", entityType: "MealPolicy", entityId: active?.id || org.id, metadata: { perPersonCapCents: Math.round(cap * 100), reviewedByAccountAdmin: true } } });
+  if (active || formData.get("createPolicy") === "on") await tx.auditLog.create({ data: { organizationId: org.id, actorId: user.id, action: active ? "meal_policy.updated" : "meal_policy.created", entityType: "MealPolicy", entityId: active?.id || org.id, metadata: { perPersonCapCents: Math.round(cap * 100), reviewedByAccountAdmin: true } } });
   }
+  });
   revalidatePath("/admin");
   revalidatePath("/compliance");
-  redirect("/admin?notice=Settings saved.");
+  return { ok: true as const };
 }
 
 export async function createTaskAction(formData: FormData) {

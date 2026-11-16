@@ -1,3 +1,4 @@
+import { OrganizationSettingsForm } from "@/components/settings-form";
 import { hasBusinessCompliance } from "@/lib/compliance-access";
 import { COMPLIANCE_UPGRADE } from "@/lib/domain/compliance-access";
 import { connection } from "next/server";
@@ -5,9 +6,9 @@ import { notFound } from "next/navigation";
 import { requireAppUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canManageOrg, canReviewCompliance } from "@/lib/permissions";
-import { createMemberAction, createTerritoryAction, updateOrgAction } from "@/lib/actions";
+import { createMemberAction, createTerritoryAction } from "@/lib/actions";
 import { saveCrmMatchAction, syncReferralAction } from "@/lib/visits/actions";
-import { parseOrgSettings } from "@/lib/org-settings";
+import { parseOrgSettings, parseBranding } from "@/lib/org-settings";
 import { formatWhen } from "@/lib/format";
 
 export const instant = false;
@@ -50,9 +51,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <h1 className="text-2xl font-semibold">Organization</h1>
       {notice ? <p className="rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-slate-200">{notice}</p> : null}
       {canManageOrg(user.roleKey) ? (
-        <form action={updateOrgAction} className="grid gap-2 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+        <OrganizationSettingsForm>
           <label className="text-sm">Company name<input name="name" defaultValue={org.name} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
-          <label className="text-sm">Email display name<input name="emailFromName" defaultValue={org.name} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
+          <label className="text-sm">Email display name<input name="emailFromName" defaultValue={parseBranding(org.branding).emailFromName} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
           <div className="grid grid-cols-2 gap-2">
             <label className="text-sm">Workday start<input name="workdayStart" defaultValue={settings.workdayStart} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
             <label className="text-sm">Workday end<input name="workdayEnd" defaultValue={settings.workdayEnd} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
@@ -73,8 +74,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           </fieldset>
           <label className="text-sm"><input type="checkbox" name="aiEnabled" defaultChecked={settings.aiEnabled} className="mr-2" />AI features available</label>
           {!policy ? <label className="text-sm"><input disabled={!complianceEnabled} title={!complianceEnabled ? COMPLIANCE_UPGRADE : undefined} type="checkbox" name="createPolicy" className="mr-2" />Create an internal meal policy</label> : <p className="text-xs text-[#66758B]">{policy.name} {policy.version} is active. The cap is an internal company figure, not a federal meal allowance. Entertainment and referral-linked meals stay prohibited.</p>}
-          <button className="h-11 rounded-xl bg-[#10263E] text-sm font-medium text-white" type="submit">Save organization settings</button>
-        </form>
+        </OrganizationSettingsForm>
       ) : (
         <p className="text-sm">Compliance review can see settings. Only an organization administrator can change them.</p>
       )}
