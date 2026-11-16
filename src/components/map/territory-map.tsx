@@ -379,6 +379,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
             </div>
             <button type="button" className="min-h-11 rounded-xl px-3 text-sm text-[#66758B] hover:bg-slate-100" onClick={() => setSelectedId(null)} aria-label="Close office card">Close</button>
           </div>
+          <div className="mt-3"><Link href={"/route?add="+selected.id} className="col-span-2 grid min-h-12 place-items-center rounded-xl bg-blue-600 font-semibold text-white">Add to Route</Link></div>
           <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
             <div><dt className="text-[#66758B]">Last check-in</dt><dd>{selected.lastVisit ?? "Not yet visited"}</dd></div>
             <div><dt className="text-[#66758B]">Days since visit</dt><dd>{selected.daysSince ?? "—"}</dd></div>
@@ -387,7 +388,6 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
             <div className="col-span-2"><dt className="text-[#66758B]">Distance</dt><dd>{here && selected.lat != null && selected.lng != null ? formatStraightLine(straightLineMiles(here, { lat: selected.lat, lng: selected.lng })) : "Share location to see straight-line distance"}</dd></div>
           </dl>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <Link href={"/route?add="+selected.id} className="col-span-2 grid min-h-12 place-items-center rounded-xl bg-blue-600 font-semibold text-white">Add to Route</Link>
             <Link href={`/accounts/${selected.id}/check-in`} className="col-span-2 grid h-12 place-items-center rounded-xl bg-[#19B78A] font-semibold text-[#06281f]">Check In</Link>
             {selected.lat != null && selected.lng != null ? (
               <a className="grid h-11 place-items-center rounded-xl bg-[#10263E] text-sm font-medium text-white" href={directionsUrl({ lat: selected.lat, lng: selected.lng })} target="_blank" rel="noreferrer">Directions</a>

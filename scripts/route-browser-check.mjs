@@ -71,5 +71,5 @@ try{
  assert.ok(await workspace.evaluate(e=>e.scrollTop)>0,"More screen scrolls after leaving map");
  assert.deepEqual(errors,[]);
  console.log("PASS: mobile 16-office create, optimize, manual reorder, duration edit, save, reload, separate-session reopen, numbered map, road polyline, Go link, route/More scrolling.");
-}catch(e){await writeFile("route-browser-results/server.log",serverOutput);throw e;}
+}catch(e){await writeFile("route-browser-results/server.log",serverOutput);console.error(serverOutput.slice(-6000));throw e;}
 finally{await browser?.close();server.kill("SIGTERM");}
