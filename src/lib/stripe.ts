@@ -8,7 +8,7 @@ export async function stripeRequest<T>(path: string, body?: URLSearchParams, ide
   if (!key) throw new Error("Payments are being connected. Please contact support.");
   const response = await fetch(`https://api.stripe.com/v1/${path}`, {
     method: body ? "POST" : "GET", cache: "no-store", signal: AbortSignal.timeout(10000),
-    headers: { Authorization: `Bearer ${key}`, "Stripe-Version": "2025-06-30.basil",
+    headers: { Authorization: `Bearer ${key}`, "Stripe-Version": "2026-10-28.endive",
       ...(body ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
       ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}) }, body,
   });

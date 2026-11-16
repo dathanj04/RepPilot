@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { validStripeSignature } from "@/lib/stripe-webhook";
 import { customerSubscriptions } from "@/lib/stripe";
 import { isPaidSubscription } from "@/lib/domain/paid-access";
+import { completeTrialCardSetup } from "@/lib/billing-flow";
 
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
   const raw = await request.text();
   if (Buffer.byteLength(raw) > 262144) return new Response(null,{status:413});
   if (!validStripeSignature(raw,request.headers.get("stripe-signature") || "",secret)) return Response.json({error:"Invalid signature"},{status:400});
-  let event: {id:string;type:string;livemode:boolean;data:{object:{customer?:string|{id:string}}}};
+  let event: {id:string;type:string;livemode:boolean;data:{object:{id?:string;mode?:string;customer?:string|{id:string}}}};
   try { event = JSON.parse(raw); } catch { return new Response(null,{status:400}); }
   if (!event || !/^evt_[A-Za-z0-9]+$/.test(event.id) || typeof event.type !== "string") return new Response(null,{status:400});
   // Production endpoint never processes sandbox events or trusts browser-provided payment status.
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
   // Re-read current Stripe state: delayed/reordered events cannot restore a canceled subscription.
   let paid = false;
   try {
+    if (event.type === "checkout.session.completed" && event.data.object.mode === "setup" && event.data.object.id) await completeTrialCardSetup(subscription.organizationId,event.data.object.id);
     const current = await customerSubscriptions(customer);
     paid = current.data.some(item => isPaidSubscription(item,customer,subscription.organizationId));
   } catch { return Response.json({error:"Payment verification unavailable"},{status:503}); }

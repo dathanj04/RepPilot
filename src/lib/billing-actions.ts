@@ -1,13 +1,13 @@
 "use server";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
-import { isNativeShell } from "./native-shell";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "./auth";
 import { prisma } from "./db";
 import { BILLING_PLANS, stripeRequest, customerSubscriptions } from "./stripe";
+import type {StripeSubscription} from "./domain/paid-access";
 import { consumeSharedRateLimit } from "./domain/rate-limit-store";
 import { savePersonalBillingProfile } from "./domain/billing-profile";
+import { billingPlan, checkoutParams, withBillingLock, stripeDestination, type CheckoutSession } from "./billing-flow";
 
 export async function saveBillingDetailsAction(form: FormData) {
   const user = await getCurrentUser({ allowExpiredTrial: true });
@@ -29,65 +29,58 @@ export async function selectTrialPlanAction(form: FormData) {
 }
 
 export async function startCheckoutAction(form: FormData) {
-  if (isNativeShell((await headers()).get("user-agent"))) redirect("/billing?error=Store%20billing%20is%20not%20enabled%20in%20this%20test%20build.");
-  const user = await getCurrentUser({ allowExpiredTrial: true });
-  const planKey = String(form.get("plan"));
-  const plan = BILLING_PLANS[planKey as keyof typeof BILLING_PLANS];
-  let destination = "";
-  try {
-    if (!plan) throw new Error("Choose a listed plan.");
-    if (!(await consumeSharedRateLimit(prisma, `checkout:${user.organizationId}`, 10, 60000)).ok) throw new Error("Please wait a minute before trying checkout again.");
-    // No early charges: checkout opens only once the original free period ends.
-    const subscription = await prisma.subscription.findUniqueOrThrow({ where: { organizationId: user.organizationId } });
-    if (subscription.trialEndsAt && subscription.trialEndsAt > new Date()) throw new Error("Your trial is still free. Return here when it ends to subscribe.");
-    if (subscription.billingPayerUserId && subscription.billingPayerUserId !== user.id && user.roleKey !== "ORG_ADMIN") throw new Error("The workspace payer can manage this shared subscription. Individual workspace owners can manage their own billing.");
-    let customer = subscription.stripeCustomerId;
-    if (!customer) {
-      const profile = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
-      const created = await stripeRequest<{ id: string }>("customers", new URLSearchParams({
-        email: profile.billingEmail || user.email, name: profile.billingName || user.name,
-        "metadata[organizationId]": user.organizationId,
-      }), `reppilot-customer-${user.organizationId}`);
-      customer = created.id;
-      await prisma.subscription.updateMany({ where: { organizationId: user.organizationId, stripeCustomerId: null }, data: { stripeCustomerId: customer, billingPayerUserId: user.id } });
-      // Re-read the winner of concurrent customer creation before checkout.
-      const bound = await prisma.subscription.findUniqueOrThrow({ where: { organizationId: user.organizationId } });
-      customer = bound.stripeCustomerId!;
-      if (bound.billingPayerUserId !== user.id && user.roleKey !== "ORG_ADMIN") throw new Error("Another member started billing. Please contact the workspace payer.");
+ const user=await getCurrentUser({allowExpiredTrial:true});
+ let destination="";
+ try{
+  const planKey=String(form.get("plan")||"");
+  if(!billingPlan(planKey))throw Error("Choose a listed plan.");
+  if(form.get("billingConsent")!=="yes")throw Error("Confirm the price and recurring billing terms before adding a card.");
+  if(!process.env.STRIPE_WEBHOOK_SECRET?.trim())throw Error("Secure subscription activation is being connected. Please contact support.");
+  if(!(await consumeSharedRateLimit(prisma,"checkout:"+user.organizationId,10,60000)).ok)throw Error("Please wait a minute before trying checkout again.");
+  destination=await withBillingLock(user.organizationId,async tx=>{
+   const subscription=await tx.subscription.findUniqueOrThrow({where:{organizationId:user.organizationId}});
+   if(subscription.billingPayerUserId&&subscription.billingPayerUserId!==user.id&&user.roleKey!=="ORG_ADMIN")throw Error("The workspace payer or owner can manage this subscription.");
+   if(!subscription.billingPayerUserId)await tx.subscription.update({where:{id:subscription.id},data:{billingPayerUserId:user.id}});
+   let customer=subscription.stripeCustomerId;
+   if(!customer){
+    const profile=await tx.user.findUniqueOrThrow({where:{id:user.id}});
+    const created=await stripeRequest<{id:string}>("customers",new URLSearchParams({email:profile.billingEmail||user.email,name:profile.billingName||user.name,"metadata[organizationId]":user.organizationId}),"reppilot-customer-"+user.organizationId);
+    customer=created.id;
+    await tx.subscription.update({where:{id:subscription.id},data:{stripeCustomerId:customer,billingPayerUserId:user.id}});
+   }
+   const current=await customerSubscriptions(customer);
+   if(current.data.some(s=>!["canceled","incomplete_expired"].includes(s.status)))throw Error("A subscription is already scheduled or active. Use Manage subscription & card to avoid a duplicate.");
+   const params=checkoutParams(customer,user.organizationId,planKey,subscription.trialEndsAt);
+   if(subscription.stripeCheckoutId){
+    const previous=await stripeRequest<CheckoutSession>("checkout/sessions/"+encodeURIComponent(subscription.stripeCheckoutId));
+    if(previous.status==="open"&&previous.metadata?.planKey===planKey&&previous.mode===params.get("mode"))return stripeDestination(previous.url);
+    if(previous.status==="complete"&&previous.mode==="setup"&&!await tx.auditLog.findUnique({where:{id:"billing_setup_"+previous.id},select:{id:true}}))throw Error("Your card setup is being confirmed. Refresh Subscriptions in a moment.");
+    if(previous.status==="complete"&&previous.mode==="subscription"){
+     if(!previous.subscription)throw Error("Your previous payment is being confirmed. Refresh Subscriptions before trying again.");
+     const paid=await stripeRequest<StripeSubscription>("subscriptions/"+encodeURIComponent(previous.subscription));
+     if(paid.customer!==customer||paid.metadata?.organizationId!==user.organizationId||!["canceled","incomplete_expired"].includes(paid.status))throw Error("A subscription already exists. Refresh Subscriptions or use Manage subscription & card.");
     }
-    const existing = await customerSubscriptions(customer);
-    if (existing.data.some(s => ["active", "past_due", "unpaid", "incomplete", "paused", "trialing"].includes(s.status))) {
-      throw new Error("A subscription already exists. Use Manage payment & invoices to avoid a duplicate subscription.");
-    }
-    if (subscription.stripeCheckoutId) {
-      const previous = await stripeRequest<{ url: string; status: string }>(`checkout/sessions/${encodeURIComponent(subscription.stripeCheckoutId)}`);
-      if (previous.status === "open" && previous.url) destination = previous.url;
-    }
-    if (!destination) {
-    const session = await stripeRequest<{ id: string; url: string; status: string }>("checkout/sessions", new URLSearchParams({
-      mode: "subscription", customer, "line_items[0][price]": plan.price, "line_items[0][quantity]": "1",
-      "automatic_tax[enabled]": "true", "billing_address_collection": "required", "customer_update[address]": "auto",
-      "subscription_data[metadata][organizationId]": user.organizationId,
-      "metadata[organizationId]": user.organizationId, client_reference_id: user.organizationId,
-      success_url: "https://reppilot.app/billing?checkout=complete", cancel_url: "https://reppilot.app/billing?checkout=canceled",
-    }), `reppilot-checkout-${user.organizationId}-${subscription.stripeCheckoutId || "initial"}`);
-    if (!session.url || session.status !== "open") throw new Error("Return to billing and try again shortly.");
-    await prisma.subscription.update({ where: { organizationId: user.organizationId }, data: { stripeCheckoutId: session.id } });
-    destination = session.url;
-    }
-  } catch (error) { redirect(`/billing?error=${encodeURIComponent(error instanceof Error ? error.message : "Checkout is unavailable.")}`); }
-  redirect(destination);
+    if(previous.status==="open")await stripeRequest("checkout/sessions/"+encodeURIComponent(previous.id)+"/expire",new URLSearchParams());
+   }
+   const session=await stripeRequest<CheckoutSession>("checkout/sessions",params,"reppilot-checkout-"+user.organizationId+"-"+planKey+"-"+params.get("mode")+"-"+(subscription.stripeCheckoutId||"initial"));
+   if(session.status!=="open")throw Error("Refresh Subscriptions and try again.");
+   await tx.subscription.update({where:{id:subscription.id},data:{stripeCheckoutId:session.id}});
+   await tx.user.update({where:{id:user.id},data:{billingPlanPreference:planKey}});
+   return stripeDestination(session.url);
+  });
+ }catch(e){redirect("/billing?error="+encodeURIComponent(e instanceof Error?e.message:"Checkout is unavailable."));}
+ // Capacitor opens Stripe's external origin in the system browser.
+ redirect(destination);
 }
 
 export async function openBillingPortalAction() {
-  if (isNativeShell((await headers()).get("user-agent"))) redirect("/billing?error=Store%20billing%20is%20not%20enabled%20in%20this%20test%20build.");
   const user = await getCurrentUser({ allowExpiredTrial: true });
   let destination = "";
   try {
     const subscription = await prisma.subscription.findUniqueOrThrow({ where: { organizationId: user.organizationId } });
     if (!subscription.stripeCustomerId || (subscription.billingPayerUserId !== user.id && user.roleKey !== "ORG_ADMIN")) throw new Error("Only this workspace's payer or owner can manage its payment methods.");
     const portal = await stripeRequest<{ url: string }>("billing_portal/sessions", new URLSearchParams({ configuration: "bpc_1UbIF1AJxC2GoXaR0Qzeerkn", customer: subscription.stripeCustomerId, return_url: "https://reppilot.app/billing" }));
-    destination = portal.url;
+    destination = stripeDestination(portal.url,true);
   } catch (error) { redirect(`/billing?error=${encodeURIComponent(error instanceof Error ? error.message : "The billing portal is unavailable.")}`); }
   redirect(destination);
 }
