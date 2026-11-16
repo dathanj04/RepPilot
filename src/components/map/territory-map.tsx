@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { matchesZipFilter, validZipFilter } from "@/lib/maps/zip-filter";
 import { useRouter } from "next/navigation";
 import { CountyLayer } from "./county-layer";
 import { LassoLayer } from "./lasso-layer";
@@ -104,11 +103,13 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
   const [tone, setTone] = useState<MarkerTone | "all">("all");
   const [specialty, setSpecialty] = useState("all");
   const [city, setCity] = useState("all");
-  const [zip, setZip] = useState("");
   const [territory, setTerritory] = useState("all");
   const [owner, setOwner] = useState("all");
   const [status, setStatus] = useState("all");
   const router = useRouter();
+  const [zipcodesShown, setZipcodesShown] = useState(false);
+  const [zipcodeError, setZipcodeError] = useState(false);
+  const zipcodeFailed = useCallback(() => setZipcodeError(true), []);
   const [countiesShown, setCountiesShown] = useState(false);
   const [countyError, setCountyError] = useState(false);
   const countyFailed = useCallback(() => setCountyError(true), []);
@@ -135,7 +136,6 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
 
   const specialties = [...new Set(accounts.map((account) => account.specialty))];
   const cities = [...new Set(accounts.map((account) => account.city))].sort();
-  const zips = [...new Set(accounts.map((account) => account.zip))].sort();
   const territories = [...new Set(accounts.map((account) => account.territory).filter((value): value is string => Boolean(value)))].sort();
   const owners = [...new Set(accounts.map((account) => account.owner).filter((value): value is string => Boolean(value)))].sort();
   const statuses = [...new Set(accounts.map((account) => account.status))].sort();
@@ -145,7 +145,6 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
     if (tone !== "all" && account.tone !== tone) return false;
     if (specialty !== "all" && account.specialty !== specialty) return false;
     if (city !== "all" && account.city !== city) return false;
-    if (!matchesZipFilter(account.zip, zip)) return false;
     if (territory !== "all" && account.territory !== territory) return false;
     if (owner !== "all" && account.owner !== owner) return false;
     if (status !== "all" && account.status !== status) return false;
@@ -191,7 +190,6 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
           className="h-11 w-full rounded-xl border border-slate-200 bg-[#F5F7FA] px-3 text-sm"
           aria-label="Filter saved accounts"
         />
-        <ZipFilter value={zip} onChange={setZip} options={zips} />
         <div className="flex flex-wrap gap-2">
           <FilterChip active={tone === "all"} onClick={() => setTone("all")}>All</FilterChip>
           {MARKER_TONES.map((item) => (
@@ -262,11 +260,12 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
     finally { setRouting(false); }
   }
 
-  const canvas = countiesShown || lasso || tomtomMapsKey || discovered.length > 0 || googleFailed || !googleMapsKey ? (
+  const canvas = zipcodesShown || countiesShown || lasso || tomtomMapsKey || discovered.length > 0 || googleFailed || !googleMapsKey ? (
     <MapContainer center={center} zoom={10} className="h-full w-full" zoomControl={false}>
       {tomtomMapsKey && !tomtomFailed ? <TileLayer attribution='<a href="https://www.tomtom.com/copyright/">&copy; TomTom</a> &copy; OpenStreetMap' maxZoom={22} url={`https://api.tomtom.com/maps/orbis/display/raster/tile/{z}/{x}/{y}?apiVersion=2&style=street-light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} eventHandlers={{ tileerror: () => setTomtomFailed(true) }} /> : <TileLayer attribution='&copy; OpenStreetMap' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />}
       {tomtomMapsKey && !tomtomFailed && showTraffic ? <TileLayer attribution="Traffic &copy; TomTom" maxZoom={22} opacity={0.8} url={`https://api.tomtom.com/maps/orbis/traffic/flow/raster/tile/{z}/{x}/{y}?apiVersion=2&style=light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} /> : null}
       {lasso ? <LassoLayer onComplete={finishLasso} onCancel={cancelLasso} /> : null}
+      {zipcodesShown ? <CountyLayer zipcode onError={zipcodeFailed} /> : null}
       {countiesShown ? <CountyLayer onError={countyFailed} /> : null}
       <MapEvents onZoom={setZoom} onArea={setSearchArea} />
       <Recenter center={focus} accuracy={here && focus?.[0] === here.lat && focus?.[1] === here.lng ? here.accuracy : undefined} />
@@ -325,7 +324,6 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
             {mode === "map" ? "List" : "Map"}
           </button>
         </div>
-        <ZipFilter value={zip} onChange={setZip} options={zips} />
         <details data-office-search className="rounded-xl border border-slate-200 bg-white" onToggle={event => { if (event.currentTarget.open) event.currentTarget.scrollTop = 0; }}>
           <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-semibold text-[#10263E]">Find new offices</summary>
           <PlacesSearch here={here} area={searchArea} onResults={receivePlaces} saved={savedDiscoveries} onSaved={markSaved} compact />
@@ -358,6 +356,9 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
       {mode === "list" && !accountsMinimized ? <div className="relative z-0 h-full bg-white pt-28 md:hidden">{list}</div> : <div className="relative z-0 h-full isolate">{canvas}</div>}
 
       <div className="absolute right-3 bottom-24 z-20 flex flex-col gap-2 md:bottom-3">
+        <button type="button" aria-pressed={zipcodesShown} title="U.S. Census ZIP Code Tabulation Areas (ZCTAs)" className={`min-h-11 rounded-xl px-3 text-sm font-medium shadow-sm ring-1 ring-slate-200 ${zipcodesShown ? "bg-blue-700 text-white" : "bg-white text-[#10263E]"}`} onClick={() => { setZipcodesShown(value => !value); setZipcodeError(false); setMode("map"); }}>Zipcode outlines {zipcodesShown ? "on" : "off"}</button>
+        {zipcodesShown && zoom < 8 ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">Zoom in to see ZIP-code boundaries.</p> : null}
+        {zipcodesShown && zipcodeError ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">Some ZIP-area outlines could not load. Toggle off and on to retry.</p> : null}
         <button type="button" aria-pressed={countiesShown} className={`min-h-11 rounded-xl px-3 text-sm font-medium shadow-sm ring-1 ring-slate-200 ${countiesShown ? "bg-violet-700 text-white" : "bg-white text-[#10263E]"}`} onClick={() => { setCountiesShown(value => !value); setCountyError(false); setMode("map"); }}>County outlines {countiesShown ? "on" : "off"}</button>
         {countiesShown && countyError ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">Some Census county outlines could not load. Toggle off and on to retry.</p> : null}
         <button type="button" disabled={routing} aria-pressed={lasso} className="h-11 rounded-xl bg-[#10263E] px-3 text-sm font-medium text-white shadow-sm disabled:opacity-60" onClick={() => { setMode("map"); setLasso(!lasso); setRouteNote(""); }}>
@@ -409,16 +410,6 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
       </div>
     </div>
   );
-}
-
-function ZipFilter({value,onChange,options}:{value:string;onChange:(value:string)=>void;options:string[]}) {
- const id=useId();const valid=validZipFilter(value);
- return <div className="rounded-xl bg-slate-50 p-2">
-  <label htmlFor={id} className="text-xs font-medium text-[#10263E]">Filter saved accounts by ZIP code</label>
-  <div className="mt-1 flex gap-2"><input id={id} list={`${id}-options`} value={value} onChange={event=>onChange(event.target.value)} placeholder="75068, 75034" aria-invalid={!valid} aria-describedby={`${id}-help`} className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm"/><button type="button" disabled={!value} onClick={()=>onChange("")} className="min-h-11 rounded-lg border bg-white px-3 text-xs disabled:opacity-40">Clear ZIPs</button></div>
-  <datalist id={`${id}-options`}>{options.map(zip=><option key={zip} value={zip}/>)}</datalist>
-  <p id={`${id}-help`} className={`mt-1 text-xs ${valid?"text-slate-500":"text-red-700"}`}>{valid?"Enter one or more ZIPs, separated by commas. Applies to saved dots and the account list.":"Use complete five-digit ZIP codes, separated by commas."}</p>
- </div>;
 }
 
 function SelectFilter({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: string[] }) {
