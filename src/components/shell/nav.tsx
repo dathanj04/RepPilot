@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { usePathname } from "next/navigation";
 import {
-  PanelLeftClose,
-  Menu,
   Building2,
   CreditCard,
   CalendarCheck,
@@ -71,39 +68,16 @@ export function SideNav({ items }: { items: NavItem[] }) {
 }
 
 export function BottomNav({ unread }: { unread: number }) {
-  const pathname = usePathname();
-  const items: NavItem[] = [
-    { href: "/map", label: "Map", icon: "map" },
-    { href: "/accounts", label: "Accounts", icon: "accounts" },
-    { href: "/lunches", label: "Lunches", icon: "lunches" },
-    { href: "/today", label: "Today", icon: "today" },
-    { href: "/calendar", label: "Calendar", icon: "calendar" },
-    { href: "/more", label: "More", icon: "more" },
+  const pathname=usePathname();
+  const items: NavItem[]=[
+    {href:"/map",label:"Map",icon:"map"},
+    {href:"/accounts",label:"Accounts",icon:"accounts"},
+    {href:"/route",label:"Routes",icon:"route"},
+    {href:"/calendar",label:"Calendar",icon:"calendar"},
+    {href:"/more",label:"Settings",icon:"settings"},
   ];
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <nav aria-label="Mobile navigation" onKeyDown={event => { if (event.key === "Escape") setExpanded(false); }} className={cn("mobile-menu fixed left-3 z-40 max-h-[70dvh] overflow-y-auto rounded-2xl border border-white/10 bg-[#0c2035] p-1.5 text-white shadow-lg md:hidden", expanded ? "w-44" : "w-14")}>
-      <button type="button" aria-label={expanded ? "Minimize navigation" : "Open navigation menu"} aria-expanded={expanded} aria-controls="mobile-side-links" onClick={() => setExpanded(value => !value)} className="flex h-11 w-full items-center gap-3 rounded-xl px-2 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#b5f4dd]">
-        {expanded ? <PanelLeftClose className="size-5 shrink-0" /> : <Menu className="size-5 shrink-0" />}
-        {expanded ? <span className="text-xs font-medium">Minimize</span> : null}
-      </button>
-      <ul id="mobile-side-links" hidden={!expanded} className="space-y-1">
-        {items.map(item => {
-          const Icon = ICONS[item.icon];
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-          return <li key={item.href}><Link href={item.href} aria-label={pathname === "/map" && item.href === "/accounts" ? "Saved accounts" : item.label} title={pathname === "/map" && item.href === "/accounts" ? "Saved accounts" : item.label} aria-current={active ? "page" : undefined} onClick={event => {
-              setExpanded(false);
-              if (pathname === "/map" && item.href === "/accounts") {
-                event.preventDefault();
-                window.dispatchEvent(new Event("reppilot:toggle-saved-accounts"));
-              }
-            }} className={cn("relative flex h-11 items-center gap-3 rounded-xl px-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-[#b5f4dd]", active ? "bg-[#b5f4dd] text-[#10263E]" : "text-slate-300 hover:bg-white/10")}>
-            <Icon className="size-5 shrink-0" aria-hidden="true" />
-            {expanded ? <span>{item.label}</span> : null}
-            {item.href === "/more" && unread > 0 ? <span className="absolute right-0 top-0 rounded-full bg-[#D94B4B] px-1 text-[10px] text-white">{unread}</span> : null}
-          </Link></li>;
-        })}
-      </ul>
-    </nav>
-  );
+  return <nav aria-label="Mobile navigation" className="mobile-primary-nav fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pt-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"><ul className="grid grid-cols-5">{items.map(item=>{
+    const Icon=ICONS[item.icon],active=pathname===item.href||pathname.startsWith(item.href+"/");
+    return <li key={item.href}><Link href={item.href} aria-current={active?"page":undefined} className={cn("relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium",active?"text-[#087f5b] bg-emerald-50":"text-slate-500")}><Icon className="size-5" aria-hidden="true"/>{item.label}{item.href==="/more"&&unread>0?<span className="absolute right-2 top-0 rounded-full bg-red-600 px-1 text-white">{unread}</span>:null}</Link></li>;
+  })}</ul></nav>;
 }

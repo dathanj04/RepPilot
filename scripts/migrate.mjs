@@ -31,10 +31,10 @@ function run(command, args, env) {
 }
 
 const prismaEnv = { ...process.env, DATABASE_URL: direct, DIRECT_URL: direct };
-const migrated = run(process.execPath, ["node_modules/prisma/build/index.js", "migrate", "deploy"], prismaEnv);
+const migrated = run(process.execPath, ["node_modules/prisma/build/index.js", "migrate", "deploy", "--config", "prisma7.config.ts"], prismaEnv);
 if (!migrated) {
-  console.error("migrate: database setup did not finish. The server will try again on startup.");
-  process.exit(0);
+  console.error("migrate: database setup did not finish. Deployment stopped to preserve the previous working version.");
+  process.exit(1);
 }
 
 const password = process.env.SEED_PASSWORD?.trim() ?? "";

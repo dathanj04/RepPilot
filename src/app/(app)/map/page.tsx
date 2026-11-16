@@ -1,3 +1,4 @@
+import { readPlanning } from "@/lib/domain/route-planning";
 import { connection } from "next/server";
 import { requireAppUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -11,9 +12,12 @@ import { googleMapsBrowserKey, tomtomMapsKey } from "@/lib/maps-config";
 export const instant = false;
 export const metadata = { title: "Map" };
 
-export default async function MapPage() {
+export default async function MapPage({ searchParams }: { searchParams: Promise<{ route?: string }> }) {
   await connection();
   const user = await requireAppUser();
+  const { route: routeId } = await searchParams;
+  const active = await prisma.dailyRoute.findFirst({where:{organizationId:user.organizationId,userId:user.id,...(routeId?{id:routeId}:{})},orderBy:{updatedAt:"desc"}});
+  const activePlanning = readPlanning(active?.planning);
   const now = new Date();
   const org = await prisma.organization.findUniqueOrThrow({ where: { id: user.organizationId } });
   const settings = parseOrgSettings(org.settings);
@@ -63,6 +67,7 @@ export default async function MapPage() {
   const first = pins.find((pin) => pin.lat != null && pin.lng != null);
   return (
     <TerritoryMapLoader
+      activeRoute={active && activePlanning ? { id:active.id, planning:activePlanning } : null}
       accounts={pins}
       boundary={boundary}
       googleMapsKey={googleMapsBrowserKey()}

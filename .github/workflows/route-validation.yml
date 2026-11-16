@@ -1,0 +1,44 @@
+name: Route planner validation
+on:
+  push:
+    branches: [development]
+    paths:
+      - 'src/**'
+      - 'prisma/**'
+      - '.github/workflows/route-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: route_test
+          POSTGRES_PASSWORD: route_test_only
+          POSTGRES_DB: route_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://route_test:route_test_only@localhost:5432/route_test
+      ROUTE_DB_INTEGRATION: 'true'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx prisma migrate deploy --config prisma7.config.ts
+      - run: npx vitest run src
+      - run: npx tsc --noEmit
+      - run: npm run build
