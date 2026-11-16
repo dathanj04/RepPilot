@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LunchAlerts } from "./lunch-alerts";
 import { BrandMark } from "@/components/brand";
 import { TrialExpiry } from "./trial-expiry";
 import { Bell, LogOut, Plus } from "lucide-react";
@@ -72,6 +73,7 @@ export async function AppShell({ children, allowExpiredTrial = false }: { childr
         <div className="mobile-workspace min-h-0 flex-1 overflow-y-auto pl-14 pb-[env(safe-area-inset-bottom)] md:pl-0 md:pb-0">{children}</div>
       </div>
       {!allowExpiredTrial && user.trialEndsAt && user.trialDaysLeft !== null ? <TrialExpiry endsAt={user.trialEndsAt} /> : null}
+      {user.trialDaysLeft !== 0 ? <LunchAlerts userId={user.id} /> : null}
       <BottomNav unread={unread} />
     </div>
   );

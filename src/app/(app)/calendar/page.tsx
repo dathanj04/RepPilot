@@ -61,16 +61,16 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
               return (
                 <div key={day.toISOString()} className={`min-h-16 min-w-0 overflow-hidden rounded-xl p-1 text-xs md:min-h-20 ${isSameDay(day, now) ? "bg-[#E7F8F3]" : "bg-[#F5F7FA]"}`}>
                   <p className="px-1 font-medium text-[#10263E]">{format(day, "d")}</p>
-                  <div className="mt-1 flex flex-wrap gap-1 px-1 md:hidden" aria-hidden="true">
+                  <div className="mt-1 flex flex-wrap gap-1 px-1 md:hidden">
                     {dayEvents.slice(0, 3).map((event) => (
-                      <span key={event.id} className={`size-1.5 rounded-full ${event.provider === "internal" || event.syncState === "internal" ? "bg-[#19B78A]" : "bg-[#7C8BA1]"}`} />
+                      <Link key={event.id} href={event.lunchBookingId ? `/lunches/${event.lunchBookingId}` : `#event-${event.id}`} aria-label={`View ${event.title}`} className="flex min-h-8 min-w-6 items-center justify-center"><span className={`size-2 rounded-full ${event.provider === "internal" || event.syncState === "internal" ? "bg-[#19B78A]" : "bg-[#7C8BA1]"}`} /></Link>
                     ))}
                     {dayTasks.slice(0, 2).map((task) => (
                       <span key={task.id} className="size-1.5 rounded-full bg-[#F3B544]" />
                     ))}
                   </div>
                   {dayEvents.slice(0, 2).map((event) => (
-                    <p key={event.id} className={`mt-1 hidden truncate rounded-md px-1 py-0.5 md:block ${event.provider === "internal" || event.syncState === "internal" ? "bg-[#19B78A]/20 text-[#06281f]" : "bg-[#7C8BA1]/20 text-[#10263E]"}`}>{event.title}</p>
+                    <Link href={event.lunchBookingId ? `/lunches/${event.lunchBookingId}` : `#event-${event.id}`} aria-label={`View ${event.title}`} key={event.id} className={`mt-1 hidden truncate rounded-md px-1 py-0.5 md:block ${event.provider === "internal" || event.syncState === "internal" ? "bg-[#19B78A]/20 text-[#06281f]" : "bg-[#7C8BA1]/20 text-[#10263E]"}`}>{event.title}</Link>
                   ))}
                   {dayTasks.slice(0, 1).map((task) => (
                     <p key={task.id} className="mt-1 hidden truncate rounded-md bg-[#F3B544]/30 px-1 py-0.5 md:block">{task.title}</p>
@@ -102,7 +102,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
             {events.length === 0 ? <p className="mt-2 text-sm text-[#66758B]">No internal events yet.</p> : null}
             <ul className="mt-2 space-y-2">
               {events.map((event) => (
-                <li key={event.id} className="rounded-xl bg-[#F5F7FA] p-3">
+                <li id={`event-${event.id}`} key={event.id} className="scroll-mt-4 rounded-xl bg-[#F5F7FA] p-3">
                   <p className="font-medium">{event.title}</p>
                   <p className="text-sm text-[#66758B]">{formatWhen(event.startsAt, user.timezone)} · {event.provider === "internal" || event.syncState === "internal" ? "Internal" : `${event.provider} · ${event.syncState}`}</p>
                   {event.lunchBookingId ? <Link className="mt-1 inline-flex h-9 items-center text-sm font-medium text-[#10263E]" href={`/lunches/${event.lunchBookingId}`}>Open lunch</Link> : null}

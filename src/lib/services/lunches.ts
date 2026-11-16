@@ -237,7 +237,7 @@ export async function acceptInvitationSlot(
           organizationId: invitation.organizationId,
           userId: invitation.createdById,
           kind: "lunch_requested",
-          title: "Lunch time requested",
+          title: "Office accepted · lunch approval needed",
           body: catering
             ? `${invitation.account.name} requested a time and sponsored catering. The calendar and the order each need approval.`
             : `${invitation.account.name} requested a time you offered. It is not confirmed until you approve it.`,
