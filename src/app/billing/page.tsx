@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { isNativeShell } from "@/lib/native-shell";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
@@ -17,6 +19,16 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   await connection();
   const user = await getCurrentUser({ allowExpiredTrial: true });
   if (user.roleKey === "PLATFORM_ADMIN") redirect("/platform");
+  if (isNativeShell((await headers()).get("user-agent"))) {
+    return <AppShell allowExpiredTrial><PageFrame title="Subscription" subtitle="RepPilot mobile test build">
+      <section className="max-w-xl space-y-4 rounded-xl border border-slate-200 bg-white p-5">
+        <h2 className="font-semibold">{user.trialDaysLeft === 0 ? "Your free trial has ended" : user.trialDaysLeft != null ? `${user.trialDaysLeft} days left in your free trial` : "Your subscription is active"}</h2>
+        <p className="text-sm text-slate-600">Purchases and subscription changes are not enabled in this mobile test build. Existing paid access and the original 14-day trial continue to be verified securely.</p>
+        <p className="text-sm text-slate-600">Expired trials cannot access workspace data. Support and account deletion remain available.</p>
+        <Link className="inline-flex min-h-11 items-center font-medium underline" href="/support">Help & support</Link>
+      </section>
+    </PageFrame></AppShell>;
+  }
   const { saved, error, checkout, planSaved } = await searchParams;
   const profile = await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { billingName: true, billingEmail: true, billingPlanPreference: true } });
   const subscription = await prisma.subscription.findUnique({ where: { organizationId: user.organizationId } });

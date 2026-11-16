@@ -1,5 +1,7 @@
 "use server";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { isNativeShell } from "./native-shell";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "./auth";
 import { prisma } from "./db";
@@ -27,6 +29,7 @@ export async function selectTrialPlanAction(form: FormData) {
 }
 
 export async function startCheckoutAction(form: FormData) {
+  if (isNativeShell((await headers()).get("user-agent"))) redirect("/billing?error=Store%20billing%20is%20not%20enabled%20in%20this%20test%20build.");
   const user = await getCurrentUser({ allowExpiredTrial: true });
   const planKey = String(form.get("plan"));
   const plan = BILLING_PLANS[planKey as keyof typeof BILLING_PLANS];
@@ -77,6 +80,7 @@ export async function startCheckoutAction(form: FormData) {
 }
 
 export async function openBillingPortalAction() {
+  if (isNativeShell((await headers()).get("user-agent"))) redirect("/billing?error=Store%20billing%20is%20not%20enabled%20in%20this%20test%20build.");
   const user = await getCurrentUser({ allowExpiredTrial: true });
   let destination = "";
   try {
