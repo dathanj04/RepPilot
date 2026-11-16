@@ -16,7 +16,7 @@ export function checkoutParams(customer:string,organizationId:string,key:string,
  const plan=billingPlan(key);if(!plan)throw Error("Choose a listed plan.");
  const trial=trialEndsAt!=null&&trialEndsAt.getTime()>now;
  const params=new URLSearchParams({
-  mode:trial?"setup":"subscription",customer,
+  mode:trial?"setup":"subscription",customer,"managed_payments[enabled]":"false",
   "billing_address_collection":"required","customer_update[address]":"auto",
   "metadata[organizationId]":organizationId,"metadata[planKey]":key,
   "metadata[billingFlow]":trial?"trial_card_v1":"paid_v1","metadata[consent]":"yes",
