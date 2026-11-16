@@ -49,12 +49,18 @@ export async function completeTrialCardSetup(organizationId:string,sessionId:str
  return withBillingLock(organizationId,async tx=>{
   const bound=await tx.subscription.findUniqueOrThrow({where:{organizationId}});
   if(bound.stripeCheckoutId!==sessionId||!bound.stripeCustomerId)return;
+  const receiptId="billing_setup_"+sessionId;
+  if(await tx.auditLog.findUnique({where:{id:receiptId},select:{id:true}}))return;
   const session=await stripeRequest<CheckoutSession>("checkout/sessions/"+encodeURIComponent(sessionId));
   if(session.mode!=="setup"||session.status!=="complete")return;
   if(!session.livemode||session.customer!==bound.stripeCustomerId||session.client_reference_id!==organizationId||session.metadata?.organizationId!==organizationId||session.metadata?.billingFlow!=="trial_card_v1"||session.metadata?.consent!=="yes")throw Error("Card setup could not be verified.");
   const plan=billingPlan(session.metadata.planKey);if(!plan||!session.setup_intent)throw Error("Card setup is missing its selected plan.");
   const existing=await customerSubscriptions(bound.stripeCustomerId);
-  if(existing.data.some(s=>!["canceled","incomplete_expired"].includes(s.status)))return;
+  const prior=existing.data.find(s=>s.metadata?.setupCheckoutId===sessionId);
+  if(prior||existing.data.some(s=>!["canceled","incomplete_expired"].includes(s.status))){
+   await tx.auditLog.create({data:{id:receiptId,organizationId,action:"billing.card_setup.reconciled",entityType:"StripeCheckout",entityId:sessionId,metadata:{planKey:session.metadata.planKey,reason:prior?"already_processed":"existing_subscription"}}});
+   return;
+  }
   const setup=await stripeRequest<{customer:string;status:string;payment_method:string|null;livemode:boolean}>("setup_intents/"+encodeURIComponent(session.setup_intent));
   if(!setup.livemode||setup.customer!==bound.stripeCustomerId||setup.status!=="succeeded"||!setup.payment_method)throw Error("Payment method setup has not completed.");
   const params=new URLSearchParams({
@@ -69,7 +75,8 @@ export async function completeTrialCardSetup(organizationId:string,sessionId:str
   // the last 48 hours that subscription-mode Checkout cannot handle.
   const originalEnd=bound.trialEndsAt?.getTime()??0;
   params.set("trial_end",originalEnd>Date.now()?String(Math.ceil(originalEnd/1000)):"now");
-  await stripeRequest("subscriptions",params,"reppilot-card-subscription-"+sessionId);
+  const created=await stripeRequest<{id:string}>("subscriptions",params,"reppilot-card-subscription-"+sessionId);
+  await tx.auditLog.create({data:{id:receiptId,organizationId,action:"billing.card_setup.confirmed",entityType:"StripeCheckout",entityId:sessionId,metadata:{planKey:session.metadata.planKey,subscriptionId:created.id,originalTrialEndsAt:bound.trialEndsAt?.toISOString()??null,consent:"recurring_price_and_trial_end"}}});
   await tx.subscription.update({where:{id:bound.id},data:{plan:"business"}});
  });
 }

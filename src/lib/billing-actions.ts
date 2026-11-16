@@ -52,7 +52,7 @@ export async function startCheckoutAction(form: FormData) {
    if(subscription.stripeCheckoutId){
     const previous=await stripeRequest<CheckoutSession>("checkout/sessions/"+encodeURIComponent(subscription.stripeCheckoutId));
     if(previous.status==="open"&&previous.metadata?.planKey===planKey&&previous.mode===params.get("mode"))return stripeDestination(previous.url);
-    if(previous.status==="complete"&&previous.mode==="setup")throw Error("Your card setup is being confirmed. Refresh Subscriptions in a moment.");
+    if(previous.status==="complete"&&previous.mode==="setup"&&!await tx.auditLog.findUnique({where:{id:"billing_setup_"+previous.id},select:{id:true}}))throw Error("Your card setup is being confirmed. Refresh Subscriptions in a moment.");
     if(previous.status==="open")await stripeRequest("checkout/sessions/"+encodeURIComponent(previous.id)+"/expire",new URLSearchParams());
    }
    const session=await stripeRequest<CheckoutSession>("checkout/sessions",params,"reppilot-checkout-"+user.organizationId+"-"+planKey+"-"+params.get("mode")+"-"+(subscription.stripeCheckoutId||"initial"));

@@ -5,7 +5,7 @@ vi.mock("next/cache",()=>({revalidatePath:vi.fn()}));
 const mocks=vi.hoisted(()=>({user:vi.fn(),bound:vi.fn(),update:vi.fn(),profile:vi.fn(),profileUpdate:vi.fn(),request:vi.fn(),subscriptions:vi.fn(),lock:vi.fn()}));
 vi.mock("./domain/rate-limit-store",()=>({consumeSharedRateLimit:vi.fn().mockResolvedValue({ok:true})}));
 vi.mock("./auth",()=>({getCurrentUser:mocks.user}));
-vi.mock("./db",()=>{const tx={$queryRaw:mocks.lock,user:{findUniqueOrThrow:mocks.profile,update:mocks.profileUpdate},subscription:{findUniqueOrThrow:mocks.bound,update:mocks.update}};return {prisma:{...tx,$transaction:async(fn:Function)=>fn(tx)}};});
+vi.mock("./db",()=>{const tx={$queryRaw:mocks.lock,user:{findUniqueOrThrow:mocks.profile,update:mocks.profileUpdate},subscription:{findUniqueOrThrow:mocks.bound,update:mocks.update},auditLog:{findUnique:vi.fn().mockResolvedValue(null)}};return {prisma:{...tx,$transaction:async(fn:Function)=>fn(tx)}};});
 vi.mock("./stripe",async original=>({...await original<typeof import("./stripe")>(),stripeRequest:mocks.request,customerSubscriptions:mocks.subscriptions}));
 import {startCheckoutAction,openBillingPortalAction,selectTrialPlanAction} from "./billing-actions";
 const form=(key="monthly",consent=true)=>{const f=new FormData();f.set("plan",key);if(consent)f.set("billingConsent","yes");f.set("customer","cus_attacker");return f;};

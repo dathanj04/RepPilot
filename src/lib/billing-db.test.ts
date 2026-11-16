@@ -43,5 +43,11 @@ describe.skipIf(process.env.ROUTE_DB_INTEGRATION!=="true")("billing persistence 
   expect(state.subscriptionCalls).toBe(1);
   const record=await prisma.subscription.findUniqueOrThrow({where:{organizationId:state.user.organizationId}});
   expect(record.plan).toBe("business");expect(record.status).toBe("trialing");expect(record.trialEndsAt).toEqual(end);
+  expect(await prisma.auditLog.count({where:{id:"billing_setup_cs_isolated",organizationId:state.user.organizationId}})).toBe(1);
+ });
+ it("does not resubscribe after cancellation when an old completion is replayed",async()=>{
+  state.created=false;
+  await completeTrialCardSetup(state.user.organizationId,"cs_isolated");
+  expect(state.subscriptionCalls).toBe(1);
  });
 });

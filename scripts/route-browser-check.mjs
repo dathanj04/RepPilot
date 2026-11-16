@@ -72,6 +72,11 @@ try{
  const workspace=reopened.locator(".mobile-workspace");
  await workspace.evaluate(e=>{e.scrollTop=500;});
  assert.ok(await workspace.evaluate(e=>e.scrollTop)>0,"More screen scrolls after leaving map");
+ const native=await browser.newContext({...config,userAgent:"Mozilla/5.0 (iPhone) RepPilotNative/1.0"});await native.addCookies([cookie]);
+ const nativePage=await native.newPage();await nativePage.goto("http://localhost:43123/billing");
+ await nativePage.getByRole("heading",{name:"Subscriptions",exact:true}).waitFor();
+ assert.equal(await nativePage.getByRole("heading",{name:/Business (monthly|annual)/}).count(),2);
+ await native.close();
  await reopened.goto("http://localhost:43123/billing");
  await reopened.getByRole("heading",{name:"Subscriptions",exact:true}).waitFor();
  assert.equal(await reopened.getByRole("heading",{name:/Business (monthly|annual)/}).count(),2);
