@@ -114,6 +114,12 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
   const [countyError, setCountyError] = useState(false);
   const countyFailed = useCallback(() => setCountyError(true), []);
   const [accountsMinimized, setAccountsMinimized] = useState(true);
+  const [officeSearchOpen, setOfficeSearchOpen] = useState(false);
+  useEffect(() => {
+    const toggle = () => { setAccountsMinimized(value => !value); setMode("map"); };
+    window.addEventListener("reppilot:toggle-saved-accounts", toggle);
+    return () => window.removeEventListener("reppilot:toggle-saved-accounts", toggle);
+  }, []);
   const [lasso, setLasso] = useState(false);
   const [routing, setRouting] = useState(false);
   const [routeNote, setRouteNote] = useState("");
@@ -309,51 +315,21 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
         {!accountsMinimized ? list : null}
       </aside>
       <div className="territory-map-canvas relative min-w-0 flex-1 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
-      <div className="territory-map-search absolute inset-x-3 top-3 z-20 max-h-[40%] overflow-y-auto space-y-2 rounded-2xl bg-white/95 p-2 shadow-sm md:hidden">
-        <button type="button" aria-expanded={!accountsMinimized} className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-sm font-semibold" onClick={() => { setAccountsMinimized(value => !value); setMode("map"); }}><span>Saved accounts & office search</span><span>{accountsMinimized ? "Expand" : "Minimize"}</span></button>
-        <div hidden={accountsMinimized} className="space-y-2">
-        <div className="flex gap-2">
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Filter saved accounts"
-            className="h-11 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm"
-            aria-label="Filter saved accounts"
-          />
-          <button type="button" className="h-11 rounded-xl bg-white px-3 text-sm font-medium shadow-sm ring-1 ring-slate-200" onClick={() => setMode(mode === "map" ? "list" : "map")}>
-            {mode === "map" ? "List" : "Map"}
-          </button>
-        </div>
-        <details data-office-search className="rounded-xl border border-slate-200 bg-white" onToggle={event => { if (event.currentTarget.open) event.currentTarget.scrollTop = 0; }}>
-          <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-semibold text-[#10263E]">Find new offices</summary>
+      <div className="territory-map-search absolute inset-x-3 top-3 z-20 max-h-[40%] overflow-y-auto space-y-2 md:hidden">
+        <button type="button" aria-expanded={officeSearchOpen} aria-controls="mobile-office-search" className="min-h-11 rounded-xl bg-white/95 px-3 text-sm font-semibold text-[#10263E] shadow-md ring-1 ring-slate-200" onClick={() => setOfficeSearchOpen(value => !value)}>Find new offices</button>
+        <div id="mobile-office-search" hidden={!officeSearchOpen}>
           <PlacesSearch here={here} area={searchArea} onResults={receivePlaces} saved={savedDiscoveries} onSaved={markSaved} compact />
-        </details>
-        {discovered.length > 0 ? <details className="rounded-xl border border-slate-200 bg-white">
+        </div>
+        {discovered.length > 0 ? <details className="rounded-xl border border-slate-200 bg-white/95">
           <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-semibold">{discovered.length} offices found · View results</summary>
           <ul className="max-h-40 overflow-y-auto space-y-2 p-2" aria-label="Mobile office results">{discovered.map(place => <li key={discoveryKey(place)} className="rounded-lg border border-slate-200 p-2 text-sm"><p className="font-medium">{place.name}</p><p className="text-xs text-slate-500">{place.street}, {place.city}</p><DiscoveredOfficeForm place={place} query={discoveryQuery} savedId={savedDiscoveries[discoveryKey(place)]} onSaved={markSaved} /></li>)}</ul>
         </details> : null}
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          <FilterChip active={tone === "all"} onClick={() => setTone("all")}>All</FilterChip>
-          {MARKER_TONES.map((item) => (
-            <FilterChip key={item.id} active={tone === item.id} onClick={() => setTone(item.id)}>
-              <span className="mr-1 inline-block size-2 rounded-full" style={{ background: item.color }} />
-              {item.label}
-            </FilterChip>
-          ))}
-          <FilterChip active={followUpOnly} onClick={() => setFollowUpOnly((value) => !value)}>Follow-up due</FilterChip>
-          {specialties.map((item) => (
-            <FilterChip key={item} active={specialty === item} onClick={() => setSpecialty(specialty === item ? "all" : item)}>{item}</FilterChip>
-          ))}
-          {[5, 15, 30].map((miles) => (
-            <FilterChip key={miles} active={maxMiles === miles} onClick={() => setMaxMiles(maxMiles === miles ? null : miles)}>
-              Within {miles} mi
-            </FilterChip>
-          ))}
-        </div>
-        </div>
       </div>
-
-      {mode === "list" && !accountsMinimized ? <div className="relative z-0 h-full bg-white pt-28 md:hidden">{list}</div> : <div className="relative z-0 h-full isolate">{canvas}</div>}
+      {!accountsMinimized ? <section aria-label="Saved accounts" className="absolute left-16 right-3 top-16 bottom-6 z-30 flex min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-slate-200 md:hidden">
+        <button type="button" className="min-h-11 shrink-0 border-b px-4 text-right text-sm font-semibold" onClick={() => setAccountsMinimized(true)}>Close saved accounts</button>
+        <div className="min-h-0 flex-1 overflow-hidden">{list}</div>
+      </section> : null}
+      <div className="relative z-0 h-full isolate">{canvas}</div>
 
       <div className="territory-map-tools absolute right-3 bottom-24 z-20 flex flex-col items-end gap-2 md:bottom-3">
         <button type="button" aria-pressed={zipcodesShown} aria-label="Toggle ZIP-code outlines" title="ZIP-code outlines (Census ZCTAs)" className={`grid size-11 shrink-0 place-items-center rounded-xl shadow-md ring-1 ring-slate-200 transition-colors ${zipcodesShown ? "bg-blue-700 text-white" : "bg-white text-[#10263E]"}`} onClick={() => { setZipcodesShown(value => !value); setZipcodeError(false); setMode("map"); }}><Grid2X2 className="size-5" aria-hidden="true" /></button>
@@ -454,8 +430,8 @@ function PlacesSearch({ here, area, onResults, saved, onSaved, compact = false }
 
   return (
     <div className="rounded-xl bg-[#F5F7FA] p-2">
-      <p className="text-xs font-medium text-[#10263E]">Find offices</p>
-      <p className="mt-1 text-xs text-[#66758B]">Search the visible map area. Move or zoom the map, then search again. Up to 100 provider results can be shown.</p>
+      {!compact ? <p className="text-xs font-medium text-[#10263E]">Find offices</p> : null}
+      {!compact ? <p className="mt-1 text-xs text-[#66758B]">Search the visible map area. Move or zoom the map, then search again. Up to 100 provider results can be shown.</p> : null}
       <div className="mt-2 flex gap-2">
         <input
           value={query}
