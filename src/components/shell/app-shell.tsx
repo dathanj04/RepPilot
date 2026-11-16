@@ -69,7 +69,7 @@ export async function AppShell({ children, allowExpiredTrial = false }: { childr
             Demonstration organization. Offices, lunches, and spending are fictional.
           </p>
         ) : null}
-        <div className="mobile-workspace min-h-0 flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">{children}</div>
+        <div className="mobile-workspace min-h-0 flex-1 overflow-y-auto pl-14 pb-[env(safe-area-inset-bottom)] md:pl-0 md:pb-0">{children}</div>
       </div>
       {!allowExpiredTrial && user.trialEndsAt && user.trialDaysLeft !== null ? <TrialExpiry endsAt={user.trialEndsAt} /> : null}
       <BottomNav unread={unread} />

@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import {
+  PanelLeftClose,
+  PanelLeftOpen,
   Building2,
   CreditCard,
   CalendarCheck,
@@ -73,34 +76,22 @@ export function BottomNav({ unread }: { unread: number }) {
     { href: "/calendar", label: "Calendar", icon: "calendar" },
     { href: "/more", label: "More", icon: "more" },
   ];
+  const [expanded, setExpanded] = useState(false);
   return (
-    <nav aria-label="Mobile navigation" className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-1 pb-[env(safe-area-inset-bottom)] md:hidden">
-      <ul className="grid grid-cols-5">
-        {items.map((item) => {
+    <nav aria-label="Mobile navigation" className={cn("fixed left-0 top-1/2 z-40 max-h-[70dvh] -translate-y-1/2 overflow-y-auto rounded-r-2xl border border-l-0 border-white/10 bg-[#0c2035] p-1.5 text-white shadow-lg md:hidden", expanded ? "w-44" : "w-14")}>
+      <button type="button" aria-label={expanded ? "Minimize navigation" : "Expand navigation"} aria-expanded={expanded} aria-controls="mobile-side-links" onClick={() => setExpanded(value => !value)} className="flex h-11 w-full items-center gap-3 rounded-xl px-2 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#b5f4dd]">
+        {expanded ? <PanelLeftClose className="size-5 shrink-0" /> : <PanelLeftOpen className="size-5 shrink-0" />}
+        {expanded ? <span className="text-xs font-medium">Minimize</span> : null}
+      </button>
+      <ul id="mobile-side-links" className="space-y-1">
+        {items.map(item => {
           const Icon = ICONS[item.icon];
-          const active = pathname === item.href || (item.href !== "/today" && pathname.startsWith(`${item.href}/`));
-          return (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
-                  active ? "text-[#087f5b]" : "text-[#66758B]",
-                )}
-              >
-                <span className={cn("relative rounded-xl px-3 py-1.5", active && "bg-[#dff5eb]")}>
-                  <Icon className={cn("size-5", active && "stroke-[2.25]")} />
-                  {item.href === "/more" && unread > 0 ? (
-                    <span className="absolute -top-1 -right-2 grid min-w-4 place-items-center rounded-full bg-[#D94B4B] px-1 text-[10px] text-white">
-                      {unread}
-                    </span>
-                  ) : null}
-                </span>
-                {item.label}
-              </Link>
-            </li>
-          );
+          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          return <li key={item.href}><Link href={item.href} aria-label={item.label} title={item.label} aria-current={active ? "page" : undefined} onClick={() => setExpanded(false)} className={cn("relative flex h-11 items-center gap-3 rounded-xl px-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-[#b5f4dd]", active ? "bg-[#b5f4dd] text-[#10263E]" : "text-slate-300 hover:bg-white/10")}>
+            <Icon className="size-5 shrink-0" aria-hidden="true" />
+            {expanded ? <span>{item.label}</span> : null}
+            {item.href === "/more" && unread > 0 ? <span className="absolute right-0 top-0 rounded-full bg-[#D94B4B] px-1 text-[10px] text-white">{unread}</span> : null}
+          </Link></li>;
         })}
       </ul>
     </nav>
