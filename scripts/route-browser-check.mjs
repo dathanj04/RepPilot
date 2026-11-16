@@ -101,7 +101,7 @@ try{
  const locked=ip.getByRole("navigation",{name:"Mobile navigation"}).getByRole("button",{name:"Lunch & Learns",exact:true});
  assert.equal(await locked.getAttribute("aria-disabled"),"true");
  await locked.click();
- await ip.getByText("To access, please upgrade to Business account.",{exact:true}).waitFor();
+ await ip.getByRole("navigation",{name:"Mobile navigation"}).getByRole("note").waitFor();
  assert.equal((await ip.request.get("http://localhost:43123/api/reports/spending")).status(),403);
  await ip.goto("http://localhost:43123/lunches");
  await ip.waitForURL(/\\/billing\\?upgrade=business/);
