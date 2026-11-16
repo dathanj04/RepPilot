@@ -240,7 +240,7 @@ function currentLocation() {
     navigator.geolocation.getCurrentPosition(
       (position) => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
       () => resolve(null),
-      { enableHighAccuracy: false, timeout: 4000 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
     );
   });
 }
