@@ -479,9 +479,9 @@ describe("workflow persistence", () => {
   it("requires a separate catering approval and keeps the receipt", async () => {
     const { orgA, orgB, user, accountA } = await fixture();
     const reviewerRole = await prisma.role.upsert({
-      where: { key: "COMPLIANCE_ADMIN" },
+      where: { key: "ORG_ADMIN" },
       update: {},
-      create: { key: "COMPLIANCE_ADMIN", name: "Compliance", description: "Reviews catering", scope: "organization" },
+      create: { key: "ORG_ADMIN", name: "Compliance", description: "Reviews catering", scope: "organization" },
     });
     const reviewer = await prisma.user.create({
       data: { email: `compliance-${Date.now()}@example-health.test`, name: "Test Compliance", passwordHash: "not-used" },
@@ -554,7 +554,7 @@ describe("workflow persistence", () => {
     const selfApproval = await decideCateringApproval(prisma, {
       organizationId: orgA.id,
       reviewerId: user.id,
-      reviewerRole: "COMPLIANCE_ADMIN",
+      reviewerRole: "ORG_ADMIN",
       bookingId: requested.bookingId,
       approve: true,
       note: "I am the rep",
@@ -563,7 +563,7 @@ describe("workflow persistence", () => {
     const otherOrg = await decideCateringApproval(prisma, {
       organizationId: orgB.id,
       reviewerId: reviewer.id,
-      reviewerRole: "COMPLIANCE_ADMIN",
+      reviewerRole: "ORG_ADMIN",
       bookingId: requested.bookingId,
       approve: true,
       note: "Wrong organization",
@@ -572,7 +572,7 @@ describe("workflow persistence", () => {
     const approved = await decideCateringApproval(prisma, {
       organizationId: orgA.id,
       reviewerId: reviewer.id,
-      reviewerRole: "COMPLIANCE_ADMIN",
+      reviewerRole: "ORG_ADMIN",
       bookingId: requested.bookingId,
       approve: true,
       note: "Educational lunch within the internal cap.",
