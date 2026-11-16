@@ -10,6 +10,8 @@ export type OutboundEmail = {
   html: string;
   text: string;
   idempotencyKey: string;
+  replyTo?: string;
+  attachments?: { filename: string; content: string; content_type?: string }[];
   userId?: string;
   notification?: { title: string; body: string; href?: string; kind: string };
 };

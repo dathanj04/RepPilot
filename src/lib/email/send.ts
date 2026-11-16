@@ -48,6 +48,8 @@ export async function deliverEmail(email: OutboundEmail) {
           subject: email.subject,
           html: email.html,
           text: email.text,
+          ...(email.replyTo ? { reply_to: email.replyTo } : {}),
+          ...(email.attachments?.length ? { attachments: email.attachments } : {}),
         }),
         signal: AbortSignal.timeout(10000),
       });

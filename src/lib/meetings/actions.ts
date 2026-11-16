@@ -1,4 +1,5 @@
 "use server";
+import { sendLunchConfirmation } from "@/lib/email/lunch-confirmation";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -164,8 +165,9 @@ export async function approveLunchAction(formData: FormData) {
     bookingId,
     now: new Date(),
   });
+  const delivery = result.ok ? await sendLunchConfirmation(bookingId, "approved") : null;
   revalidatePath(`/lunches/${bookingId}`);
-  redirect(`/lunches/${bookingId}?notice=${encodeURIComponent(result.ok ? "Lunch approved. It is on your RepPilot calendar." : result.error)}`);
+  redirect(`/lunches/${bookingId}?notice=${encodeURIComponent(result.ok ? delivery?.status === "sent" ? "Lunch approved. The office was emailed a confirmation and calendar invitation." : "Lunch approved. The confirmation email could not be delivered; please check the office email address and delivery configuration." : result.error)}`);
 }
 
 export async function disconnectCalendarAction(formData: FormData) {
