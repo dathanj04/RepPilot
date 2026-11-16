@@ -20,7 +20,7 @@ export function parseTomtomPlaces(body: unknown): PlaceCandidate[] {
     const state = a.countrySubdivisionCodeIso.replace(/^US-/, "");
     if (!/^[A-Z]{2}$/.test(state)) return [];
     return [{ name: result.title, street: `${a.houseNumber} ${a.street}`, city: a.municipality, state, zip: a.postalCode, ...p }];
-  }).slice(0, 8);
+  }).slice(0, 100);
 }
 type Summary = { lengthInMeters?: number; travelTimeInSeconds?: number; trafficDelayInSeconds?: number };
 export function parseTomtomDrive(body: unknown): DrivePlan | null {
@@ -52,7 +52,7 @@ export async function geocodeAddress(address: string, fetchImpl: FetchLike = fet
   return location ? { status: "ok", value: location } : { status: "not_found" };
 }
 export async function searchPlaces(input: { query: string; bias: LatLng | null }, fetchImpl: FetchLike = fetch): Promise<MapsCallResult<PlaceCandidate[]>> {
-  const result = await call("maps/orbis/places/discover", "3", fetchImpl, { query: input.query, maxResults: 8, ...(input.bias ? { origin: { type: "point", coordinates: [input.bias.lng, input.bias.lat] }, preferences: { geometry: { type: "point", coordinates: [input.bias.lng, input.bias.lat] } } } : {}) }, "results(type,title,position,address)");
+  const result = await call("maps/orbis/places/discover", "3", fetchImpl, { query: input.query, maxResults: 100, ...(input.bias ? { origin: { type: "point", coordinates: [input.bias.lng, input.bias.lat] }, preferences: { geometry: { type: "point", coordinates: [input.bias.lng, input.bias.lat] } } } : {}) }, "results(type,title,position,address)");
   return result.status === "ok" ? { status: "ok", value: parseTomtomPlaces(result.value) } : result;
 }
 export async function computeDrive(points: LatLng[], fetchImpl: FetchLike = fetch): Promise<MapsCallResult<DrivePlan>> {

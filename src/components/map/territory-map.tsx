@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, MapPin, Route, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { MapContainer, TileLayer, CircleMarker, Polygon, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Polygon, Tooltip, Popup, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { MARKER_TONES, type MarkerTone } from "@/lib/domain/catalog";
+import type { PlaceCandidate } from "@/lib/maps/provider";
+import type { SearchArea } from "@/lib/maps/search-area";
 import { directionsUrl, formatStraightLine, straightLineMiles } from "@/lib/domain/distance";
 import { addDiscoveredAccountAction, searchPlacesAction } from "@/lib/maps/actions";
 
@@ -63,11 +65,15 @@ function cluster(points: MapAccount[], zoom: number) {
   }));
 }
 
-function MapEvents({ onZoom }: { onZoom: (zoom: number) => void }) {
-  const map = useMapEvents({
-    zoomend: () => onZoom(map.getZoom()),
-    moveend: () => onZoom(map.getZoom()),
-  });
+function MapEvents({ onZoom, onArea }: { onZoom: (zoom: number) => void; onArea: (area: SearchArea) => void }) {
+  const map = useMap();
+  const update = useCallback(() => {
+    onZoom(map.getZoom());
+    const bounds = map.getBounds();
+    onArea({ north: Math.min(90, bounds.getNorth()), south: Math.max(-90, bounds.getSouth()), east: Math.min(180, bounds.getEast()), west: Math.max(-180, bounds.getWest()) });
+  }, [map, onZoom, onArea]);
+  useMapEvents({ zoomend: update, moveend: update });
+  useEffect(() => { update(); }, [update]);
   return null;
 }
 
@@ -80,6 +86,8 @@ function Recenter({ center }: { center: [number, number] | null }) {
 }
 
 export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey, center }: Props) {
+  const [discovered, setDiscovered] = useState<PlaceCandidate[]>([]);
+  const [searchArea, setSearchArea] = useState<SearchArea | null>(null);
   const [mode, setMode] = useState<"map" | "list">("map");
   const [query, setQuery] = useState("");
   const [tone, setTone] = useState<MarkerTone | "all">("all");
@@ -93,6 +101,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
   const [maxMiles, setMaxMiles] = useState<number | null>(null);
   const [here, setHere] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const receivePlaces = useCallback((places: PlaceCandidate[]) => { setDiscovered(places); setMode("map"); setSelectedId(null); }, []);
   const [zoom, setZoom] = useState(10);
   const [focus, setFocus] = useState<[number, number] | null>(null);
   const [locationNote, setLocationNote] = useState<string | null>(null);
@@ -181,7 +190,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
           <SelectFilter label="Status" value={status} onChange={setStatus} options={statuses} />
         </div>
         </details>
-        <PlacesSearch here={here} />
+        <PlacesSearch here={here} area={searchArea} onResults={receivePlaces} />
       </div>
       <p aria-live="polite" className="border-b border-slate-100 px-5 py-3 text-xs font-medium text-[#66758B]">{filtered.length} of {accounts.length} practices</p>
       <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-slate-50/50 p-3">
@@ -208,12 +217,16 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
     </div>
   );
 
-  const canvas = tomtomMapsKey || googleFailed || !googleMapsKey ? (
+  const canvas = tomtomMapsKey || discovered.length > 0 || googleFailed || !googleMapsKey ? (
     <MapContainer center={center} zoom={10} className="h-full w-full" zoomControl={false}>
       {tomtomMapsKey && !tomtomFailed ? <TileLayer attribution='<a href="https://www.tomtom.com/copyright/">&copy; TomTom</a> &copy; OpenStreetMap' maxZoom={22} url={`https://api.tomtom.com/maps/orbis/display/raster/tile/{z}/{x}/{y}?apiVersion=2&style=street-light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} eventHandlers={{ tileerror: () => setTomtomFailed(true) }} /> : <TileLayer attribution='&copy; OpenStreetMap' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />}
       {tomtomMapsKey && !tomtomFailed && showTraffic ? <TileLayer attribution="Traffic &copy; TomTom" maxZoom={22} opacity={0.8} url={`https://api.tomtom.com/maps/orbis/traffic/flow/raster/tile/{z}/{x}/{y}?apiVersion=2&style=light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} /> : null}
-      <MapEvents onZoom={setZoom} />
+      <MapEvents onZoom={setZoom} onArea={setSearchArea} />
       <Recenter center={focus} />
+      {discovered.map((place, index) => <CircleMarker key={`discovered-${place.lat}-${place.lng}-${index}`} center={[place.lat, place.lng]} radius={10} pathOptions={{ color: "white", weight: 2, fillColor: "#7c3aed", fillOpacity: 1 }}>
+        <Tooltip>{place.name} · Search result</Tooltip>
+        <Popup><strong>{place.name}</strong><br />{place.street}<br />{place.city}, {place.state} {place.zip}<br /><span>Not saved. Use Add in Find offices to save this account.</span></Popup>
+      </CircleMarker>)}
       {boundary ? <Polygon positions={boundary} pathOptions={{ color: "#19B78A", weight: 2, fillOpacity: 0.05 }} /> : null}
       {here ? <CircleMarker center={[here.lat, here.lng]} radius={8} pathOptions={{ color: "#10263E", fillColor: "#19B78A", fillOpacity: 1 }} /> : null}
       {groups.map((group) =>
@@ -289,7 +302,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
       <p className="pointer-events-none absolute top-3 left-3 z-20 hidden max-w-sm rounded-xl bg-white/95 px-3 py-2 text-[11px] text-[#66758B] shadow-sm md:block">
         {tomtomMapsKey ? <button type="button" disabled={tomtomFailed} aria-pressed={showTraffic} onClick={() => setShowTraffic(v => !v)} className="mr-3 min-h-11 rounded-lg border px-3 font-medium">Traffic {showTraffic ? "on" : "off"}</button> : null}
         {tomtomFailed ? <span role="status">TomTom tiles could not load. Showing OpenStreetMap. </span> : null}
-        {tomtomMapsKey && !tomtomFailed ? "TomTom" : !tomtomMapsKey && googleMapsKey && !googleFailed ? "Google Maps" : "OpenStreetMap"} · pin distance is straight-line until Routes returns a drive time
+        {tomtomMapsKey && !tomtomFailed ? "TomTom" : !tomtomMapsKey && discovered.length === 0 && googleMapsKey && !googleFailed ? "Google Maps" : "OpenStreetMap"} · Purple dots: office search results ({discovered.length}) · pin distance is straight-line until Routes returns a drive time
         {locationNote ? ` · ${locationNote}` : ""}
         {missingLocation ? ` · ${missingLocation} offices have no coordinates` : ""}
       </p>
@@ -341,7 +354,7 @@ function SelectFilter({ label, value, onChange, options }: { label: string; valu
   );
 }
 
-function PlacesSearch({ here }: { here: { lat: number; lng: number } | null }) {
+function PlacesSearch({ here, area, onResults }: { here: { lat: number; lng: number } | null; area: SearchArea | null; onResults: (places: PlaceCandidate[]) => void }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -351,28 +364,36 @@ function PlacesSearch({ here }: { here: { lat: number; lng: number } | null }) {
   async function search() {
     setPending(true);
     setMessage(null);
-    const result = await searchPlacesAction(query, here);
-    setPlaces(result.places);
-    setMessage(result.message);
-    setPending(false);
+    setPlaces([]);
+    onResults([]);
+    try {
+      const result = await searchPlacesAction(query, here, area);
+      setPlaces(result.places);
+      onResults(result.places);
+      setMessage(result.message);
+    } catch { setMessage("Office search could not finish. Please try again."); }
+    finally { setPending(false); }
   }
 
   return (
     <div className="rounded-xl bg-[#F5F7FA] p-2">
       <p className="text-xs font-medium text-[#10263E]">Find offices</p>
+      <p className="mt-1 text-xs text-[#66758B]">Search the visible map area. Move or zoom the map, then search again. Up to 100 provider results can be shown.</p>
       <div className="mt-2 flex gap-2">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Pediatric clinic, Frisco TX"
           aria-label="Places search"
+          disabled={pending}
           className="h-10 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-sm"
         />
         <button type="button" className="h-10 rounded-lg bg-[#10263E] px-3 text-xs font-medium text-white disabled:opacity-50" disabled={pending} onClick={() => void search()}>
           {pending ? "Searching" : "Search"}
         </button>
       </div>
-      {message ? <p className="mt-2 text-xs text-[#66758B]">{message}</p> : null}
+      {message ? <p role="status" className="mt-2 text-xs text-[#66758B]">{message}</p> : null}
+      {places.length ? <button type="button" className="mt-2 min-h-11 text-xs underline" onClick={() => { setPlaces([]); onResults([]); setMessage(null); }}>Clear search results</button> : null}
       <ul className="mt-2 space-y-2">
         {places.map((place) => (
           <li key={`${place.name}-${place.zip}-${place.street}`} className="rounded-lg bg-white p-2 text-sm ring-1 ring-slate-200">

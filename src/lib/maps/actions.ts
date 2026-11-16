@@ -9,6 +9,8 @@ import { computeDrive, searchPlaces } from "@/lib/maps/service";
 import { findDuplicateAccount } from "@/lib/services/accounts";
 import { mapsServiceConfigured } from "@/lib/maps-config";
 
+import { placesInArea, validSearchArea, type SearchArea } from "./search-area";
+
 const TRAVEL_BUFFER_MINUTES = 10;
 
 function validPoint(point: { lat: number; lng: number } | null) {
@@ -34,9 +36,10 @@ async function recordMapsCall(input: { organizationId: string; actorId: string; 
   });
 }
 
-export async function searchPlacesAction(query: string, bias: { lat: number; lng: number } | null) {
+export async function searchPlacesAction(query: string, bias: { lat: number; lng: number } | null, area?: SearchArea | null) {
   const user = await getCurrentUser();
   const text = query.trim();
+  if (area && !validSearchArea(area)) return { configured: true, places: [], message: "Move or zoom the map to select a valid search area." };
   if (text.length < 3 || text.length > 120) {
     return { configured: Boolean(mapsServiceConfigured()), places: [], message: "Enter at least 3 characters, such as a specialty and city." };
   }
@@ -51,7 +54,8 @@ export async function searchPlacesAction(query: string, bias: { lat: number; lng
   if (!limit.ok) {
     return { configured: true, places: [], message: "Places search is paused for a few minutes so this organization does not burn the map quota." };
   }
-  const result = await searchPlaces({ query: text, bias: validPoint(bias) });
+  const searchCenter = validSearchArea(area) ? { lat: (area.north + area.south) / 2, lng: (area.east + area.west) / 2 } : validPoint(bias);
+  const result = await searchPlaces({ query: text, bias: searchCenter });
   if (result.status !== "ok") {
     await recordMapsCall({
       organizationId: user.organizationId,
@@ -73,10 +77,11 @@ export async function searchPlacesAction(query: string, bias: { lat: number; lng
     status: "ok",
     resultCount: result.value.length,
   });
-  if (result.value.length === 0) {
-    return { configured: true, places: [], message: "Office search returned no office with a complete street address. Nothing was invented." };
+  const visiblePlaces = placesInArea(result.value, area);
+  if (visiblePlaces.length === 0) {
+    return { configured: true, places: [], message: "No offices with complete addresses were returned in this area. Try a practice name or a wider map area." };
   }
-  return { configured: true, places: result.value, message: "These results are not saved until you add an office." };
+  return { configured: true, places: visiblePlaces, message: `${visiblePlaces.length} offices shown on the map. These are search results, not saved accounts. Provider limits apply; this is not a complete directory.` };
 }
 
 export async function addDiscoveredAccountAction(formData: FormData) {
