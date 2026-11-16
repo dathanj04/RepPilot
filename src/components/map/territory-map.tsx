@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { LassoLayer } from "./lasso-layer";
+import { insideLasso, type MapPoint } from "@/lib/maps/lasso";
+import { optimizeRouteAction } from "@/lib/maps/route-actions";
 import { ArrowUpRight, MapPin, Route, SlidersHorizontal } from "lucide-react";
 import { MapContainer, TileLayer, CircleMarker, Circle, Polygon, Tooltip, Popup, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -102,6 +106,11 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
   const [territory, setTerritory] = useState("all");
   const [owner, setOwner] = useState("all");
   const [status, setStatus] = useState("all");
+  const router = useRouter();
+  const [lasso, setLasso] = useState(false);
+  const [routing, setRouting] = useState(false);
+  const [routeNote, setRouteNote] = useState("");
+  const cancelLasso = useCallback(() => setLasso(false), []);
   const [followUpOnly, setFollowUpOnly] = useState(false);
   const [maxMiles, setMaxMiles] = useState<number | null>(null);
   const [here, setHere] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
@@ -229,10 +238,28 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
     </div>
   );
 
-  const canvas = tomtomMapsKey || discovered.length > 0 || googleFailed || !googleMapsKey ? (
+  async function finishLasso(polygon: MapPoint[]) {
+    setLasso(false);
+    const selected = filtered.filter(a => a.lat != null && a.lng != null && insideLasso({ lat: a.lat, lng: a.lng }, polygon));
+    if (selected.length < 2 || selected.length > 12) {
+      setRouteNote(`Selected ${selected.length} saved accounts. Draw around 2–12 account dots. Save office search results to Accounts first.`);
+      return;
+    }
+    setRouting(true);
+    setRouteNote(`Creating a road route for ${selected.length} accounts…`);
+    try {
+      const result = await optimizeRouteAction(selected.map(a => a.id), true);
+      if ("error" in result) setRouteNote(result.error ?? "The route could not be created.");
+      else if (result.routeId) router.push(`/route?route=${encodeURIComponent(result.routeId)}`);
+    } catch { setRouteNote("The route could not be created. Try again."); }
+    finally { setRouting(false); }
+  }
+
+  const canvas = lasso || tomtomMapsKey || discovered.length > 0 || googleFailed || !googleMapsKey ? (
     <MapContainer center={center} zoom={10} className="h-full w-full" zoomControl={false}>
       {tomtomMapsKey && !tomtomFailed ? <TileLayer attribution='<a href="https://www.tomtom.com/copyright/">&copy; TomTom</a> &copy; OpenStreetMap' maxZoom={22} url={`https://api.tomtom.com/maps/orbis/display/raster/tile/{z}/{x}/{y}?apiVersion=2&style=street-light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} eventHandlers={{ tileerror: () => setTomtomFailed(true) }} /> : <TileLayer attribution='&copy; OpenStreetMap' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />}
       {tomtomMapsKey && !tomtomFailed && showTraffic ? <TileLayer attribution="Traffic &copy; TomTom" maxZoom={22} opacity={0.8} url={`https://api.tomtom.com/maps/orbis/traffic/flow/raster/tile/{z}/{x}/{y}?apiVersion=2&style=light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} /> : null}
+      {lasso ? <LassoLayer onComplete={finishLasso} onCancel={cancelLasso} /> : null}
       <MapEvents onZoom={setZoom} onArea={setSearchArea} />
       <Recenter center={focus} accuracy={here && focus?.[0] === here.lat && focus?.[1] === here.lng ? here.accuracy : undefined} />
       {discovered.map((place, index) => <CircleMarker key={`discovered-${place.lat}-${place.lng}-${index}`} center={[place.lat, place.lng]} radius={10} pathOptions={{ color: "white", weight: 2, fillColor: savedDiscoveries[discoveryKey(place)] ? "#087f5b" : "#7c3aed", fillOpacity: 1 }}>
@@ -308,6 +335,11 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
       {mode === "list" ? <div className="relative z-0 h-full bg-white pt-28 md:hidden">{list}</div> : <div className="relative z-0 h-full isolate">{canvas}</div>}
 
       <div className="absolute right-3 bottom-24 z-20 flex flex-col gap-2 md:bottom-3">
+        <button type="button" disabled={routing} aria-pressed={lasso} className="h-11 rounded-xl bg-[#10263E] px-3 text-sm font-medium text-white shadow-sm disabled:opacity-60" onClick={() => { setMode("map"); setLasso(!lasso); setRouteNote(""); }}>
+          {routing ? "Creating route…" : lasso ? "Cancel lasso" : "Lasso route"}
+        </button>
+        {lasso ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">Draw around 2–12 saved account dots, then release to create and optimize your route. First and last selected stops stay fixed; adjust them in Route Planner.</p> : null}
+        {routeNote ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">{routeNote}</p> : null}
         <button type="button" className="h-11 rounded-xl bg-white px-3 text-sm font-medium shadow-sm ring-1 ring-slate-200" disabled={locating} onClick={locate}>
           {locating ? "Finding location…" : "My location"}
         </button>

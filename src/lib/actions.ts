@@ -743,17 +743,18 @@ export async function reviewExceptionAction(formData: FormData) {
 
 export async function saveRouteAction(payload: { accountIds: string[]; reasons: Record<string, string> }) {
   const user = await getCurrentUser();
+  if (!Array.isArray(payload.accountIds) || payload.accountIds.length < 1 || payload.accountIds.length > 12 || new Set(payload.accountIds).size !== payload.accountIds.length) return { error: "Save 1–12 different accounts per route." };
   const accounts = await prisma.account.findMany({
-    where: { organizationId: user.organizationId, id: { in: payload.accountIds } },
+    where: { ...accountEditScope(user), id: { in: payload.accountIds } },
   });
-  if (accounts.length !== payload.accountIds.length) return { error: "One of those offices is outside your organization." };
+  if (accounts.length !== payload.accountIds.length) return { error: "One of those offices is unavailable or is not assigned to you." };
   const route = await prisma.dailyRoute.create({
     data: {
       organizationId: user.organizationId,
       userId: user.id,
       routeDate: new Date(),
       status: "saved",
-      summary: "Saved stop order. Drive time is not stored on the route. Check drive time when you need a the routing provider duration.",
+      summary: "Saved stop order. Drive time is not stored on the route. Check drive time when you need a current routing provider duration.",
       stops: {
         create: payload.accountIds.map((accountId, index) => ({
           accountId,

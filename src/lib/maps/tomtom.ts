@@ -1,4 +1,5 @@
 import "server-only";
+import { optimizedPointOrder } from "./lasso";
 import { tomtomMapsKey } from "../maps-config";
 import type { MapsCallResult } from "./google";
 import type { DrivePlan, PlaceCandidate } from "./provider";
@@ -65,4 +66,20 @@ export async function computeDrive(points: LatLng[], fetchImpl: FetchLike = fetc
   if (result.status !== "ok") return result;
   const plan = parseTomtomDrive(result.value);
   return plan && plan.legs.length === points.length - 1 ? { status: "ok", value: plan } : { status: "error", message: "TomTom did not return a complete route. No driving time was estimated." };
+}
+
+/** Classic Routing v1 supports best-order optimization; Orbis calculateRoute no longer does. */
+export async function optimizeDrive(points: LatLng[], fetchImpl: FetchLike = fetch): Promise<MapsCallResult<{ plan: DrivePlan; order: number[] }>> {
+  if (points.length < 2 || points.length > 13 || points.some(p => !Number.isFinite(p.lat) || !Number.isFinite(p.lng) || Math.abs(p.lat) > 90 || Math.abs(p.lng) > 180)) return { status: "error", message: "Select 2–12 saved accounts with valid map locations." };
+  const key = tomtomMapsKey();
+  if (!key) return { status: "not_configured" };
+  const query = new URLSearchParams({ key, computeBestOrder: "true", traffic: "true", routeType: "fastest", routeRepresentation: "summaryOnly", travelMode: "car" });
+  try {
+    const response = await fetchImpl(`https://api.tomtom.com/routing/1/calculateRoute/${points.map(p => `${p.lat},${p.lng}`).join(":")}/json?${query}`, { cache: "no-store", signal: AbortSignal.timeout(20000), headers: { Referer: "https://reppilot.app/", Origin: "https://reppilot.app" } });
+    if (!response.ok) return { status: "error", message: response.status === 429 ? "TomTom's usage limit was reached. Try again later." : `TomTom could not optimize this route (${response.status}). Check Routing API access.` };
+    const body: unknown = await response.json();
+    const order = optimizedPointOrder(body, points.length);
+    const plan = parseTomtomDrive(body);
+    return order && plan && plan.legs.length === points.length - 1 ? { status: "ok", value: { order, plan } } : { status: "error", message: "TomTom returned an incomplete route. Your stop order has not changed." };
+  } catch { return { status: "error", message: "TomTom could not be reached. Your stop order has not changed." }; }
 }

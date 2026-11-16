@@ -24,3 +24,17 @@ it("sends a broad pediatric specialty query and viewport constraint to TomTom be
  expect(body.filters.countryCodesIso2).toEqual(["US"]);
  vi.unstubAllEnvs();
 });
+
+
+it("optimizes roads through the v1 endpoint and validates the returned permutation", async () => {
+ const { optimizeDrive } = await import("./tomtom");
+ vi.stubEnv("NEXT_PUBLIC_TOMTOM_API_KEY", "a-public-test-key-of-valid-length");
+ const summary = {lengthInMeters:1000,travelTimeInSeconds:100};
+ const fetch = vi.fn().mockResolvedValue({ok:true,json:async()=>({optimizedWaypoints:[{providedIndex:0,optimizedIndex:1},{providedIndex:1,optimizedIndex:0}],routes:[{summary,legs:[{summary},{summary},{summary}]}]})});
+ const points = [{lat:33,lng:-96},{lat:33.1,lng:-96},{lat:33.2,lng:-96},{lat:33.3,lng:-96}];
+ expect(await optimizeDrive(points,fetch)).toMatchObject({status:"ok",value:{order:[0,2,1,3]}});
+ const url = new URL(fetch.mock.calls[0][0]);
+ expect(url.pathname).toContain("/routing/1/calculateRoute/"); expect(url.searchParams.get("computeBestOrder")).toBe("true"); expect(url.searchParams.get("traffic")).toBe("true");
+ expect(fetch.mock.calls[0][1].cache).toBe("no-store");
+ vi.unstubAllEnvs();
+});
