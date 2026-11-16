@@ -4,7 +4,7 @@ import { prisma } from "./db";
 import type { Prisma } from "@/generated/prisma/client";
 import { BILLING_PLANS, customerSubscriptions, stripeRequest } from "./stripe";
 type Tx=Prisma.TransactionClient;
-export type CheckoutSession={id:string;url:string|null;status:string;mode:string;customer:string|null;client_reference_id?:string|null;livemode?:boolean;setup_intent?:string|null;metadata?:Record<string,string>};
+export type CheckoutSession={id:string;url:string|null;status:string;mode:string;customer:string|null;client_reference_id?:string|null;livemode?:boolean;setup_intent?:string|null;subscription?:string|null;metadata?:Record<string,string>};
 export async function withBillingLock<T>(organizationId:string,work:(tx:Tx)=>Promise<T>){
  return prisma.$transaction(async tx=>{
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"billing:"+organizationId}))::text`;

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "./auth";
 import { prisma } from "./db";
 import { BILLING_PLANS, stripeRequest, customerSubscriptions } from "./stripe";
+import type {StripeSubscription} from "./domain/paid-access";
 import { consumeSharedRateLimit } from "./domain/rate-limit-store";
 import { savePersonalBillingProfile } from "./domain/billing-profile";
 import { billingPlan, checkoutParams, withBillingLock, stripeDestination, type CheckoutSession } from "./billing-flow";
@@ -39,6 +40,7 @@ export async function startCheckoutAction(form: FormData) {
   destination=await withBillingLock(user.organizationId,async tx=>{
    const subscription=await tx.subscription.findUniqueOrThrow({where:{organizationId:user.organizationId}});
    if(subscription.billingPayerUserId&&subscription.billingPayerUserId!==user.id&&user.roleKey!=="ORG_ADMIN")throw Error("The workspace payer or owner can manage this subscription.");
+   if(!subscription.billingPayerUserId)await tx.subscription.update({where:{id:subscription.id},data:{billingPayerUserId:user.id}});
    let customer=subscription.stripeCustomerId;
    if(!customer){
     const profile=await tx.user.findUniqueOrThrow({where:{id:user.id}});
@@ -53,6 +55,11 @@ export async function startCheckoutAction(form: FormData) {
     const previous=await stripeRequest<CheckoutSession>("checkout/sessions/"+encodeURIComponent(subscription.stripeCheckoutId));
     if(previous.status==="open"&&previous.metadata?.planKey===planKey&&previous.mode===params.get("mode"))return stripeDestination(previous.url);
     if(previous.status==="complete"&&previous.mode==="setup"&&!await tx.auditLog.findUnique({where:{id:"billing_setup_"+previous.id},select:{id:true}}))throw Error("Your card setup is being confirmed. Refresh Subscriptions in a moment.");
+    if(previous.status==="complete"&&previous.mode==="subscription"){
+     if(!previous.subscription)throw Error("Your previous payment is being confirmed. Refresh Subscriptions before trying again.");
+     const paid=await stripeRequest<StripeSubscription>("subscriptions/"+encodeURIComponent(previous.subscription));
+     if(paid.customer!==customer||paid.metadata?.organizationId!==user.organizationId||!["canceled","incomplete_expired"].includes(paid.status))throw Error("A subscription already exists. Refresh Subscriptions or use Manage subscription & card.");
+    }
     if(previous.status==="open")await stripeRequest("checkout/sessions/"+encodeURIComponent(previous.id)+"/expire",new URLSearchParams());
    }
    const session=await stripeRequest<CheckoutSession>("checkout/sessions",params,"reppilot-checkout-"+user.organizationId+"-"+planKey+"-"+params.get("mode")+"-"+(subscription.stripeCheckoutId||"initial"));

@@ -20,3 +20,10 @@ it("prevents a duplicate scheduled or active subscription",async()=>{mocks.subsc
 it("does not let another workspace member manage the payer's subscription",async()=>{mocks.bound.mockResolvedValue({stripeCustomerId:"cus_bound",billingPayerUserId:"u2"});await expect(startCheckoutAction(form())).rejects.toThrow("payer");await expect(openBillingPortalAction()).rejects.toThrow("payer");expect(mocks.request).not.toHaveBeenCalled();});
 it("opens the bound Stripe portal without accepting a client customer",async()=>{mocks.request.mockResolvedValue({url:"https://billing.stripe.com/p/session/example"});await expect(openBillingPortalAction()).rejects.toThrow("REDIRECT:https://billing.stripe.com");expect(mocks.request.mock.calls[0][1].get("customer")).toBe("cus_bound");});
 it("keeps optional preferences separate from payment authorization",async()=>{await expect(selectTrialPlanAction(form("annual",false))).rejects.toThrow("planSaved=1");expect(mocks.profileUpdate).toHaveBeenCalledWith({where:{id:"u1"},data:{billingPlanPreference:"annual"}});expect(mocks.request).not.toHaveBeenCalled();});
+
+it("does not create another paid Checkout when a completed session races with the subscription list",async()=>{
+ mocks.bound.mockResolvedValue({id:"local",stripeCustomerId:"cus_bound",billingPayerUserId:"u1",trialEndsAt:new Date("2020-01-01"),stripeCheckoutId:"cs_old"});
+ mocks.request.mockImplementation(async(path:string)=>path==="checkout/sessions/cs_old"?{id:"cs_old",status:"complete",mode:"subscription",subscription:"sub_just_paid"}:{id:"sub_just_paid",customer:"cus_bound",metadata:{organizationId:"o1"},status:"active"});
+ await expect(startCheckoutAction(form())).rejects.toThrow("already%20exists");
+ expect(mocks.request.mock.calls.some(c=>c[0]==="checkout/sessions")).toBe(false);
+});
