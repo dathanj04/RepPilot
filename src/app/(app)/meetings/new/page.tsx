@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import { requireAppUser } from "@/lib/auth";
+import { requireBusinessUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { parseOrgSettings } from "@/lib/org-settings";
 import { PageFrame } from "@/components/ui/page";
@@ -10,7 +10,7 @@ export const metadata = { title: "New scheduling invitation" };
 
 export default async function NewMeetingInvitationPage() {
   await connection();
-  const user = await requireAppUser();
+  const user = await requireBusinessUser();
   const [accounts, org] = await Promise.all([
     prisma.account.findMany({ where: { organizationId: user.organizationId, status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.organization.findUniqueOrThrow({ where: { id: user.organizationId } }),

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import {BusinessFeatureLink} from "@/components/billing/feature-link";
 import { usePathname } from "next/navigation";
 import {
   Building2,
@@ -46,13 +47,9 @@ export function SideNav({ items }: { items: NavItem[] }) {
         const Icon = ICONS[item.icon];
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
-          <Link
+          <BusinessFeatureLink locked={Boolean(item.disabledReason)}
             key={item.href}
             href={item.href}
-            aria-disabled={Boolean(item.disabledReason)}
-            title={item.disabledReason}
-            onClick={event => { if (item.disabledReason) event.preventDefault(); }}
-            aria-current={active ? "page" : undefined}
             className={cn(
               "flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b5f4dd]",
               item.disabledReason ? "cursor-not-allowed text-slate-500 opacity-50" : active ? "bg-[#b5f4dd] text-[#10263E] shadow-sm" : "text-slate-300 hover:bg-white/5 hover:text-white",
@@ -60,14 +57,14 @@ export function SideNav({ items }: { items: NavItem[] }) {
           >
             <Icon className="size-[18px]" aria-hidden="true" />
             {item.label}
-          </Link>
+          </BusinessFeatureLink>
         );
       })}
     </nav>
   );
 }
 
-export function BottomNav({ unread }: { unread: number }) {
+export function BottomNav({ unread,businessAccess=true }: { unread: number;businessAccess?:boolean }) {
   const pathname=usePathname();
   const items: NavItem[]=[
     {href:"/map",label:"Map",icon:"map"},
@@ -79,6 +76,6 @@ export function BottomNav({ unread }: { unread: number }) {
   ];
   return <nav aria-label="Mobile navigation" className="mobile-primary-nav fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pt-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"><ul className="grid grid-cols-6">{items.map(item=>{
     const Icon=ICONS[item.icon],active=pathname===item.href||pathname.startsWith(item.href+"/");
-    return <li key={item.href}><Link href={item.href} aria-current={active?"page":undefined} className={cn("relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium",active?"text-[#087f5b] bg-emerald-50":"text-slate-500")}><Icon className="size-5" aria-hidden="true"/><span className="text-center leading-tight">{item.label}</span>{item.href==="/more"&&unread>0?<span className="absolute right-2 top-0 rounded-full bg-red-600 px-1 text-white">{unread}</span>:null}</Link></li>;
+    return <li key={item.href}><BusinessFeatureLink locked={item.href==="/lunches"&&!businessAccess} href={item.href} className={cn("relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium",active?"text-[#087f5b] bg-emerald-50":"text-slate-500")}><Icon className="size-5" aria-hidden="true"/><span className="text-center leading-tight">{item.label}</span>{item.href==="/more"&&unread>0?<span className="absolute right-2 top-0 rounded-full bg-red-600 px-1 text-white">{unread}</span>:null}</BusinessFeatureLink></li>;
   })}</ul></nav>;
 }

@@ -5,7 +5,7 @@ const {chromium}=await import("/tmp/route-browser-tools/node_modules/playwright/
 if(process.env.CI!=="true"||!process.env.DATABASE_URL?.includes("@localhost:5432/route_test"))throw Error("Use the isolated CI database.");
 await mkdir("route-browser-results",{recursive:true});
 let serverOutput="";
-const server=spawn(process.execPath,["--require","./scripts/route-browser-network.cjs","node_modules/next/dist/bin/next","start","-p","43123"],{env:{...process.env,ROUTE_BROWSER_TEST:"true"},stdio:["ignore","pipe","pipe"]});
+const server=spawn(process.execPath,["--require","./scripts/route-browser-network.cjs","node_modules/next/dist/bin/next","start","-p","43123"],{env:{...process.env,ROUTE_BROWSER_TEST:"true",STRIPE_SECRET_KEY:"sk_test_browser_fixture_only",STRIPE_WEBHOOK_SECRET:"whsec_browser_fixture_only"},stdio:["ignore","pipe","pipe"]});
 server.stdout.on("data",v=>{serverOutput+=v;});server.stderr.on("data",v=>{serverOutput+=v;});
 let browser;
 try{
@@ -80,10 +80,34 @@ try{
  await reopened.goto("http://localhost:43123/billing");
  await reopened.getByRole("heading",{name:"Subscriptions",exact:true}).waitFor();
  assert.equal(await reopened.getByRole("heading",{name:/Business (monthly|annual)/}).count(),2);
- assert.equal(await reopened.getByRole("button",{name:"Save preference without a card",exact:true}).count(),2);
- assert.equal(await reopened.locator("input[name=billingConsent][required]").count(),2);
+ assert.equal(await reopened.getByRole("button",{name:"Save preference without a card",exact:true}).count(),4);
+ assert.equal(await reopened.locator("input[name=billingConsent][required]").count(),4);
  assert.equal(await reopened.getByText("Purchases and subscription changes are not enabled",{exact:false}).count(),0);
+ assert.equal(await reopened.getByRole("heading",{name:/Individual (monthly|annual)/}).count(),2);
+ await reopened.goto("http://localhost:43123/lunches/"+session.lunchId);
+ await reopened.getByText("Cancel lunch",{exact:true}).click();
+ await reopened.getByLabel("Reason for cancellation").fill("The presenter needs to reschedule this lunch.");
+ await reopened.getByLabel("Email the office",{exact:true}).uncheck();
+ await reopened.getByRole("button",{name:"Cancel without email",exact:true}).click();
+ await reopened.getByText("Canceled without sending an email.",{exact:true}).waitFor();
+ await reopened.reload();
+ await reopened.getByText("Cancellation details",{exact:true}).click();
+ await reopened.getByText("The presenter needs to reschedule this lunch.",{exact:true}).waitFor();
+ const individual=await browser.newContext(config);
+ await individual.addCookies([{...cookie,value:session.individualCookie}]);
+ const ip=await individual.newPage();ip.setDefaultTimeout(25000);
+ await ip.goto("http://localhost:43123/more");
+ await ip.getByRole("heading",{name:"More",exact:true}).waitFor();
+ const locked=ip.getByRole("navigation",{name:"Mobile navigation"}).getByRole("button",{name:"Lunch & Learns",exact:true});
+ assert.equal(await locked.getAttribute("aria-disabled"),"true");
+ const lockBox=await locked.boundingBox();assert.ok(lockBox);await ip.touchscreen.tap(lockBox.x+lockBox.width/2,lockBox.y+lockBox.height/2);
+ await ip.getByRole("navigation",{name:"Mobile navigation"}).getByRole("note").waitFor();
+ assert.equal((await ip.request.get("http://localhost:43123/api/reports/spending")).status(),403);
+ await ip.goto("http://localhost:43123/lunches");
+ await ip.waitForURL(url=>url.pathname==="/billing"&&url.searchParams.get("upgrade")==="business");
+ await ip.getByRole("heading",{name:"Individual monthly",exact:true}).waitFor();
+ await individual.close();
  assert.deepEqual(errors,[]);
- console.log("PASS: mobile 16-office create, optimize, manual reorder, duration edit, save, reload, separate-session reopen, numbered map, road polyline, Go link, route/More scrolling.");
+ console.log("PASS: mobile 16-office create, optimize, manual reorder, duration edit, save, reload, separate-session reopen, numbered map, road polyline, Go link, route/More scrolling, four subscription options, persisted lunch cancellation, Individual upgrade locks and reports denial.");
 }catch(e){await writeFile("route-browser-results/server.log",serverOutput);console.error(serverOutput.slice(-6000));throw e;}
 finally{await browser?.close();server.kill("SIGTERM");}

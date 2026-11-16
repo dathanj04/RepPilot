@@ -10,6 +10,7 @@ import { fromZonedTime } from "date-fns-tz";
 import { prisma } from "./db";
 import { clearPreviewSession, getSession } from "./session";
 import { getCurrentUser } from "./auth";
+import {getBusinessUser} from "./business-access";
 import { canManageOrg, canReviewCompliance, appUrl, accountEditScope, taskEditScope } from "./permissions";
 import { saveCheckIn, updateCheckIn } from "./services/checkins";
 import { createInvitation } from "./services/lunches";
@@ -531,7 +532,7 @@ export async function toggleTaskAction(formData: FormData) {
 }
 
 export async function createInvitationAction(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await getBusinessUser();
   const accountId = String(formData.get("accountId") || "");
   const dates = formData.getAll("slotDate").map(String);
   const times = formData.getAll("slotTime").map(String);
@@ -610,7 +611,7 @@ async function receiptFileFromForm(value: FormDataEntryValue | null) {
 }
 
 export async function handoffAction(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await getBusinessUser();
   const bookingId = String(formData.get("bookingId") || "");
   const vendor = String(formData.get("vendor") || "");
   const result = await recordCateringHandoff(prisma, {
@@ -625,7 +626,7 @@ export async function handoffAction(formData: FormData) {
 }
 
 export async function recordOrderAction(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await getBusinessUser();
   const bookingId = String(formData.get("bookingId") || "");
   const groupOrderInput = String(formData.get("groupOrderUrl") || "").trim();
   const groupOrderUrl = safeWebsiteUrl(groupOrderInput);
@@ -677,7 +678,7 @@ export async function recordOrderAction(formData: FormData) {
 }
 
 export async function requestCateringAction(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await getBusinessUser();
   const bookingId = String(formData.get("bookingId") || "");
   const estimated = centsOrNull(formData.get("estimate"));
   if (Number.isNaN(estimated)) {
@@ -698,7 +699,7 @@ export async function requestCateringAction(formData: FormData) {
 }
 
 export async function decideCateringAction(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await getBusinessUser();
   if (!(await hasBusinessCompliance(user))) redirect("/billing?error=Upgrade%20to%20Business%20to%20use%20compliance%20review.");
   if (!canReviewCompliance(user.roleKey)) redirect("/compliance?notice=Only%20the%20account%20administrator%20can%20review%20compliance.");
   const bookingId = String(formData.get("bookingId") || "");
@@ -717,7 +718,7 @@ export async function decideCateringAction(formData: FormData) {
 }
 
 export async function exceptionAction(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await getBusinessUser();
   if (!(await hasBusinessCompliance(user))) redirect("/billing?error=Upgrade%20to%20Business%20to%20use%20compliance%20review.");
   const bookingId = String(formData.get("bookingId") || "");
   const result = await requestPolicyException(prisma, {
@@ -733,7 +734,7 @@ export async function exceptionAction(formData: FormData) {
 }
 
 export async function reviewExceptionAction(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await getBusinessUser();
   if (!(await hasBusinessCompliance(user))) redirect("/billing?error=Upgrade%20to%20Business%20to%20use%20compliance%20review.");
   if (!canReviewCompliance(user.roleKey)) redirect("/compliance?notice=You cannot review policy exceptions.");
   const result = await reviewPolicyException(prisma, {
@@ -907,7 +908,7 @@ export async function createTaskAction(formData: FormData) {
 }
 
 export async function createMemberAction(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await getBusinessUser();
   if (!canManageOrg(user.roleKey)) redirect("/admin?notice=Only an organization administrator can add people.");
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim().toLowerCase();
@@ -933,7 +934,7 @@ export async function createMemberAction(formData: FormData) {
 }
 
 export async function createTerritoryAction(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await getBusinessUser();
   if (!canManageOrg(user.roleKey)) redirect("/admin?notice=Only an organization administrator can add a territory.");
   const name = String(formData.get("name") || "").trim();
   if (name.length < 2) redirect("/admin?notice=Name the territory.");

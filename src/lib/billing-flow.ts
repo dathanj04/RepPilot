@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { prisma } from "./db";
 import type { Prisma } from "@/generated/prisma/client";
 import { BILLING_PLANS, customerSubscriptions, stripeRequest } from "./stripe";
+import {CATALOG_VERSION} from "./domain/paid-access";
 type Tx=Prisma.TransactionClient;
 export type CheckoutSession={id:string;url:string|null;status:string;mode:string;customer:string|null;client_reference_id?:string|null;livemode?:boolean;setup_intent?:string|null;subscription?:string|null;metadata?:Record<string,string>};
 export async function withBillingLock<T>(organizationId:string,work:(tx:Tx)=>Promise<T>){
@@ -19,7 +20,7 @@ export function checkoutParams(customer:string,organizationId:string,key:string,
   mode:trial?"setup":"subscription",customer,"managed_payments[enabled]":"false",
   "billing_address_collection":"required","customer_update[address]":"auto",
   "metadata[organizationId]":organizationId,"metadata[planKey]":key,
-  "metadata[billingFlow]":trial?"trial_card_v1":"paid_v1","metadata[consent]":"yes",
+  "metadata[billingFlow]":trial?"trial_card_v1":"paid_v1","metadata[consent]":"yes","metadata[catalogVersion]":CATALOG_VERSION,
   client_reference_id:organizationId,
   success_url:"https://reppilot.app/billing?checkout=complete",cancel_url:"https://reppilot.app/billing?checkout=canceled",
  });
@@ -77,6 +78,6 @@ export async function completeTrialCardSetup(organizationId:string,sessionId:str
   params.set("trial_end",originalEnd>Date.now()?String(Math.ceil(originalEnd/1000)):"now");
   const created=await stripeRequest<{id:string}>("subscriptions",params,"reppilot-card-subscription-"+sessionId);
   await tx.auditLog.create({data:{id:receiptId,organizationId,action:"billing.card_setup.confirmed",entityType:"StripeCheckout",entityId:sessionId,metadata:{planKey:session.metadata.planKey,subscriptionId:created.id,originalTrialEndsAt:bound.trialEndsAt?.toISOString()??null,consent:"recurring_price_and_trial_end"}}});
-  await tx.subscription.update({where:{id:bound.id},data:{plan:"business"}});
+  await tx.subscription.update({where:{id:bound.id},data:{plan:plan.tier}});
  });
 }

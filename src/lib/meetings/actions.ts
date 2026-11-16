@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { fromZonedTime } from "date-fns-tz";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import {getBusinessUser} from "@/lib/business-access";
 import { parseOrgSettings } from "@/lib/org-settings";
 import { consumeSharedRateLimit } from "@/lib/domain/rate-limit-store";
 import { hashToken } from "@/lib/domain/tokens";
@@ -39,7 +40,7 @@ function slotsFromForm(formData: FormData, timezone: string, now: Date) {
 }
 
 export async function createSchedulingInvitationAction(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await getBusinessUser();
   const org = await prisma.organization.findUniqueOrThrow({ where: { id: user.organizationId } });
   const settings = parseOrgSettings(org.settings);
   const accountId = String(formData.get("accountId") || "") || null;
@@ -59,7 +60,7 @@ export async function createSchedulingInvitationAction(formData: FormData) {
 }
 
 export async function decideMeetingAction(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await getBusinessUser();
   const requestId = String(formData.get("requestId") || "");
   const decision = String(formData.get("decision") || "");
   const now = new Date();
@@ -157,7 +158,7 @@ export async function schedulingPublicAction(payload: {
 }
 
 export async function approveLunchAction(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await getBusinessUser();
   const bookingId = String(formData.get("bookingId") || "");
   const result = await approveLunchBooking(prisma, {
     organizationId: user.organizationId,

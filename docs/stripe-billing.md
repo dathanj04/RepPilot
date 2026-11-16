@@ -1,6 +1,6 @@
 # Subscription selection and original-trial card setup
 
-Subscriptions always displays the existing approved Business monthly ($58.65) and Business annual ($591.60) options, including in the native shell. Both are Business billing intervals, not different feature tiers. No Individual price or unimplemented tier is invented.
+Subscriptions displays Business ($48/month or $480/year) and Individual ($29/month or $290/year), including in the native shell. See individual-and-cancellation.md for features, portal policy and rollout verification.
 
 The original server-created 14-day trial is authoritative and is never restarted by selecting a plan, adding a card, logging in, or canceling a subscription. Saving a preference alone authorizes no payment.
 

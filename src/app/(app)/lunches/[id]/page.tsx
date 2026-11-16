@@ -1,9 +1,13 @@
+import {CancelLunchForm} from "@/components/lunches/cancel-form";
+import {canEditTeamRecords} from "@/lib/permissions";
+import {cancellationId} from "@/lib/services/lunch-cancellation";
+import type {CancellationDetails} from "@/lib/email/lunch-cancellation";
 import { hasBusinessCompliance } from "@/lib/compliance-access";
 import { COMPLIANCE_UPGRADE } from "@/lib/domain/compliance-access";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { requireAppUser } from "@/lib/auth";
+import { requireBusinessUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatCents } from "@/lib/domain/spending";
 import { formatWhen } from "@/lib/format";
@@ -28,7 +32,7 @@ export default async function LunchDetailPage({
   searchParams: Promise<{ notice?: string }>;
 }) {
   await connection();
-  const user = await requireAppUser();
+  const user = await requireBusinessUser();
   const businessCompliance = await hasBusinessCompliance(user);
   const { id } = await params;
   const { notice } = await searchParams;
@@ -36,6 +40,7 @@ export default async function LunchDetailPage({
     where: { id, organizationId: user.organizationId },
     include: {
       account: true,
+      invitation:{select:{recipientEmail:true}},
       order: {
         include: {
           receipts: {
@@ -51,6 +56,9 @@ export default async function LunchDetailPage({
     },
   });
   if (!lunch) notFound();
+  const cancellation=await prisma.auditLog.findUnique({where:{id:cancellationId("booking",lunch.id)}});
+  const delivery=await prisma.notificationDelivery.findUnique({where:{idempotencyKey:cancellationId("booking",lunch.id)}});
+  const cancelDetails=cancellation?.metadata as unknown as CancellationDetails|undefined;
   const attendees = lunch.confirmedAttendees ?? lunch.expectedAttendees;
   const amountCents = lunch.order?.finalAmountCents ?? lunch.order?.estimatedAmountCents ?? lunch.estimatedBudgetCents ?? 0;
   const preview = await previewBookingPolicy(prisma, {
@@ -98,6 +106,7 @@ export default async function LunchDetailPage({
 
   return (
     <PageFrame title="Lunch order" subtitle={`${lunch.account.name} · ${formatWhen(lunch.slotStartsAt, lunch.timezone)}`} action={<Link href={`/accounts/${lunch.accountId}`} className="inline-flex h-11 items-center rounded-xl px-4 text-sm font-medium ring-1 ring-slate-200">Office</Link>}>
+    {lunch.status!=="COMPLETED"&&(canEditTeamRecords(user.roleKey)||lunch.representativeId===user.id)?<CancelLunchForm kind="booking" id={lunch.id} email={lunch.invitation?.recipientEmail??lunch.account.email??""} hasOrder={Boolean(lunch.order&&!["NOT_STARTED","CANCELED"].includes(lunch.order.status))} cancelled={lunch.status==="CANCELED"} reason={cancelDetails?.reason} deliveryStatus={delivery?.status??(cancelDetails?.notifyOffice===false?"not_requested":undefined)}/>:null}
     <div className="grid gap-4 lg:grid-cols-2">
       <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 lg:col-span-2">
         {notice ? <p className="mb-2 rounded-xl bg-[#F5F7FA] px-3 py-2 text-sm">{notice}</p> : null}

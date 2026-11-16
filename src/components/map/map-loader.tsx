@@ -10,6 +10,7 @@ const TerritoryMap = dynamic(() => import("./territory-map").then((mod) => mod.T
 });
 
 export function TerritoryMapLoader(props: {
+  businessAccess?:boolean;
   activeRoute?: { id: string; planning: SavedPlanning } | null;
   accounts: MapAccount[];
   boundary: [number, number][] | null;

@@ -1,9 +1,11 @@
 import { getCurrentUser } from "@/lib/auth";
+import {hasBusinessFeatures,BUSINESS_UPGRADE} from "@/lib/domain/paid-access";
 import { prisma } from "@/lib/db";
 import { csvCell, formatCents } from "@/lib/domain/spending";
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
+  if(!hasBusinessFeatures(user))return Response.json({error:BUSINESS_UPGRADE},{status:403});
   const accountId = new URL(request.url).searchParams.get("account");
   const rows = await prisma.officeSpendingEntry.findMany({
     where: {

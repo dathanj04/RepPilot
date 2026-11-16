@@ -1,4 +1,6 @@
 import Link from "next/link";
+import {hasBusinessFeatures,BUSINESS_UPGRADE} from "@/lib/domain/paid-access";
+import {BusinessFeatureLink} from "@/components/billing/feature-link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { requireAppUser } from "@/lib/auth";
@@ -59,13 +61,13 @@ export default async function AccountPage({
         <Action href={directions} label="Directions" external />
         <Action href={safeWebsiteUrl(account.website) || "#"} label="Website" disabled={!safeWebsiteUrl(account.website)} external />
         <Action href={`/accounts/${account.id}/check-in`} label="Check In" primary />
-        <Action href={`/lunches/new?account=${account.id}`} label="Schedule Lunch" />
+        <Action href={`/lunches/new?account=${account.id}`} label="Schedule Lunch" locked={!hasBusinessFeatures(user)}/>
       </div>
       <div className="mt-4 flex gap-2 overflow-x-auto">
         {tabs.map((item) => (
-          <Link key={item} href={`/accounts/${account.id}?tab=${item}`} className={`h-9 shrink-0 rounded-full px-3 text-sm capitalize ${tab === item ? "bg-[#10263E] text-white" : "bg-white ring-1 ring-slate-200"}`}>
+          <BusinessFeatureLink locked={item==="lunches"&&!hasBusinessFeatures(user)} key={item} href={`/accounts/${account.id}?tab=${item}`} className={`h-9 shrink-0 rounded-full px-3 text-sm capitalize ${tab === item ? "bg-[#10263E] text-white" : "bg-white ring-1 ring-slate-200"}`}>
             {item}
-          </Link>
+          </BusinessFeatureLink>
         ))}
       </div>
       <div className="mt-4">
@@ -165,7 +167,8 @@ export default async function AccountPage({
             ))}
           </div>
         ) : null}
-        {tab === "lunches" ? (
+        {tab === "lunches" && !hasBusinessFeatures(user)?<p className="rounded-xl bg-white p-4 text-sm">{BUSINESS_UPGRADE} <Link href="/billing?upgrade=business" className="underline">View plans</Link></p>:null}
+        {tab === "lunches" && hasBusinessFeatures(user) ? (
           <div className="space-y-3">
             {account.invitations.map((invitation) => {
               const link = invitation.secureLinks.find((item) => item.purpose === "invitation" && !item.revokedAt);
@@ -204,8 +207,9 @@ function Card({ children }: { children: React.ReactNode }) {
   return <div className="rounded-2xl bg-white p-4 text-sm ring-1 ring-slate-200">{children}</div>;
 }
 
-function Action({ href, label, disabled, external, primary }: { href: string; label: string; disabled?: boolean; external?: boolean; primary?: boolean }) {
+function Action({ href, label, disabled, external, primary,locked=false }: { href: string; label: string; disabled?: boolean; external?: boolean; primary?: boolean;locked?:boolean }) {
   const className = `grid h-12 place-items-center rounded-xl text-center text-sm font-medium ${primary ? "bg-[#19B78A] text-[#06281f]" : "bg-white ring-1 ring-slate-200"} ${disabled ? "pointer-events-none opacity-40" : ""}`;
+  if(locked)return <BusinessFeatureLink locked href={href} className={className}>{label}</BusinessFeatureLink>;
   if (external) return <a className={className} href={href} target="_blank" rel="noreferrer">{label}</a>;
   return <Link className={className} href={disabled ? "#" : href}>{label}</Link>;
 }

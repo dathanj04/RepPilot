@@ -1,3 +1,4 @@
+import {hasBusinessFeatures} from "@/lib/domain/paid-access";
 import { connection } from "next/server";
 import { requireAppUser } from "@/lib/auth";
 import { accountEditScope } from "@/lib/permissions";
@@ -30,7 +31,7 @@ export default async function RoutePage({ searchParams }: { searchParams: Promis
       lastReferral:snapshot?.lastReferralAt?.toISOString()??null,crm:snapshot ? (snapshot.syncStatus+" · "+(snapshot.count30??"Unknown")+" referrals in 30 days · synced "+snapshot.syncedAt.toISOString()) : "No verified CRM activity available.",
       tasks:a.tasks.map(t=>t.title),topic:a.interactions[0]?.visitDetail?.nextTopic || brief?.talkingPoints?.[0] || null};
   });
-  return <RoutePlanner userId={user.id} timezone={user.timezone} workEnd={settings.workdayEnd} workStart={settings.workdayStart} offices={offices} requestedRoute={selected.route??null} addAccountId={selected.add??null} routes={routes.map(r=>({
+  return <RoutePlanner businessAccess={hasBusinessFeatures(user)} userId={user.id} timezone={user.timezone} workEnd={settings.workdayEnd} workStart={settings.workdayStart} offices={offices} requestedRoute={selected.route??null} addAccountId={selected.add??null} routes={routes.map(r=>({
     id:r.id,updatedAt:r.updatedAt.toISOString(),name:readPlanning(r.planning)?.name||r.summary||"Saved route",date:r.routeDate.toISOString(),
     planning:readPlanning(r.planning),legacy:r.stops.map(s=>({accountId:s.accountId,name:s.account.name,address:[s.account.street,s.account.city,s.account.state,s.account.zip].join(", "),lat:s.account.latitude,lng:s.account.longitude})),
   }))} />;

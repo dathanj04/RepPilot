@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import { requireAppUser } from "@/lib/auth";
+import { requireBusinessUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatWhen } from "@/lib/format";
 import { PageFrame } from "@/components/ui/page";
@@ -10,7 +10,7 @@ export const metadata = { title: "Meeting requests" };
 
 export default async function MeetingsPage() {
   await connection();
-  const user = await requireAppUser();
+  const user = await requireBusinessUser();
   const requests = await prisma.meetingRequest.findMany({
     where: { organizationId: user.organizationId, invitation: { createdById: user.id } },
     include: { meeting: true },

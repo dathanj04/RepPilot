@@ -2,7 +2,7 @@ import Link from "next/link";
 import { hasBusinessCompliance } from "@/lib/compliance-access";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
-import { requireAppUser } from "@/lib/auth";
+import { requireBusinessUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canReviewCompliance, canViewTeam } from "@/lib/permissions";
 import { decideCateringAction, reviewExceptionAction } from "@/lib/actions";
@@ -16,7 +16,7 @@ export const metadata = { title: "Team" };
 export default async function ManagerPage({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
   await connection();
   const { notice } = await searchParams;
-  const user = await requireAppUser();
+  const user = await requireBusinessUser();
   const complianceEnabled = await hasBusinessCompliance(user);
   if (!canViewTeam(user.roleKey)) notFound();
   const now = new Date();

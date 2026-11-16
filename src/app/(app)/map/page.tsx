@@ -1,3 +1,4 @@
+import {hasBusinessFeatures} from "@/lib/domain/paid-access";
 import { readPlanning } from "@/lib/domain/route-planning";
 import { connection } from "next/server";
 import { requireAppUser } from "@/lib/auth";
@@ -66,7 +67,7 @@ export default async function MapPage({ searchParams }: { searchParams: Promise<
   const boundary = polygonFrom(territory?.boundary);
   const first = pins.find((pin) => pin.lat != null && pin.lng != null);
   return (
-    <TerritoryMapLoader
+    <TerritoryMapLoader businessAccess={hasBusinessFeatures(user)}
       activeRoute={active && activePlanning ? { id:active.id, planning:activePlanning } : null}
       accounts={pins}
       boundary={boundary}

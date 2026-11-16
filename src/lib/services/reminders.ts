@@ -1,3 +1,4 @@
+import {workspaceAccess} from "../workspace-access";
 import type { Db } from "../db";
 import { reminderAction, type ReminderKind } from "../domain/reminders";
 import { logEvent } from "../logger";
@@ -64,6 +65,10 @@ export async function processDueReminders(
     }
 
     const booking = reminder.booking;
+    if(!await workspaceAccess(db,booking.organizationId,true)){
+      await db.lunchReminder.updateMany({where:{id:reminder.id,status:"SENDING"},data:{status:"SKIPPED",sentAt:now}});
+      results.push({id:reminder.id,status:"skipped"});continue;
+    }
     const action = reminderAction({
       kind: reminder.kind as ReminderKind,
       bookingStatus: booking.status,
@@ -146,8 +151,8 @@ export async function processDueReminders(
         reminderId: reminder.id,
         message: error instanceof Error ? error.message : "unknown",
       });
-      await db.lunchReminder.update({
-        where: { id: reminder.id },
+      await db.lunchReminder.updateMany({
+        where: { id: reminder.id,status:"SENDING" },
         data: { status: "SCHEDULED" },
       });
       results.push({ id: reminder.id, status: "failed" });
