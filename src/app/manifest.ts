@@ -10,7 +10,9 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#F5F7FA",
     theme_color: "#10263E",
     icons: [
-      { src: "/icon", sizes: "512x512", type: "image/png" },
+      { src: "/brand/reppilot-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/brand/reppilot-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/brand/reppilot-icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand";
 import type { ReactNode } from "react";
 import { LEGAL_OPERATOR_NAME, SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/legal";
 
@@ -12,7 +13,7 @@ export function LegalLinks() {
 
 export function PublicPage({ title, children }: { title: string; children: ReactNode }) {
   return <main className="mx-auto min-h-dvh max-w-3xl px-6 py-10 md:py-16">
-    <Link href="/login" className="text-sm font-semibold tracking-wide text-[#087f5b]">RepPilot AI</Link>
+    <Link href="/login" className="text-sm font-semibold tracking-wide text-[#087f5b]"><BrandLogo /></Link>
     <h1 className="mt-6 text-3xl font-semibold tracking-tight text-[#10263E]">{title}</h1>
     <div className="mt-6 space-y-6 text-sm leading-7 text-[#14243A]">{children}</div>
     <footer className="mt-12 space-y-4 border-t border-slate-200 pt-6">

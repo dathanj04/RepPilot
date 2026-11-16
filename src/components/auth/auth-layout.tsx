@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { Compass } from "lucide-react";
+import { BrandLogo } from "@/components/brand";
 import type { ReactNode } from "react";
 import { LegalLinks } from "@/components/legal/public-page";
 
 export function AuthLayout({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return <main className="auth-screen flex min-h-dvh flex-col bg-[#f7f8fa] text-[#14243a]">
     <header className="flex items-center justify-between border-b border-slate-200/80 bg-white px-5 py-5 sm:px-10">
-      <Link href="/login" aria-label="RepPilot sign in" className="inline-flex items-center gap-2.5 text-lg font-semibold tracking-tight"><span className="grid size-8 place-items-center rounded-lg bg-[#10263e] text-white"><Compass className="size-[19px]" aria-hidden="true" /></span>RepPilot</Link>
+      <Link href="/login" aria-label="RepPilot sign in" className="inline-flex items-center gap-2.5 text-lg font-semibold tracking-tight"><BrandLogo /></Link>
       <Link href="/support" className="inline-flex min-h-11 items-center text-sm text-slate-600 hover:text-slate-950">Help & support</Link>
     </header>
     <section className="flex flex-1 items-start justify-center px-5 py-10 sm:items-center sm:py-16">
