@@ -75,6 +75,7 @@ export function BottomNav({ unread }: { unread: number }) {
   const items: NavItem[] = [
     { href: "/map", label: "Map", icon: "map" },
     { href: "/accounts", label: "Accounts", icon: "accounts" },
+    { href: "/lunches", label: "Lunches", icon: "lunches" },
     { href: "/today", label: "Today", icon: "today" },
     { href: "/calendar", label: "Calendar", icon: "calendar" },
     { href: "/more", label: "More", icon: "more" },
