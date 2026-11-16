@@ -5,9 +5,9 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { consumeSharedRateLimit } from "@/lib/domain/rate-limit-store";
 import { appointmentTravelWarnings, formatDriveDuration } from "@/lib/maps/provider";
-import { computeDrive, searchPlaces } from "@/lib/maps/google";
+import { computeDrive, searchPlaces } from "@/lib/maps/service";
 import { findDuplicateAccount } from "@/lib/services/accounts";
-import { googleMapsServerKey } from "@/lib/maps-config";
+import { mapsServiceConfigured } from "@/lib/maps-config";
 
 const TRAVEL_BUFFER_MINUTES = 10;
 
@@ -38,13 +38,13 @@ export async function searchPlacesAction(query: string, bias: { lat: number; lng
   const user = await getCurrentUser();
   const text = query.trim();
   if (text.length < 3 || text.length > 120) {
-    return { configured: Boolean(googleMapsServerKey()), places: [], message: "Enter at least 3 characters, such as a specialty and city." };
+    return { configured: Boolean(mapsServiceConfigured()), places: [], message: "Enter at least 3 characters, such as a specialty and city." };
   }
-  if (!googleMapsServerKey()) {
+  if (!mapsServiceConfigured()) {
     return {
       configured: false,
       places: [],
-      message: "Places search needs a server Google Maps key with the Places API (New) enabled. No sample offices were added.",
+      message: "Configure TomTom or Google Places to find offices. No sample offices were added.",
     };
   }
   const limit = await consumeSharedRateLimit(prisma, `maps:places:${user.id}`, 20, 10 * 60_000);
@@ -74,7 +74,7 @@ export async function searchPlacesAction(query: string, bias: { lat: number; lng
     resultCount: result.value.length,
   });
   if (result.value.length === 0) {
-    return { configured: true, places: [], message: "Google Places returned no office with a complete street address. Nothing was invented." };
+    return { configured: true, places: [], message: "Office search returned no office with a complete street address. Nothing was invented." };
   }
   return { configured: true, places: result.value, message: "These results are not saved until you add an office." };
 }
@@ -171,7 +171,7 @@ export async function computeDriveAction(input: { origin: { lat: number; lng: nu
   }));
   if (missing.length > 0) {
     return {
-      configured: Boolean(googleMapsServerKey()),
+      configured: Boolean(mapsServiceConfigured()),
       plan: null,
       warnings: appointmentTravelWarnings({ stops: timed, legs: null, bufferMinutes: TRAVEL_BUFFER_MINUTES }),
       message: `${missing.map((account) => account.name).join(", ")} still need coordinates. Drive time was not estimated.`,
@@ -187,18 +187,18 @@ export async function computeDriveAction(input: { origin: { lat: number; lng: nu
   ];
   if (points.length < 2) {
     return {
-      configured: Boolean(googleMapsServerKey()),
+      configured: Boolean(mapsServiceConfigured()),
       plan: null,
       warnings: [],
       message: "Share your location or add a second office before asking for drive time.",
     };
   }
-  if (!googleMapsServerKey()) {
+  if (!mapsServiceConfigured()) {
     return {
       configured: false,
       plan: null,
       warnings: appointmentTravelWarnings({ stops: timed, legs: null, bufferMinutes: TRAVEL_BUFFER_MINUTES }),
-      message: "Google Routes is not configured. No drive time is shown.",
+      message: "Driving routes are not configured. No drive time is shown.",
     };
   }
   const limit = await consumeSharedRateLimit(prisma, `maps:routes:${user.id}`, 30, 10 * 60_000);
@@ -232,7 +232,7 @@ export async function computeDriveAction(input: { origin: { lat: number; lng: nu
   return {
     configured: true,
     plan: {
-      source: "google_routes" as const,
+      source: result.value.source,
       durationSeconds: result.value.durationSeconds,
       distanceMeters: result.value.distanceMeters,
       trafficApplied: result.value.trafficApplied,
@@ -241,7 +241,7 @@ export async function computeDriveAction(input: { origin: { lat: number; lng: nu
     },
     warnings: appointmentTravelWarnings({ stops: timed, legs: betweenStops, bufferMinutes: TRAVEL_BUFFER_MINUTES }),
     message: result.value.trafficApplied
-      ? "Drive time is from Google Routes and includes current traffic."
-      : "Drive time is from Google Routes. Traffic did not change the no-traffic duration.",
+      ? `Drive time is from ${result.value.source === "tomtom_routes" ? "TomTom" : "Google Routes"} and includes current traffic.`
+      : `Drive time is from ${result.value.source === "tomtom_routes" ? "TomTom" : "Google Routes"}. No additional traffic delay was reported.`,
   };
 }

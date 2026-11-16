@@ -22,5 +22,13 @@ export function googleMapsServerKey() {
 }
 
 export function googleRoutesConfigured() {
-  return Boolean(googleMapsServerKey());
+  return Boolean(tomtomMapsKey() || googleMapsServerKey());
 }
+
+/** Browser map key is public by design; server calls use a fixed app referrer. */
+export function tomtomMapsKey() {
+  const key = process.env.NEXT_PUBLIC_TOMTOM_API_KEY?.trim() ?? "";
+  return key.length >= 20 && !PLACEHOLDERS.has(key.toLowerCase()) ? key : "";
+}
+export function mapsServiceConfigured() { return Boolean(tomtomMapsKey() || googleMapsServerKey()); }
+export function mapsProviderLabel() { return tomtomMapsKey() ? "TomTom" : "Google"; }

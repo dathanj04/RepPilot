@@ -32,8 +32,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   ]);
   const settings = parseOrgSettings(org.settings);
   const integrations = [
-    ["Google Maps", Boolean(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY), "OpenStreetMap is the fallback."],
-    ["Google Routes", Boolean(process.env.GOOGLE_MAPS_API_KEY), "Route suggestions stay straight-line without it."],
+    ["Map display", Boolean(process.env.NEXT_PUBLIC_TOMTOM_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY), "OpenStreetMap is the fallback."],
+    ["Driving routes", Boolean(process.env.NEXT_PUBLIC_TOMTOM_API_KEY || process.env.GOOGLE_MAPS_API_KEY), "Route suggestions stay straight-line without it."],
     ["Gemini", Boolean(process.env.GEMINI_API_KEY), "Check-in extraction uses a local parser without it."],
     ["Email", Boolean(process.env.RESEND_API_KEY), "Messages are logged as demo deliveries without it."],
     ["Google Calendar", Boolean(process.env.GOOGLE_CLIENT_ID), `${calendars.filter((item) => item.provider === "google" && item.status === "connected").length} connected.`],

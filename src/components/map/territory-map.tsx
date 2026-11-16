@@ -34,6 +34,7 @@ type Props = {
   accounts: MapAccount[];
   boundary: [number, number][] | null;
   googleMapsKey: string;
+  tomtomMapsKey: string;
   center: [number, number];
 };
 
@@ -78,7 +79,7 @@ function Recenter({ center }: { center: [number, number] | null }) {
   return null;
 }
 
-export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Props) {
+export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey, center }: Props) {
   const [mode, setMode] = useState<"map" | "list">("map");
   const [query, setQuery] = useState("");
   const [tone, setTone] = useState<MarkerTone | "all">("all");
@@ -95,6 +96,8 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
   const [zoom, setZoom] = useState(10);
   const [focus, setFocus] = useState<[number, number] | null>(null);
   const [locationNote, setLocationNote] = useState<string | null>(null);
+  const [showTraffic, setShowTraffic] = useState(false);
+  const [tomtomFailed, setTomtomFailed] = useState(false);
   const [googleFailed, setGoogleFailed] = useState(false);
   const failGoogle = useCallback(() => setGoogleFailed(true), []);
 
@@ -205,9 +208,10 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
     </div>
   );
 
-  const canvas = googleFailed || !googleMapsKey ? (
+  const canvas = tomtomMapsKey || googleFailed || !googleMapsKey ? (
     <MapContainer center={center} zoom={10} className="h-full w-full" zoomControl={false}>
-      <TileLayer attribution='&copy; OpenStreetMap' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      {tomtomMapsKey && !tomtomFailed ? <TileLayer attribution='<a href="https://www.tomtom.com/copyright/">&copy; TomTom</a> &copy; OpenStreetMap' maxZoom={22} url={`https://api.tomtom.com/maps/orbis/display/raster/tile/{z}/{x}/{y}?apiVersion=2&style=street-light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} eventHandlers={{ tileerror: () => setTomtomFailed(true) }} /> : <TileLayer attribution='&copy; OpenStreetMap' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />}
+      {tomtomMapsKey && !tomtomFailed && showTraffic ? <TileLayer attribution="Traffic &copy; TomTom" maxZoom={22} opacity={0.8} url={`https://api.tomtom.com/maps/orbis/traffic/flow/raster/tile/{z}/{x}/{y}?apiVersion=2&style=light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} /> : null}
       <MapEvents onZoom={setZoom} />
       <Recenter center={focus} />
       {boundary ? <Polygon positions={boundary} pathOptions={{ color: "#19B78A", weight: 2, fillOpacity: 0.05 }} /> : null}
@@ -283,7 +287,9 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, center }: Prop
         </button>
       </div>
       <p className="pointer-events-none absolute top-3 left-3 z-20 hidden max-w-sm rounded-xl bg-white/95 px-3 py-2 text-[11px] text-[#66758B] shadow-sm md:block">
-        {googleMapsKey && !googleFailed ? "Google Maps" : "OpenStreetMap"} · pin distance is straight-line until Routes returns a drive time
+        {tomtomMapsKey ? <button type="button" disabled={tomtomFailed} aria-pressed={showTraffic} onClick={() => setShowTraffic(v => !v)} className="mr-3 min-h-11 rounded-lg border px-3 font-medium">Traffic {showTraffic ? "on" : "off"}</button> : null}
+        {tomtomFailed ? <span role="status">TomTom tiles could not load. Showing OpenStreetMap. </span> : null}
+        {tomtomMapsKey && !tomtomFailed ? "TomTom" : !tomtomMapsKey && googleMapsKey && !googleFailed ? "Google Maps" : "OpenStreetMap"} · pin distance is straight-line until Routes returns a drive time
         {locationNote ? ` · ${locationNote}` : ""}
         {missingLocation ? ` · ${missingLocation} offices have no coordinates` : ""}
       </p>
@@ -353,7 +359,7 @@ function PlacesSearch({ here }: { here: { lat: number; lng: number } | null }) {
 
   return (
     <div className="rounded-xl bg-[#F5F7FA] p-2">
-      <p className="text-xs font-medium text-[#10263E]">Find offices with Google Places</p>
+      <p className="text-xs font-medium text-[#10263E]">Find offices</p>
       <div className="mt-2 flex gap-2">
         <input
           value={query}

@@ -144,7 +144,7 @@ export function RoutePlanner({
       ))}
       {drive ? (
         <section className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-          <h2 className="text-sm font-semibold">Google Routes</h2>
+          <h2 className="text-sm font-semibold">Driving times</h2>
           <p className="mt-1 text-sm">{drive.summary}. {drive.trafficApplied ? "Current traffic changed this duration." : "Current traffic did not change the no-traffic duration."}</p>
           <ul className="mt-2 space-y-1 text-sm text-[#66758B]">
             {drive.legs.map((leg) => (
