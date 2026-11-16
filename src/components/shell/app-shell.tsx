@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { BrandMark } from "@/components/brand";
 import { TrialExpiry } from "./trial-expiry";
-import { Bell, Compass, LogOut, Plus } from "lucide-react";
+import { Bell, LogOut, Plus } from "lucide-react";
 import { connection } from "next/server";
 import { requireAppUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -37,7 +38,7 @@ export async function AppShell({ children, allowExpiredTrial = false }: { childr
     <div className="h-dvh overflow-hidden bg-background text-foreground">
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col overflow-y-auto border-r border-white/5 bg-[#0c2035] text-white md:flex">
         <Link href="/today" className="flex items-center gap-3 px-6 py-7">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#b5f4dd] text-[#10263E]"><Compass className="size-6" aria-hidden="true" /></span>
+          <BrandMark />
           <span><span className="block text-xl font-semibold tracking-tight">RepPilot</span><span className="mt-0.5 block text-[11px] text-slate-400">Territory management</span></span>
         </Link>
         <SideNav items={items} />
@@ -49,9 +50,10 @@ export async function AppShell({ children, allowExpiredTrial = false }: { childr
       </aside>
       <div className="flex h-dvh flex-col md:pl-64">
         <header className="app-mobile-header z-30 flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur-xl md:px-8">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-[#10263E] truncate">{user.organizationName}</p>
-            <p className="text-xs text-[#66758B] truncate">{user.name}</p>
+          <div className="flex min-w-0 items-center gap-2.5">
+            <BrandMark className="size-9 md:hidden" />
+            <div className="min-w-0"><p className="text-sm font-semibold text-[#10263E] truncate">{user.organizationName}</p>
+            <p className="text-xs text-[#66758B] truncate">{user.name}</p></div>
           </div>
           <div className="flex items-center gap-3">
           <Link href="/accounts/new" className="hidden h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium transition-colors hover:bg-slate-50 sm:inline-flex"><Plus className="size-4" aria-hidden="true" /> Add practice</Link>
