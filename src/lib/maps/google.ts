@@ -58,7 +58,7 @@ export async function searchPlaces(
   if (!key) return { status: "not_configured" };
   const body: Record<string, unknown> = {
     textQuery: input.query,
-    pageSize: 8,
+    pageSize: 20,
     languageCode: "en",
     regionCode: "US",
   };
