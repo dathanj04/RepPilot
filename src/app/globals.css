@@ -162,11 +162,22 @@
 
 /* Mobile territory uses the full viewport; controls float above the map. */
 @media (max-width: 767px) {
-  body:has(.territory-map-screen) .app-mobile-header,
-  body:has(.territory-map-screen) .app-mobile-header ~ [role="status"] { display: none; }
-  .mobile-workspace:has(.territory-map-screen) { padding: 0; overflow: hidden; }
+   .app-viewport[data-map-view="true"] .app-mobile-header,
+   .app-viewport[data-map-view="true"] .app-mobile-header ~ [role="status"] { display: none; }
+  .app-viewport[data-map-view="true"] .mobile-workspace { padding: 0; overflow: hidden; }
   .territory-map-screen { min-height: 0; padding: 0; gap: 0; height: 100%; }
   .territory-map-canvas { border: 0; border-radius: 0; box-shadow: none; }
   .territory-map-search { top: calc(.75rem + env(safe-area-inset-top)); left: 4rem; right: .75rem; }
   .territory-map-tools { bottom: calc(2rem + env(safe-area-inset-bottom)); }
+}
+
+@media (max-width: 767px) {
+  .app-viewport:not([data-map-view="true"]) .mobile-workspace {
+    overflow-y: auto;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    padding-left: 0;
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+  .mobile-menu { bottom: calc(1rem + env(safe-area-inset-bottom)); }
 }

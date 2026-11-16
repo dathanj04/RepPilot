@@ -5,7 +5,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   PanelLeftClose,
-  PanelLeftOpen,
+  Menu,
   Building2,
   CreditCard,
   CalendarCheck,
@@ -81,12 +81,12 @@ export function BottomNav({ unread }: { unread: number }) {
   ];
   const [expanded, setExpanded] = useState(false);
   return (
-    <nav aria-label="Mobile navigation" className={cn("fixed left-0 top-1/2 z-40 max-h-[70dvh] -translate-y-1/2 overflow-y-auto rounded-r-2xl border border-l-0 border-white/10 bg-[#0c2035] p-1.5 text-white shadow-lg md:hidden", expanded ? "w-44" : "w-14")}>
-      <button type="button" aria-label={expanded ? "Minimize navigation" : "Expand navigation"} aria-expanded={expanded} aria-controls="mobile-side-links" onClick={() => setExpanded(value => !value)} className="flex h-11 w-full items-center gap-3 rounded-xl px-2 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#b5f4dd]">
-        {expanded ? <PanelLeftClose className="size-5 shrink-0" /> : <PanelLeftOpen className="size-5 shrink-0" />}
+    <nav aria-label="Mobile navigation" onKeyDown={event => { if (event.key === "Escape") setExpanded(false); }} className={cn("mobile-menu fixed left-3 z-40 max-h-[70dvh] overflow-y-auto rounded-2xl border border-white/10 bg-[#0c2035] p-1.5 text-white shadow-lg md:hidden", expanded ? "w-44" : "w-14")}>
+      <button type="button" aria-label={expanded ? "Minimize navigation" : "Open navigation menu"} aria-expanded={expanded} aria-controls="mobile-side-links" onClick={() => setExpanded(value => !value)} className="flex h-11 w-full items-center gap-3 rounded-xl px-2 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#b5f4dd]">
+        {expanded ? <PanelLeftClose className="size-5 shrink-0" /> : <Menu className="size-5 shrink-0" />}
         {expanded ? <span className="text-xs font-medium">Minimize</span> : null}
       </button>
-      <ul id="mobile-side-links" className="space-y-1">
+      <ul id="mobile-side-links" hidden={!expanded} className="space-y-1">
         {items.map(item => {
           const Icon = ICONS[item.icon];
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);

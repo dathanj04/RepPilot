@@ -1,3 +1,4 @@
+import { AppViewport } from "./app-viewport";
 import Link from "next/link";
 import { hasBusinessCompliance } from "@/lib/compliance-access";
 import { LunchAlerts } from "./lunch-alerts";
@@ -39,7 +40,7 @@ export async function AppShell({ children, allowExpiredTrial = false }: { childr
   items.push({ href: "/more", label: "More", icon: "more" });
 
   return (
-    <div className="h-dvh overflow-hidden bg-background text-foreground">
+    <AppViewport>
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col overflow-y-auto border-r border-white/5 bg-[#0c2035] text-white md:flex">
         <Link href="/today" className="flex items-center gap-3 px-6 py-7">
           <BrandMark />
@@ -52,7 +53,7 @@ export async function AppShell({ children, allowExpiredTrial = false }: { childr
           </button>
         </form>
       </aside>
-      <div className="flex h-dvh flex-col md:pl-64">
+      <div className="flex h-full min-h-0 flex-col md:pl-64">
         <header className="app-mobile-header z-30 flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur-xl md:px-8">
           <div className="flex min-w-0 items-center gap-2.5">
             <BrandMark className="size-9 md:hidden" />
@@ -73,11 +74,11 @@ export async function AppShell({ children, allowExpiredTrial = false }: { childr
             Demonstration organization. Offices, lunches, and spending are fictional.
           </p>
         ) : null}
-        <div className="mobile-workspace min-h-0 flex-1 overflow-y-auto pl-14 pb-[env(safe-area-inset-bottom)] md:pl-0 md:pb-0">{children}</div>
+        <div className="mobile-workspace min-h-0 flex-1 overflow-y-auto pl-0 pb-[env(safe-area-inset-bottom)] md:pl-0 md:pb-0">{children}</div>
       </div>
       {!allowExpiredTrial && user.trialEndsAt && user.trialDaysLeft !== null ? <TrialExpiry endsAt={user.trialEndsAt} /> : null}
       {user.trialDaysLeft !== 0 ? <LunchAlerts userId={user.id} /> : null}
       <BottomNav unread={unread} />
-    </div>
+    </AppViewport>
   );
 }
