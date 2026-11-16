@@ -46,7 +46,9 @@ export function RoutePlanner({userId,timezone,workStart,workEnd,offices,routes,r
   const [dragIndex,setDragIndex]=useState<number|null>(null);
   const storageKey="reppilot-route-draft-v1:"+userId;
   const refs=useRef({offices,routes,requestedRoute,addAccountId});
+  refs.current={offices,routes,requestedRoute,addAccountId};
   useEffect(()=>{
+    revision.current++;
     const {routes,offices,requestedRoute,addAccountId}=refs.current;
     let value:Draft=blank();
     try {const cached=JSON.parse(localStorage.getItem(storageKey)||"null") as Draft|null;if(cached&&Array.isArray(cached.stops)&&cached.stops.length<=20&&typeof cached.departure==="string") value=cached;} catch {}
@@ -56,7 +58,7 @@ export function RoutePlanner({userId,timezone,workStart,workEnd,offices,routes,r
     setDraft(value);setRoad(selected?.planning?.road??null);setSavedClean(Boolean(selected&&!addAccountId));setReady(true);
     // Initial request and draft restoration happen once; subsequent edits stay in client state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[storageKey]);
+  },[storageKey,requestedRoute,addAccountId]);
   useEffect(()=>{if(ready)try{localStorage.setItem(storageKey,JSON.stringify(draft));}catch{setMessage("Device draft storage is unavailable. Save the route to keep it.");}},[draft,ready,storageKey]);
   function update(next:Draft){revision.current++;setDraft(next);setRoad(null);setSavedClean(false);setMessage("");}
   const signature=JSON.stringify(draft);
@@ -64,7 +66,10 @@ export function RoutePlanner({userId,timezone,workStart,workEnd,offices,routes,r
     if(!ready||!draft.start||!draft.stops.length)return;
     const current=revision.current;
     const timer=setTimeout(()=>{let p:RoutePlanning;try{p=toPlan(draft);}catch{return;}
-      evaluatePlanningAction(p).then(result=>{if(current!==revision.current)return;if("error" in result){setMessage(result.error);setRoad(null);}else{setRoad(result.value.road);}}).catch(()=>{if(current===revision.current){setMessage("Driving estimates are unavailable. Your draft is retained.");setRoad(null);}});
+      evaluatePlanningAction(p).then(result=>{if(current!==revision.current)return;if("error" in result){setMessage(result.error);setRoad(null);}else{setRoad(result.value.road);
+          const constraints=result.value.plan.stops;
+          if(JSON.stringify(constraints)!==JSON.stringify(draft.stops))setDraft(current=>({...current,stops:constraints}));
+        }}).catch(()=>{if(current===revision.current){setMessage("Driving estimates are unavailable. Your draft is retained.");setRoad(null);}});
     },900);
     return ()=>clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -121,7 +126,7 @@ export function RoutePlanner({userId,timezone,workStart,workEnd,offices,routes,r
         <button aria-label={"Duplicate "+r.name} className={button} onClick={()=>{const d=fromSaved(r);update({...d,id:null,updatedAt:null,name:d.name+" copy"});setTab("current");}}><Copy className="size-4"/>Duplicate</button>
         <button aria-label={"Delete "+r.name} className={button} disabled={busy} onClick={async()=>{if(!confirm("Delete this saved route?"))return;setBusy(true);try{const result=await deletePlanningAction(r.id);if("error"in result)setMessage(result.error);else{setSaved(v=>v.filter(x=>x.id!==r.id));if(draft.id===r.id)update(blank());}}catch{setMessage("Route could not be deleted.");}finally{setBusy(false);}}}><Trash2 className="size-4"/></button>
       </div></article>)}
-    </section>:<>
+    </section>:<><fieldset disabled={busy} className="contents">
       <button className="mb-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#19B78A] text-base font-semibold text-[#06281f]" disabled={busy} onClick={()=>{setTarget("stop");setAdding(v=>!v);}}><Plus className="size-5"/>Add Location</button>
       {adding?<section aria-label="Add location" className="mb-4 space-y-3 rounded-2xl border bg-white p-3">
         <div className="flex justify-between"><h2 className="font-semibold">{target==="stop"?"Add visit":target==="start"?"Starting location":"Ending location"}</h2><button className="min-h-11 px-3" onClick={()=>setAdding(false)}>Close</button></div>
@@ -173,6 +178,6 @@ export function RoutePlanner({userId,timezone,workStart,workEnd,offices,routes,r
         <button className={button+" px-1 text-[10px]"} disabled={busy} onClick={()=>{if(confirm("Clear this draft? Saved routes are kept."))update(blank());}}>CLEAR</button>
         <button className={button+" px-1 text-[10px]"} disabled={busy||!savedClean} onClick={()=>void calendar()}>CALENDAR</button>
       </div>
-    </>}
+    </fieldset></>}
   </div>;
 }

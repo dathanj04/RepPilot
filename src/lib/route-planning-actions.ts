@@ -73,9 +73,13 @@ export async function savePlanningAction(value: unknown, id: string | null, expe
 export async function deletePlanningAction(id: string) {
   try {
     const user = await getCurrentUser();
-    const result = await prisma.dailyRoute.deleteMany({where:{id,organizationId:user.organizationId,userId:user.id}});
-    if (!result.count) throw new Error("Route was not found.");
-    revalidatePath("/route"); revalidatePath("/map");
+    await prisma.$transaction(async tx => {
+      const route = await tx.dailyRoute.findFirst({where:{id,organizationId:user.organizationId,userId:user.id},select:{id:true}});
+      if (!route) throw new Error("Route was not found.");
+      await tx.calendarEventMapping.deleteMany({where:{organizationId:user.organizationId,userId:user.id,provider:"internal",externalEventId:{startsWith:"route:"+id+":"}}});
+      await tx.dailyRoute.delete({where:{id:route.id}});
+    });
+    revalidatePath("/route"); revalidatePath("/map"); revalidatePath("/calendar");
     return { ok:true };
   } catch(e) { return failure(e); }
 }
