@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, MapPin, Route, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { MapContainer, TileLayer, CircleMarker, Polygon, Tooltip, Popup, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Circle, Polygon, Tooltip, Popup, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { MARKER_TONES, type MarkerTone } from "@/lib/domain/catalog";
+import { findAccurateLocation, locationAccuracy } from "@/lib/maps/location";
 import type { PlaceCandidate } from "@/lib/maps/provider";
 import type { SearchArea } from "@/lib/maps/search-area";
 import { directionsUrl, formatStraightLine, straightLineMiles } from "@/lib/domain/distance";
@@ -77,11 +78,11 @@ function MapEvents({ onZoom, onArea }: { onZoom: (zoom: number) => void; onArea:
   return null;
 }
 
-function Recenter({ center }: { center: [number, number] | null }) {
+function Recenter({ center, accuracy }: { center: [number, number] | null; accuracy?: number }) {
   const map = useMap();
   useEffect(() => {
-    if (center) map.setView(center, 13);
-  }, [center, map]);
+    if (center) map.setView(center, accuracy == null ? 13 : accuracy > 10000 ? 8 : accuracy > 1000 ? 10 : accuracy > 200 ? 13 : 16);
+  }, [center, accuracy, map]);
   return null;
 }
 
@@ -99,7 +100,10 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
   const [status, setStatus] = useState("all");
   const [followUpOnly, setFollowUpOnly] = useState(false);
   const [maxMiles, setMaxMiles] = useState<number | null>(null);
-  const [here, setHere] = useState<{ lat: number; lng: number } | null>(null);
+  const [here, setHere] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const cancelLocation = useRef<(() => void) | null>(null);
+  useEffect(() => () => cancelLocation.current?.(), []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const receivePlaces = useCallback((places: PlaceCandidate[]) => { setDiscovered(places); setMode("map"); setSelectedId(null); }, []);
   const [zoom, setZoom] = useState(10);
@@ -141,16 +145,20 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
       setLocationNote("Location permission is unavailable in this browser.");
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const next = { lat: position.coords.latitude, lng: position.coords.longitude };
-        setHere(next);
-        setFocus([next.lat, next.lng]);
-        setLocationNote(null);
-      },
-      () => setLocationNote("Location permission was denied. Distances stay hidden."),
-      { enableHighAccuracy: false, timeout: 8000 },
-    );
+    cancelLocation.current?.();
+    setHere(null);
+    setSelectedId(null);
+    setLocating(true);
+    setLocationNote("Finding a fresh, precise location…");
+    setMode("map");
+    cancelLocation.current = findAccurateLocation(navigator.geolocation, next => {
+      setHere(next);
+      setFocus([next.lat, next.lng]);
+      setLocationNote(locationAccuracy(next.accuracy));
+    }, error => {
+      setLocating(false);
+      if (error) { setHere(null); setLocationNote(error); }
+    });
   }
 
   const list = (
@@ -222,12 +230,13 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
       {tomtomMapsKey && !tomtomFailed ? <TileLayer attribution='<a href="https://www.tomtom.com/copyright/">&copy; TomTom</a> &copy; OpenStreetMap' maxZoom={22} url={`https://api.tomtom.com/maps/orbis/display/raster/tile/{z}/{x}/{y}?apiVersion=2&style=street-light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} eventHandlers={{ tileerror: () => setTomtomFailed(true) }} /> : <TileLayer attribution='&copy; OpenStreetMap' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />}
       {tomtomMapsKey && !tomtomFailed && showTraffic ? <TileLayer attribution="Traffic &copy; TomTom" maxZoom={22} opacity={0.8} url={`https://api.tomtom.com/maps/orbis/traffic/flow/raster/tile/{z}/{x}/{y}?apiVersion=2&style=light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} /> : null}
       <MapEvents onZoom={setZoom} onArea={setSearchArea} />
-      <Recenter center={focus} />
+      <Recenter center={focus} accuracy={here && focus?.[0] === here.lat && focus?.[1] === here.lng ? here.accuracy : undefined} />
       {discovered.map((place, index) => <CircleMarker key={`discovered-${place.lat}-${place.lng}-${index}`} center={[place.lat, place.lng]} radius={10} pathOptions={{ color: "white", weight: 2, fillColor: "#7c3aed", fillOpacity: 1 }}>
         <Tooltip>{place.name} · Search result</Tooltip>
         <Popup><strong>{place.name}</strong><br />{place.street}<br />{place.city}, {place.state} {place.zip}<br /><span>Not saved. Use Add in Find offices to save this account.</span></Popup>
       </CircleMarker>)}
       {boundary ? <Polygon positions={boundary} pathOptions={{ color: "#19B78A", weight: 2, fillOpacity: 0.05 }} /> : null}
+      {here ? <Circle center={[here.lat, here.lng]} radius={Math.max(1, here.accuracy)} interactive={false} pathOptions={{ color: "#2563eb", fillColor: "#60a5fa", weight: 1, fillOpacity: 0.12 }} /> : null}
       {here ? <CircleMarker center={[here.lat, here.lng]} radius={8} pathOptions={{ color: "#10263E", fillColor: "#19B78A", fillOpacity: 1 }} /> : null}
       {groups.map((group) =>
         group.members.length > 1 ? (
@@ -295,12 +304,13 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
       {mode === "list" ? <div className="relative z-0 h-full bg-white pt-28 md:hidden">{list}</div> : <div className="relative z-0 h-full isolate">{canvas}</div>}
 
       <div className="absolute right-3 bottom-24 z-20 flex flex-col gap-2 md:bottom-3">
-        <button type="button" className="h-11 rounded-xl bg-white px-3 text-sm font-medium shadow-sm ring-1 ring-slate-200" onClick={locate}>
-          My location
+        <button type="button" className="h-11 rounded-xl bg-white px-3 text-sm font-medium shadow-sm ring-1 ring-slate-200" disabled={locating} onClick={locate}>
+          {locating ? "Finding location…" : "My location"}
         </button>
+        {locationNote ? <p role="status" className="max-w-[240px] rounded-xl bg-white/95 p-3 text-xs text-[#10263E] shadow-sm">{locationNote}</p> : null}
       </div>
       <p className="pointer-events-none absolute top-3 left-3 z-20 hidden max-w-sm rounded-xl bg-white/95 px-3 py-2 text-[11px] text-[#66758B] shadow-sm md:block">
-        {tomtomMapsKey ? <button type="button" disabled={tomtomFailed} aria-pressed={showTraffic} onClick={() => setShowTraffic(v => !v)} className="mr-3 min-h-11 rounded-lg border px-3 font-medium">Traffic {showTraffic ? "on" : "off"}</button> : null}
+        {tomtomMapsKey ? <button type="button" disabled={tomtomFailed} aria-pressed={showTraffic} onClick={() => setShowTraffic(v => !v)} className="pointer-events-auto mr-3 min-h-11 rounded-lg border px-3 font-medium">Traffic {showTraffic ? "on" : "off"}</button> : null}
         {tomtomFailed ? <span role="status">TomTom tiles could not load. Showing OpenStreetMap. </span> : null}
         {tomtomMapsKey && !tomtomFailed ? "TomTom" : !tomtomMapsKey && discovered.length === 0 && googleMapsKey && !googleFailed ? "Google Maps" : "OpenStreetMap"} · Purple dots: office search results ({discovered.length}) · pin distance is straight-line until Routes returns a drive time
         {locationNote ? ` · ${locationNote}` : ""}
