@@ -20,7 +20,7 @@ Run `npm ci`, `npm run mobile:icons` (Python + Pillow), and `npm run mobile:pref
 
 ## Release gates still open
 
-- Hosted native jobs must succeed and resulting packages must be installed/tested. A passing web build is not a native build.
+- First hosted Android debug and iOS Simulator jobs succeeded (GitHub Actions run 43798571891). Resulting packages still need real-device/manual testing. The iOS artifact cannot run on an iPhone.
 - Apple signing team, distribution certificate/profile and App Store Connect record; Android upload keystore and Play Console record. Do not commit signing files or paste credentials into chat.
 - Test real-device login persistence, precise/approximate/denied location, office search/save, lasso touch gestures, routing, calendar links, receipt attachment, Android Back, keyboard, safe areas, app resume, no connection, and deletion.
 - Confirm the purchasing design for each distribution region. Existing Stripe checkout is a web flow, not an implemented Apple/Google in-app subscription flow. Do not submit the current billing WebView as a globally compliant store checkout. Paid access must continue to fail closed. A marker in a user agent is not an entitlement or an authentication mechanism.
