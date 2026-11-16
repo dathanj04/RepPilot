@@ -321,11 +321,11 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
       </aside>
       <div className="territory-map-canvas relative min-w-0 flex-1 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
       <div className="territory-map-search absolute inset-x-3 top-3 z-20 max-h-[40%] overflow-y-auto space-y-2 md:hidden">
-        <div className="flex items-center justify-between gap-2 rounded-xl bg-white/95 p-1 shadow-md">
+        <div className="flex flex-wrap items-center justify-between gap-1 rounded-xl bg-white/95 p-1 shadow-md">
+          <button type="button" aria-expanded={officeSearchOpen} aria-controls="mobile-office-search" className="flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-[#10263E] hover:bg-slate-50" onClick={() => setOfficeSearchOpen(value => !value)}><Search className="size-4 shrink-0" aria-hidden="true" />Find new offices</button>
           <div className="flex gap-1" role="group" aria-label="Territory view"><button type="button" aria-pressed={mode==="map"} className={"min-h-11 rounded-lg px-3 text-sm font-semibold "+(mode==="map"?"bg-[#10263E] text-white":"")} onClick={()=>{setMode("map");setAccountsMinimized(true);}}>Map</button><button type="button" aria-pressed={mode==="list"} className={"min-h-11 rounded-lg px-3 text-sm font-semibold "+(mode==="list"?"bg-[#10263E] text-white":"")} onClick={()=>{setMode("list");setAccountsMinimized(false);}}>List</button></div>
           <Link href={activeRoute?"/route?route="+activeRoute.id:"/route"} className="flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold"><Route className="size-4"/>{activeRoute?"Edit route":"Create route"}</Link>
         </div>
-                <button type="button" aria-expanded={officeSearchOpen} aria-controls="mobile-office-search" className="min-h-11 rounded-xl bg-white/95 px-3 text-sm font-semibold text-[#10263E] shadow-md ring-1 ring-slate-200" onClick={() => setOfficeSearchOpen(value => !value)}><Search className="mr-2 inline size-4" aria-hidden="true" />Find new offices</button>
         <div id="mobile-office-search" hidden={!officeSearchOpen}>
           <PlacesSearch here={here} area={searchArea} onResults={receivePlaces} saved={savedDiscoveries} onSaved={markSaved} compact />
         </div>

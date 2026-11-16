@@ -73,11 +73,12 @@ export function BottomNav({ unread }: { unread: number }) {
     {href:"/map",label:"Map",icon:"map"},
     {href:"/accounts",label:"Accounts",icon:"accounts"},
     {href:"/route",label:"Routes",icon:"route"},
+    {href:"/lunches",label:"Lunch & Learns",icon:"lunches"},
     {href:"/calendar",label:"Calendar",icon:"calendar"},
     {href:"/more",label:"Settings",icon:"settings"},
   ];
-  return <nav aria-label="Mobile navigation" className="mobile-primary-nav fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pt-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"><ul className="grid grid-cols-5">{items.map(item=>{
+  return <nav aria-label="Mobile navigation" className="mobile-primary-nav fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pt-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"><ul className="grid grid-cols-6">{items.map(item=>{
     const Icon=ICONS[item.icon],active=pathname===item.href||pathname.startsWith(item.href+"/");
-    return <li key={item.href}><Link href={item.href} aria-current={active?"page":undefined} className={cn("relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium",active?"text-[#087f5b] bg-emerald-50":"text-slate-500")}><Icon className="size-5" aria-hidden="true"/>{item.label}{item.href==="/more"&&unread>0?<span className="absolute right-2 top-0 rounded-full bg-red-600 px-1 text-white">{unread}</span>:null}</Link></li>;
+    return <li key={item.href}><Link href={item.href} aria-current={active?"page":undefined} className={cn("relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium",active?"text-[#087f5b] bg-emerald-50":"text-slate-500")}><Icon className="size-5" aria-hidden="true"/><span className="text-center leading-tight">{item.label}</span>{item.href==="/more"&&unread>0?<span className="absolute right-2 top-0 rounded-full bg-red-600 px-1 text-white">{unread}</span>:null}</Link></li>;
   })}</ul></nav>;
 }
