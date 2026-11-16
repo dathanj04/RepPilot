@@ -107,6 +107,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
   const [owner, setOwner] = useState("all");
   const [status, setStatus] = useState("all");
   const router = useRouter();
+  const [accountsMinimized, setAccountsMinimized] = useState(false);
   const [lasso, setLasso] = useState(false);
   const [routing, setRouting] = useState(false);
   const [routeNote, setRouteNote] = useState("");
@@ -297,9 +298,14 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
 
   return (
     <div className="flex h-full min-h-[32rem] gap-3 bg-[#f4f6f8] p-3 md:p-4">
-      <aside className="hidden w-[20rem] shrink-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm md:flex md:flex-col xl:w-[22rem]">{list}</aside>
+      <aside className={`hidden shrink-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm md:flex md:flex-col ${accountsMinimized ? "w-14" : "w-[20rem] xl:w-[22rem]"}`}>
+        <button type="button" aria-expanded={!accountsMinimized} aria-label={accountsMinimized ? "Expand saved accounts" : "Minimize saved accounts"} className="flex min-h-11 shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-3 text-sm font-semibold" onClick={() => setAccountsMinimized(value => !value)}>{accountsMinimized ? "→" : <><span>Saved accounts</span><span>←</span></>}</button>
+        {!accountsMinimized ? list : null}
+      </aside>
       <div className="relative min-w-0 flex-1 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
       <div className="absolute inset-x-3 top-3 z-20 max-h-[40%] overflow-y-auto space-y-2 rounded-2xl bg-white/95 p-2 shadow-sm md:hidden">
+        <button type="button" aria-expanded={!accountsMinimized} className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-sm font-semibold" onClick={() => { setAccountsMinimized(value => !value); setMode("map"); }}><span>Saved accounts & office search</span><span>{accountsMinimized ? "Expand" : "Minimize"}</span></button>
+        <div hidden={accountsMinimized} className="space-y-2">
         <div className="flex gap-2">
           <input
             value={query}
@@ -338,9 +344,10 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
             </FilterChip>
           ))}
         </div>
+        </div>
       </div>
 
-      {mode === "list" ? <div className="relative z-0 h-full bg-white pt-28 md:hidden">{list}</div> : <div className="relative z-0 h-full isolate">{canvas}</div>}
+      {mode === "list" && !accountsMinimized ? <div className="relative z-0 h-full bg-white pt-28 md:hidden">{list}</div> : <div className="relative z-0 h-full isolate">{canvas}</div>}
 
       <div className="absolute right-3 bottom-24 z-20 flex flex-col gap-2 md:bottom-3">
         <button type="button" disabled={routing} aria-pressed={lasso} className="h-11 rounded-xl bg-[#10263E] px-3 text-sm font-medium text-white shadow-sm disabled:opacity-60" onClick={() => { setMode("map"); setLasso(!lasso); setRouteNote(""); }}>
