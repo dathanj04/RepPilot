@@ -47,6 +47,6 @@ describe.skipIf(process.env.ROUTE_DB_INTEGRATION!=="true")("route persistence in
   expect(await prisma.calendarEventMapping.count({where:{organizationId:actor.organizationId,externalEventId:{startsWith:"route:"+routeId+":"}}})).toBe(16);
  });
  it("duplicates independently then deletes only the owned copy",async()=>{
-  const r=await savePlanningAction({...plan,name:"Copy"},null,null);if("error"in r)throw Error(r.error);expect(r.id).not.toBe(routeId);expect(await deletePlanningAction(r.id)).toEqual({ok:true});expect(await prisma.dailyRoute.count({where:{id:routeId}})).toBe(1);
+  const r=await savePlanningAction({...plan,name:"Copy"},null,null);if("error"in r)throw Error(r.error);expect(r.id).not.toBe(routeId);expect(await planningToCalendarAction(r.id)).toEqual({ok:true});expect(await deletePlanningAction(r.id)).toEqual({ok:true});expect(await prisma.dailyRoute.count({where:{id:routeId}})).toBe(1);expect(await prisma.calendarEventMapping.count({where:{externalEventId:{startsWith:"route:"+r.id+":"}}})).toBe(0);
  });
 });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {readFile,mkdir,writeFile} from "node:fs/promises";
 import {spawn} from "node:child_process";
-import {chromium} from "playwright";
+const {chromium}=await import("/tmp/route-browser-tools/node_modules/playwright/index.mjs");
 if(process.env.CI!=="true"||!process.env.DATABASE_URL?.includes("@localhost:5432/route_test"))throw Error("Use the isolated CI database.");
 await mkdir("route-browser-results",{recursive:true});
 let serverOutput="";
@@ -41,6 +41,7 @@ try{
  await page.getByRole("button",{name:"SAVE",exact:true}).click();
  await page.getByText("Route saved to your account.",{exact:true}).waitFor();
  await page.reload();
+ await page.waitForFunction(()=>document.querySelectorAll("[data-stop-index]").length===16);
  assert.equal(await rows.count(),16);
  assert.match(await rows.first().innerText(),/45 min visit/);
  const before=await page.locator(".mobile-workspace").evaluate(e=>e.scrollTop);
@@ -54,6 +55,7 @@ try{
  await reopened.goto("http://localhost:43123/route");
  await reopened.getByRole("tab",{name:"Saved Routes",exact:true}).click();
  await reopened.getByRole("button",{name:"Open",exact:true}).click();
+ await reopened.waitForFunction(()=>document.querySelectorAll("[data-stop-index]").length===16);
  assert.equal(await reopened.locator("[data-stop-index]").count(),16);
  assert.match(await reopened.locator("[data-stop-index]").first().innerText(),/45 min visit/);
  const go=reopened.getByRole("link",{name:"GO",exact:true});
@@ -66,6 +68,7 @@ try{
  assert.ok(canvas.height>680,"Map occupies most of the phone");
  await reopened.screenshot({path:"route-browser-results/map-mobile.png",fullPage:true});
  await reopened.getByRole("navigation",{name:"Mobile navigation"}).getByRole("link",{name:"Settings",exact:true}).click();
+ await reopened.getByRole("heading",{name:"More",exact:true}).waitFor();
  const workspace=reopened.locator(".mobile-workspace");
  await workspace.evaluate(e=>{e.scrollTop=500;});
  assert.ok(await workspace.evaluate(e=>e.scrollTop)>0,"More screen scrolls after leaving map");

@@ -55,8 +55,8 @@ export function RoutePlanner({userId,timezone,workStart,workEnd,offices,routes,r
     const selected=requestedRoute?routes.find(r=>r.id===requestedRoute):null;
     if(selected) value=fromSaved(selected);
     if(addAccountId){const office=offices.find(o=>o.id===addAccountId),p=office?point(office):null;if(p&&!value.stops.some(s=>s.accountId===addAccountId)&&value.stops.length<20){value={...value,start:value.start??p,stops:[...value.stops,stop(p)]};}}
-    setDraft(value);setRoad(selected?.planning?.road??null);setSavedClean(Boolean(selected&&!addAccountId));setReady(true);
-    // Initial request and draft restoration happen once; subsequent edits stay in client state.
+    setSaved(routes);setDraft(value);setRoad(selected?.planning?.road??null);setSavedClean(Boolean(selected&&!addAccountId));setReady(true);
+    // Restore on account or saved-route navigation; ordinary edits stay in client state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[storageKey,requestedRoute,addAccountId]);
   useEffect(()=>{if(ready)try{localStorage.setItem(storageKey,JSON.stringify(draft));}catch{setMessage("Device draft storage is unavailable. Save the route to keep it.");}},[draft,ready,storageKey]);
@@ -68,7 +68,7 @@ export function RoutePlanner({userId,timezone,workStart,workEnd,offices,routes,r
     const timer=setTimeout(()=>{let p:RoutePlanning;try{p=toPlan(draft);}catch{return;}
       evaluatePlanningAction(p).then(result=>{if(current!==revision.current)return;if("error" in result){setMessage(result.error);setRoad(null);}else{setRoad(result.value.road);
           const constraints=result.value.plan.stops;
-          if(JSON.stringify(constraints)!==JSON.stringify(draft.stops))setDraft(current=>({...current,stops:constraints}));
+          if(JSON.stringify(constraints)!==JSON.stringify(draft.stops)){setDraft(current=>({...current,stops:constraints}));setSavedClean(false);}
         }}).catch(()=>{if(current===revision.current){setMessage("Driving estimates are unavailable. Your draft is retained.");setRoad(null);}});
     },900);
     return ()=>clearTimeout(timer);

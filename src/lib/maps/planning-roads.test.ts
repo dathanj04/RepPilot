@@ -16,3 +16,5 @@ it("preserves manual order when optimization is not requested",async()=>{const p
 it("rejects infeasible optimization without mutating the draft",async()=>{const p=plan();p.workEnd="2026-12-20T15:00:00.000Z";const before=JSON.stringify(p);await expect(calculateRoadPlan(p,true,fetcher as typeof fetch)).rejects.toThrow("working hours");expect(JSON.stringify(p)).toBe(before);});
 it("reports routing failures instead of inventing straight-line estimates",async()=>{const p=plan();await expect(requestRoad([p.start,p.stops[0]],false,p.departure,vi.fn().mockResolvedValue(new Response("",{status:503})))).rejects.toThrow("could not be routed");});
 it("validates provider permutations for the 16-stop route",()=>{expect(()=>waypointOrder({optimizedWaypoints:[{providedIndex:0,optimizedIndex:0}]},18)).toThrow();});
+
+it("reads TomTom's documented three-way cycle in the returned order",()=>{expect(waypointOrder({optimizedWaypoints:[{providedIndex:0,optimizedIndex:1},{providedIndex:1,optimizedIndex:2},{providedIndex:2,optimizedIndex:0}]},5)).toEqual([0,2,3,1,4]);});
