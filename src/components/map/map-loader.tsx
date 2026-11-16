@@ -12,6 +12,7 @@ export function TerritoryMapLoader(props: {
   accounts: MapAccount[];
   boundary: [number, number][] | null;
   googleMapsKey: string;
+  tomtomMapsKey: string;
   center: [number, number];
 }) {
   return <TerritoryMap {...props} />;

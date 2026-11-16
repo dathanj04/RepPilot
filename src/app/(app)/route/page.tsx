@@ -29,8 +29,8 @@ export default async function RoutePage() {
       title="Route"
       subtitle={
         googleRoutesConfigured()
-          ? "Suggest stops from your records, then check drive time. A duration appears only after Google Routes returns one. Confirmed lunch times are not reordered."
-          : "Suggest stops from your records and open them in Google Maps. Drive time stays blank until a server Google Maps key with the Routes API is set."
+          ? "Suggest stops from your records, then check drive time. A duration appears only after the routing provider returns one. Confirmed lunch times are not reordered."
+          : "Suggest stops from your records and open them in Google Maps. Drive time stays blank until TomTom or Google Routes is configured."
       }
     >
       <RoutePlanner

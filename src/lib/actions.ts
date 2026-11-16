@@ -24,7 +24,7 @@ import { isProfileTimezone } from "./domain/accounts";
 import { findDuplicateAccount } from "./services/accounts";
 import { parseOrgSettings, type OrgSettings } from "./org-settings";
 import { safeWebsiteUrl } from "./domain/urls";
-import { geocodeAddress } from "./maps/google";
+import { geocodeAddress } from "./maps/service";
 
 const ROLES = [
   ["REP", "Representative", "Field representative", "organization"],
@@ -166,7 +166,7 @@ export async function saveAccountAction(formData: FormData) {
       geocodeStatus = "ok";
     } else if (geocoded.status === "not_found") {
       geocodeStatus = "not_found";
-      geocodeNotice = "Saved without map coordinates. Google Geocoding had no rooftop match for that address.";
+      geocodeNotice = "Saved without map coordinates. The geocoder had no precise address match for that address.";
     } else if (geocoded.status === "error") {
       geocodeStatus = "error";
       geocodeNotice = "Saved without map coordinates. Geocoding did not return a location.";
@@ -753,7 +753,7 @@ export async function saveRouteAction(payload: { accountIds: string[]; reasons: 
       userId: user.id,
       routeDate: new Date(),
       status: "saved",
-      summary: "Saved stop order. Drive time is not stored on the route. Check drive time when you need a Google Routes duration.",
+      summary: "Saved stop order. Drive time is not stored on the route. Check drive time when you need a the routing provider duration.",
       stops: {
         create: payload.accountIds.map((accountId, index) => ({
           accountId,
@@ -805,7 +805,7 @@ export async function suggestRouteAction(origin: { lat: number; lng: number } | 
       ...item,
       name: accounts.find((account) => account.id === item.accountId)?.name ?? "Office",
     })),
-    note: "Stops come from your records. Straight-line miles are not drive time. Use Check drive time after Google Routes is configured.",
+    note: "Stops come from your records. Straight-line miles are not drive time. Use Check drive time after the routing provider is configured.",
   };
 }
 

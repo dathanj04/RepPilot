@@ -16,7 +16,7 @@ export type DriveLeg = {
 };
 
 export type DrivePlan = {
-  source: "google_routes";
+  source: "google_routes" | "tomtom_routes";
   distanceMeters: number;
   durationSeconds: number;
   /** True only when Google returned a traffic-aware duration that differs from the no-traffic duration. */
