@@ -55,7 +55,7 @@ export async function searchPlacesAction(query: string, bias: { lat: number; lng
     return { configured: true, places: [], message: "Places search is paused for a few minutes so this organization does not burn the map quota." };
   }
   const searchCenter = validSearchArea(area) ? { lat: (area.north + area.south) / 2, lng: (area.east + area.west) / 2 } : validPoint(bias);
-  const result = await searchPlaces({ query: text, bias: searchCenter });
+  const result = await searchPlaces({ query: text, bias: searchCenter, area });
   if (result.status !== "ok") {
     await recordMapsCall({
       organizationId: user.organizationId,
@@ -99,7 +99,7 @@ export async function addDiscoveredAccountAction(formData: FormData) {
   if (!data.name || !data.specialty || !data.street || !data.city || !data.state || !data.zip) {
     return { error: "Name, specialty, and a complete address are required." };
   }
-  if (!Number.isFinite(data.latitude) || !Number.isFinite(data.longitude)) {
+  if (!Number.isFinite(data.latitude) || !Number.isFinite(data.longitude) || Math.abs(data.latitude) > 90 || Math.abs(data.longitude) > 180) {
     return { error: "This place did not include coordinates, so it was not added." };
   }
   const duplicate = await findDuplicateAccount(prisma, {
@@ -109,7 +109,8 @@ export async function addDiscoveredAccountAction(formData: FormData) {
     zip: data.zip,
   });
   if (duplicate) return { error: "An office with this name and address is already in your organization.", accountId: duplicate.id };
-  const account = await prisma.account.create({
+  const accountId = await prisma.$transaction(async tx => {
+    const account = await tx.account.create({
     data: {
       organizationId: user.organizationId,
       name: data.name,
@@ -124,10 +125,10 @@ export async function addDiscoveredAccountAction(formData: FormData) {
       status: "ACTIVE",
     },
   });
-  await prisma.accountAssignment.create({
+    await tx.accountAssignment.create({
     data: { organizationId: user.organizationId, accountId: account.id, userId: user.id },
   });
-  await prisma.auditLog.create({
+    await tx.auditLog.create({
     data: {
       organizationId: user.organizationId,
       actorId: user.id,
@@ -137,9 +138,11 @@ export async function addDiscoveredAccountAction(formData: FormData) {
       metadata: { name: data.name, source: "places" },
     },
   });
+    return account.id;
+  });
   revalidatePath("/map");
   revalidatePath("/accounts");
-  return { accountId: account.id };
+  return { accountId };
 }
 
 export async function computeDriveAction(input: { origin: { lat: number; lng: number } | null; accountIds: string[] }) {

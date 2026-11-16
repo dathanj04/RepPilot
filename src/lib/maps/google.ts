@@ -51,7 +51,7 @@ export async function geocodeAddress(address: string, fetchImpl: FetchLike = fet
 }
 
 export async function searchPlaces(
-  input: { query: string; bias: LatLng | null },
+  input: { query: string; bias: LatLng | null; area?: import("./search-area").SearchArea | null },
   fetchImpl: FetchLike = fetch,
 ): Promise<MapsCallResult<PlaceCandidate[]>> {
   const key = googleMapsServerKey();
