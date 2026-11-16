@@ -56,7 +56,7 @@ export async function AppShell({ children, allowExpiredTrial = false }: { childr
         <header className="app-mobile-header z-30 flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur-xl md:px-8">
           <div className="flex min-w-0 items-center gap-2.5">
             <BrandMark className="size-9 md:hidden" />
-            <div className="min-w-0"><p className="text-sm font-semibold text-[#10263E] truncate">{user.organizationName}</p>
+            <div className="min-w-0"><p className="text-sm font-semibold text-[#10263E] truncate">RepPilot</p>
             <p className="text-xs text-[#66758B] truncate">{user.name}</p></div>
           </div>
           <div className="flex items-center gap-3">
