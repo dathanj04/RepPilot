@@ -31,7 +31,7 @@ export type PolicyDecision = {
 };
 
 export const POLICY_DISCLAIMER =
-  "This is a fictional company-policy cap—not a federal legal meal allowance.";
+  "This is your organization’s internal company-policy cap, not a federal legal meal allowance.";
 
 export const LEGALITY_FOOTER =
   "Within configured policy does not guarantee legality. Compliance review is required.";

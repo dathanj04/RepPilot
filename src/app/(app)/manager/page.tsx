@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { hasBusinessCompliance } from "@/lib/compliance-access";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { requireAppUser } from "@/lib/auth";
@@ -16,6 +17,7 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
   await connection();
   const { notice } = await searchParams;
   const user = await requireAppUser();
+  const complianceEnabled = await hasBusinessCompliance(user);
   if (!canViewTeam(user.roleKey)) notFound();
   const now = new Date();
   const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -127,7 +129,7 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
               <li key={order.id} className="text-sm">
                 <p className="font-medium">{order.account.name}</p>
                 <p className="text-[#66758B]">{order.booking.representative.name} · lunch {order.booking.status.replaceAll("_", " ").toLowerCase()} · {order.estimatedAmountCents != null ? formatCents(order.estimatedAmountCents) : "No estimate"}</p>
-                {canReviewCompliance(user.roleKey) || user.roleKey === "MANAGER" ? (
+                {complianceEnabled && canReviewCompliance(user.roleKey) ? (
                   ownLunch || !lunchReady ? (
                     <p className="mt-1 text-xs">{ownLunch ? "You own this lunch, so someone else reviews the catering." : "The lunch time is still waiting for the representative."}</p>
                   ) : (
@@ -156,7 +158,7 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
               <p className="font-medium capitalize">{request.status}{request.prohibited ? " · prohibited" : ""}</p>
               <p>{request.reason}</p>
               <p className="text-xs text-[#66758B]">{request.requestedBy.name}</p>
-              {canReviewCompliance(user.roleKey) && request.status === "pending" ? (
+              {complianceEnabled && canReviewCompliance(user.roleKey) && request.status === "pending" ? (
                 <form action={reviewExceptionAction} className="mt-2 grid gap-2">
                   <input type="hidden" name="requestId" value={request.id} />
                   <input name="note" placeholder="Review note" className="h-11 rounded-xl border px-3" />

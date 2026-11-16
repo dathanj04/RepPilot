@@ -16,7 +16,7 @@ import { decideCateringApproval, recordCateringHandoff, recordCateringOrder, req
 import { receiptFileAllowed } from "./domain/catering";
 import { extractCheckIn } from "./ai/gemini";
 import { buildAccountBrief, draftFollowUpEmail } from "./domain/briefing";
-import { deliverEmail } from "./email/send";
+import { hasBusinessCompliance } from "./compliance-access";
 import { renderInvitationEmail } from "./email/templates";
 import { consumeSharedRateLimit } from "./domain/rate-limit-store";
 import { credentialVersion } from "./session-options";
@@ -698,7 +698,10 @@ export async function requestCateringAction(formData: FormData) {
 
 export async function decideCateringAction(formData: FormData) {
   const user = await getCurrentUser();
+  if (!(await hasBusinessCompliance(user))) redirect("/billing?error=Upgrade%20to%20Business%20to%20use%20compliance%20review.");
+  if (!canReviewCompliance(user.roleKey)) redirect("/compliance?notice=Only%20the%20account%20administrator%20can%20review%20compliance.");
   const bookingId = String(formData.get("bookingId") || "");
+  if (formData.get("decision") === "approve" && !(await prisma.mealPolicy.findFirst({ where: { organizationId: user.organizationId, active: true }, select: { id: true } }))) redirect("/compliance?notice=Configure%20your%20company%20meal%20policy%20before%20approving%20catering.");
   const result = await decideCateringApproval(prisma, {
     organizationId: user.organizationId,
     reviewerId: user.id,
@@ -709,11 +712,12 @@ export async function decideCateringAction(formData: FormData) {
   });
   revalidatePath("/manager");
   revalidatePath(`/lunches/${bookingId}`);
-  redirect(`/manager?notice=${encodeURIComponent(result.ok ? "Catering decision saved. Opening a provider site still does not place the order." : result.error)}`);
+  redirect(`/compliance?notice=${encodeURIComponent(result.ok ? "Catering decision saved. Opening a provider site still does not place the order." : result.error)}`);
 }
 
 export async function exceptionAction(formData: FormData) {
   const user = await getCurrentUser();
+  if (!(await hasBusinessCompliance(user))) redirect("/billing?error=Upgrade%20to%20Business%20to%20use%20compliance%20review.");
   const bookingId = String(formData.get("bookingId") || "");
   const result = await requestPolicyException(prisma, {
     organizationId: user.organizationId,
@@ -729,7 +733,8 @@ export async function exceptionAction(formData: FormData) {
 
 export async function reviewExceptionAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!canReviewCompliance(user.roleKey)) redirect("/manager?notice=You cannot review policy exceptions.");
+  if (!(await hasBusinessCompliance(user))) redirect("/billing?error=Upgrade%20to%20Business%20to%20use%20compliance%20review.");
+  if (!canReviewCompliance(user.roleKey)) redirect("/compliance?notice=You cannot review policy exceptions.");
   const result = await reviewPolicyException(prisma, {
     organizationId: user.organizationId,
     reviewerId: user.id,
@@ -737,9 +742,9 @@ export async function reviewExceptionAction(formData: FormData) {
     approve: formData.get("decision") === "approve",
     note: String(formData.get("note") || ""),
   });
-  revalidatePath("/manager");
-  if (!result.ok) redirect(`/manager?notice=${encodeURIComponent(result.error)}`);
-  redirect("/manager?notice=Exception reviewed.");
+  revalidatePath("/compliance");
+  if (!result.ok) redirect(`/compliance?notice=${encodeURIComponent(result.error)}`);
+  redirect("/compliance?notice=Exception reviewed.");
 }
 
 export async function saveRouteAction(payload: { accountIds: string[]; reasons: Record<string, string> }) {
@@ -814,6 +819,8 @@ export async function suggestRouteAction(origin: { lat: number; lng: number } | 
 export async function updateOrgAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!canManageOrg(user.roleKey)) redirect("/admin?notice=Only an organization administrator can change these settings.");
+  const requestedCap = formData.get("cap");
+  if (requestedCap != null && (!Number.isFinite(Number(requestedCap)) || Number(requestedCap) < 0)) redirect("/admin?notice=Enter%20a%20valid%20nonnegative%20company%20meal%20cap.");
   const org = await prisma.organization.findUniqueOrThrow({ where: { id: user.organizationId } });
   const settings = parseOrgSettings(org.settings);
   settings.recentVisitDays = Number(formData.get("recentVisitDays") || settings.recentVisitDays);
@@ -832,6 +839,7 @@ export async function updateOrgAction(formData: FormData) {
       branding: { displayName: String(formData.get("name") || org.name), emailFromName: String(formData.get("emailFromName") || org.name) },
     },
   });
+  if (await hasBusinessCompliance(user)) {
   const cap = Number(formData.get("cap") || 25);
   const active = await prisma.mealPolicy.findFirst({ where: { organizationId: org.id, active: true } });
   if (active) {
@@ -858,7 +866,10 @@ export async function updateOrgAction(formData: FormData) {
       },
     });
   }
+  if (active || formData.get("createPolicy") === "on") await prisma.auditLog.create({ data: { organizationId: org.id, actorId: user.id, action: active ? "meal_policy.updated" : "meal_policy.created", entityType: "MealPolicy", entityId: active?.id || org.id, metadata: { perPersonCapCents: Math.round(cap * 100), reviewedByAccountAdmin: true } } });
+  }
   revalidatePath("/admin");
+  revalidatePath("/compliance");
   redirect("/admin?notice=Settings saved.");
 }
 

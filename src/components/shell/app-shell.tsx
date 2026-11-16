@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { hasBusinessCompliance } from "@/lib/compliance-access";
 import { LunchAlerts } from "./lunch-alerts";
 import { BrandMark } from "@/components/brand";
 import { TrialExpiry } from "./trial-expiry";
@@ -13,6 +14,7 @@ import { BottomNav, SideNav, type NavItem } from "./nav";
 export async function AppShell({ children, allowExpiredTrial = false }: { children: React.ReactNode; allowExpiredTrial?: boolean }) {
   await connection();
   const user = await requireAppUser({ allowExpiredTrial });
+  const complianceEnabled = await hasBusinessCompliance(user);
   const unread = user.trialDaysLeft === 0 ? 0 : await prisma.notification.count({
     where: { userId: user.id, organizationId: user.organizationId, readAt: null },
   });
@@ -30,9 +32,10 @@ export async function AppShell({ children, allowExpiredTrial = false }: { childr
   ];
   items.splice(items.findIndex((item) => item.href === "/settings"), 0, { href: "/billing", label: "Billing", icon: "billing" });
   if (canViewTeam(user.roleKey)) items.push({ href: "/manager", label: "Team", icon: "admin" });
-  if (canManageOrg(user.roleKey) || user.roleKey === "COMPLIANCE_ADMIN") {
+  if (canManageOrg(user.roleKey)) {
     items.push({ href: "/admin", label: "Admin", icon: "admin" });
   }
+  items.push({ href: "/compliance", label: "Compliance review", icon: "admin", disabledReason: complianceEnabled ? undefined : "To access, please upgrade to Business account." });
   items.push({ href: "/more", label: "More", icon: "more" });
 
   return (

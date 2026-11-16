@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { hasBusinessCompliance } from "@/lib/compliance-access";
+import { COMPLIANCE_UPGRADE } from "@/lib/domain/compliance-access";
 import { connection } from "next/server";
 import { requireAppUser } from "@/lib/auth";
 import { canManageOrg, canViewTeam } from "@/lib/permissions";
@@ -10,6 +12,7 @@ export const metadata = { title: "More" };
 export default async function MorePage() {
   await connection();
   const user = await requireAppUser();
+  const complianceEnabled = await hasBusinessCompliance(user);
   const links = [
     ["/tasks", "Follow-ups"],
     ["/meetings", "Meeting requests"],
@@ -23,13 +26,14 @@ export default async function MorePage() {
   ];
   links.unshift(["/billing", "Billing & subscription"]);
   if (canViewTeam(user.roleKey)) links.push(["/manager", "Team"]);
-  if (canManageOrg(user.roleKey) || user.roleKey === "COMPLIANCE_ADMIN") links.push(["/admin", "Admin"]);
+  if (canManageOrg(user.roleKey)) links.push(["/admin", "Admin"]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-5">
       <h1 className="text-2xl font-semibold">More</h1>
       <p className="mt-1 text-sm text-[#66758B]">{user.organizationName} · {user.roleKey.replaceAll("_", " ").toLowerCase()}</p>
       <ul className="mt-4 grid gap-2">
+        <li>{complianceEnabled ? <Link href="/compliance" className="flex h-14 items-center rounded-2xl bg-white px-4 font-medium ring-1 ring-slate-200">Compliance review</Link> : <span aria-disabled="true" title={COMPLIANCE_UPGRADE} className="flex min-h-14 items-center rounded-2xl bg-slate-100 px-4 text-slate-500">Compliance review · Business feature</span>}</li>
         {links.map(([href, label]) => (
           <li key={href}>
             <Link href={href} className="flex h-14 items-center rounded-2xl bg-white px-4 font-medium ring-1 ring-slate-200">{label}</Link>

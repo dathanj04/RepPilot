@@ -1,3 +1,5 @@
+import { hasBusinessCompliance } from "@/lib/compliance-access";
+import { COMPLIANCE_UPGRADE } from "@/lib/domain/compliance-access";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { requireAppUser } from "@/lib/auth";
@@ -15,6 +17,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   await connection();
   const { notice } = await searchParams;
   const user = await requireAppUser();
+  const complianceEnabled = await hasBusinessCompliance(user);
   if (!canManageOrg(user.roleKey) && !canReviewCompliance(user.roleKey)) notFound();
   const [org, members, territories, policy, audits, calendars, crms, accounts] = await Promise.all([
     prisma.organization.findUniqueOrThrow({ where: { id: user.organizationId } }),
@@ -56,7 +59,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             <label className="text-sm">Recent visit days<input name="recentVisitDays" type="number" defaultValue={settings.recentVisitDays} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
             <label className="text-sm">Overdue visit days<input name="overdueVisitDays" type="number" defaultValue={settings.overdueVisitDays} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
             <label className="text-sm">Lunch invitation hours<input name="invitationExpiryHours" type="number" defaultValue={settings.invitationExpiryHours} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
-            <label className="text-sm">Internal cap ($ / person)<input name="cap" type="number" step="0.01" defaultValue={policy ? policy.perPersonCapCents / 100 : 25} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
+            <label className="text-sm">Internal cap ($ / person)<input disabled={!complianceEnabled} title={!complianceEnabled ? COMPLIANCE_UPGRADE : undefined} name="cap" type="number" min="0" step="0.01" defaultValue={policy ? policy.perPersonCapCents / 100 : 25} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
           </div>
           <fieldset className="text-sm">
             <legend className="font-medium">Meeting invitation lifetimes</legend>
@@ -69,7 +72,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             ))}
           </fieldset>
           <label className="text-sm"><input type="checkbox" name="aiEnabled" defaultChecked={settings.aiEnabled} className="mr-2" />AI features available</label>
-          {!policy ? <label className="text-sm"><input type="checkbox" name="createPolicy" className="mr-2" />Create an internal meal policy</label> : <p className="text-xs text-[#66758B]">{policy.name} {policy.version} is active. The cap is an internal company figure, not a federal meal allowance. Entertainment and referral-linked meals stay prohibited.</p>}
+          {!policy ? <label className="text-sm"><input disabled={!complianceEnabled} title={!complianceEnabled ? COMPLIANCE_UPGRADE : undefined} type="checkbox" name="createPolicy" className="mr-2" />Create an internal meal policy</label> : <p className="text-xs text-[#66758B]">{policy.name} {policy.version} is active. The cap is an internal company figure, not a federal meal allowance. Entertainment and referral-linked meals stay prohibited.</p>}
           <button className="h-11 rounded-xl bg-[#10263E] text-sm font-medium text-white" type="submit">Save organization settings</button>
         </form>
       ) : (

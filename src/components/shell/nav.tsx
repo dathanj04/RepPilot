@@ -38,7 +38,7 @@ const ICONS = {
   settings: Settings,
 };
 
-export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
+export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; disabledReason?: string };
 
 export function SideNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
@@ -52,10 +52,13 @@ export function SideNav({ items }: { items: NavItem[] }) {
           <Link
             key={item.href}
             href={item.href}
+            aria-disabled={Boolean(item.disabledReason)}
+            title={item.disabledReason}
+            onClick={event => { if (item.disabledReason) event.preventDefault(); }}
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b5f4dd]",
-              active ? "bg-[#b5f4dd] text-[#10263E] shadow-sm" : "text-slate-300 hover:bg-white/5 hover:text-white",
+              item.disabledReason ? "cursor-not-allowed text-slate-500 opacity-50" : active ? "bg-[#b5f4dd] text-[#10263E] shadow-sm" : "text-slate-300 hover:bg-white/5 hover:text-white",
             )}
           >
             <Icon className="size-[18px]" aria-hidden="true" />
