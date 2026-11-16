@@ -138,7 +138,7 @@
 /* Field-friendly mobile surfaces and safe-area spacing. */
 @media (max-width: 767px) {
   .app-mobile-header { height: calc(4.25rem + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); padding-inline: 1.25rem; gap: 1rem; border-bottom-color: #e8edf0; }
-  .mobile-workspace { background: #f4f7f6; padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)); overscroll-behavior-y: contain; }
+  .mobile-workspace { background: #f4f7f6; padding-bottom: env(safe-area-inset-bottom); overscroll-behavior-y: contain; }
   .mobile-bottom-nav { bottom: 0; }
   .mobile-page { overflow-wrap: anywhere; }
   .mobile-page > div:first-child > :last-child:not(:first-child) { max-width: 100%; }
