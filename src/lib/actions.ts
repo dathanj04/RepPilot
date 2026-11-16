@@ -1,4 +1,5 @@
 "use server";
+import { deliverInvitationEmail } from "./email/invitation-delivery";
 import { workspaceAccess } from "./workspace-access";
 
 import { hash, compare } from "bcryptjs";
@@ -566,7 +567,7 @@ export async function createInvitationAction(formData: FormData) {
     purpose: String(formData.get("purpose") || ""),
     url,
   });
-  const delivery = await deliverEmail({
+  const delivery = await deliverInvitationEmail({
     organizationId: user.organizationId,
     to: String(formData.get("recipientEmail") || "") || account.email,
     subject: message.subject,
