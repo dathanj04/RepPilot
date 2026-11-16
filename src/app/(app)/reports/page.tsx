@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import { requireAppUser } from "@/lib/auth";
+import { requireBusinessUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatCents, summarizeSpending } from "@/lib/domain/spending";
 
@@ -9,7 +9,7 @@ export const metadata = { title: "Reports" };
 
 export default async function ReportsPage() {
   await connection();
-  const user = await requireAppUser();
+  const user = await requireBusinessUser();
   const start = new Date();
   start.setUTCDate(1);
   start.setUTCHours(0, 0, 0, 0);

@@ -3,7 +3,7 @@ import { hasBusinessCompliance } from "@/lib/compliance-access";
 import { COMPLIANCE_UPGRADE } from "@/lib/domain/compliance-access";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
-import { requireAppUser } from "@/lib/auth";
+import { requireBusinessUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canManageOrg, canReviewCompliance } from "@/lib/permissions";
 import { createMemberAction, createTerritoryAction } from "@/lib/actions";
@@ -17,7 +17,7 @@ export const metadata = { title: "Admin" };
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
   await connection();
   const { notice } = await searchParams;
-  const user = await requireAppUser();
+  const user = await requireBusinessUser();
   const complianceEnabled = await hasBusinessCompliance(user);
   if (!canManageOrg(user.roleKey) && !canReviewCompliance(user.roleKey)) notFound();
   const [org, members, territories, policy, audits, calendars, crms, accounts] = await Promise.all([

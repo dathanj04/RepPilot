@@ -1,4 +1,6 @@
 import Link from "next/link";
+import {hasBusinessFeatures} from "@/lib/domain/paid-access";
+import {BusinessFeatureLink} from "@/components/billing/feature-link";
 import { hasBusinessCompliance } from "@/lib/compliance-access";
 import { COMPLIANCE_UPGRADE } from "@/lib/domain/compliance-access";
 import { connection } from "next/server";
@@ -36,7 +38,7 @@ export default async function MorePage() {
         <li>{complianceEnabled ? <Link href="/compliance" className="flex h-14 items-center rounded-2xl bg-white px-4 font-medium ring-1 ring-slate-200">Compliance review</Link> : <span aria-disabled="true" title={COMPLIANCE_UPGRADE} className="flex min-h-14 items-center rounded-2xl bg-slate-100 px-4 text-slate-500">Compliance review · Business feature</span>}</li>
         {links.map(([href, label]) => (
           <li key={href}>
-            <Link href={href} className="flex h-14 items-center rounded-2xl bg-white px-4 font-medium ring-1 ring-slate-200">{label}</Link>
+            <BusinessFeatureLink locked={!hasBusinessFeatures(user)&&["/lunches","/meetings","/reports","/spending","/manager","/admin"].includes(href)} href={href} className="flex h-14 items-center rounded-2xl bg-white px-4 font-medium ring-1 ring-slate-200">{label}</BusinessFeatureLink>
           </li>
         ))}
       </ul>

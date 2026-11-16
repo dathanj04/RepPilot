@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "./auth";
 import { prisma } from "./db";
 import { BILLING_PLANS, stripeRequest, customerSubscriptions } from "./stripe";
-import type {StripeSubscription} from "./domain/paid-access";
+import {CATALOG_VERSION,type StripeSubscription} from "./domain/paid-access";
 import { consumeSharedRateLimit } from "./domain/rate-limit-store";
 import { savePersonalBillingProfile } from "./domain/billing-profile";
 import { billingPlan, checkoutParams, withBillingLock, stripeDestination, type CheckoutSession } from "./billing-flow";
@@ -53,7 +53,7 @@ export async function startCheckoutAction(form: FormData) {
    const params=checkoutParams(customer,user.organizationId,planKey,subscription.trialEndsAt);
    if(subscription.stripeCheckoutId){
     const previous=await stripeRequest<CheckoutSession>("checkout/sessions/"+encodeURIComponent(subscription.stripeCheckoutId));
-    if(previous.status==="open"&&previous.metadata?.planKey===planKey&&previous.mode===params.get("mode"))return stripeDestination(previous.url);
+    if(previous.status==="open"&&previous.metadata?.planKey===planKey&&previous.metadata?.catalogVersion===CATALOG_VERSION&&previous.mode===params.get("mode"))return stripeDestination(previous.url);
     if(previous.status==="complete"&&previous.mode==="setup"&&!await tx.auditLog.findUnique({where:{id:"billing_setup_"+previous.id},select:{id:true}}))throw Error("Your card setup is being confirmed. Refresh Subscriptions in a moment.");
     if(previous.status==="complete"&&previous.mode==="subscription"){
      if(!previous.subscription)throw Error("Your previous payment is being confirmed. Refresh Subscriptions before trying again.");

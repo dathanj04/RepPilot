@@ -1,6 +1,7 @@
 import "server-only";
-import { hasPaidAccess } from "./stripe";
+import { getPaidTier } from "./stripe";
 import { trialAccess } from "./domain/trial";
+import {hasBusinessFeatures,type PlanTier} from "./domain/paid-access";
 import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { credentialVersion } from "./session-options";
@@ -18,6 +19,7 @@ export type CurrentUser = {
   isDemo: boolean;
   trialEndsAt: string | null;
   trialDaysLeft: number | null;
+  planTier?:PlanTier|null;
 };
 
 export async function getCurrentUser(options: { allowExpiredTrial?: boolean } = {}): Promise<CurrentUser> {
@@ -40,12 +42,15 @@ export async function getCurrentUser(options: { allowExpiredTrial?: boolean } = 
   }
 
   let access = trialAccess(membership.organization.subscription);
-  if (!access.allowed && await hasPaidAccess(membership.organization.subscription?.stripeCustomerId, membership.organizationId)) {
-    access = { allowed: true, daysLeft: null, endsAt: null };
+  let planTier:PlanTier|null=access.allowed?"business":null;
+  if(!access.allowed){
+    planTier=await getPaidTier(membership.organization.subscription?.stripeCustomerId,membership.organizationId);
+    if(planTier)access={allowed:true,daysLeft:null,endsAt:null};
   }
   if (!options.allowExpiredTrial && membership.role.key !== "PLATFORM_ADMIN" && !access.allowed) redirect("/trial-ended");
 
   return {
+    planTier,
     trialEndsAt: access.endsAt,
     trialDaysLeft: access.daysLeft,
     id: membership.user.id,
@@ -70,4 +75,10 @@ export async function requirePlatformAdmin() {
   const user = await getCurrentUser();
   if (user.roleKey !== "PLATFORM_ADMIN") redirect("/today");
   return user;
+}
+
+export async function requireBusinessUser(){
+ const user=await requireAppUser();
+ if(!hasBusinessFeatures(user))redirect("/billing?upgrade=business");
+ return user;
 }

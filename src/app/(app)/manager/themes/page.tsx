@@ -2,7 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { formatInTimeZone } from "date-fns-tz";
-import { requireAppUser } from "@/lib/auth";
+import { requireBusinessUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canViewTeam } from "@/lib/permissions";
 import { canManageThemes, themeAdoption } from "@/lib/services/visit-intelligence";
@@ -18,7 +18,7 @@ export default async function ThemesPage({
 }) {
   await connection();
   const query = await searchParams;
-  const user = await requireAppUser();
+  const user = await requireBusinessUser();
   if (!canViewTeam(user.roleKey)) notFound();
   const [themes, members, territories] = await Promise.all([
     prisma.monthlyTheme.findMany({

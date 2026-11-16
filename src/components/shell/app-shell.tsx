@@ -1,3 +1,4 @@
+import {hasBusinessFeatures,BUSINESS_UPGRADE} from "@/lib/domain/paid-access";
 import { AppViewport } from "./app-viewport";
 import Link from "next/link";
 import { hasBusinessCompliance } from "@/lib/compliance-access";
@@ -19,6 +20,7 @@ export async function AppShell({ children, allowExpiredTrial = false }: { childr
   const unread = user.trialDaysLeft === 0 ? 0 : await prisma.notification.count({
     where: { userId: user.id, organizationId: user.organizationId, readAt: null },
   });
+  const business=hasBusinessFeatures(user);
   const items: NavItem[] = [
     { href: "/today", label: "Today", icon: "today" },
     { href: "/map", label: "Territory", icon: "map" },
@@ -31,12 +33,14 @@ export async function AppShell({ children, allowExpiredTrial = false }: { childr
     { href: "/reports", label: "Reports", icon: "spending" },
     { href: "/settings", label: "Settings", icon: "settings" },
   ];
+  for(const item of items)if(["/lunches","/meetings","/reports"].includes(item.href)&&!business)item.disabledReason=BUSINESS_UPGRADE;
   items.splice(items.findIndex((item) => item.href === "/settings"), 0, { href: "/billing", label: "Billing", icon: "billing" });
   if (canViewTeam(user.roleKey)) items.push({ href: "/manager", label: "Team", icon: "admin" });
   if (canManageOrg(user.roleKey)) {
     items.push({ href: "/admin", label: "Admin", icon: "admin" });
   }
   items.push({ href: "/compliance", label: "Compliance review", icon: "admin", disabledReason: complianceEnabled ? undefined : "To access, please upgrade to Business account." });
+  for(const item of items)if(["/manager","/admin"].includes(item.href)&&!business)item.disabledReason=BUSINESS_UPGRADE;
   items.push({ href: "/more", label: "More", icon: "more" });
 
   return (
@@ -77,8 +81,8 @@ export async function AppShell({ children, allowExpiredTrial = false }: { childr
         <div className="mobile-workspace min-h-0 flex-1 overflow-y-auto pl-0 pb-[env(safe-area-inset-bottom)] md:pl-0 md:pb-0">{children}</div>
       </div>
       {!allowExpiredTrial && user.trialEndsAt && user.trialDaysLeft !== null ? <TrialExpiry endsAt={user.trialEndsAt} /> : null}
-      {user.trialDaysLeft !== 0 ? <LunchAlerts userId={user.id} /> : null}
-      <BottomNav unread={unread} />
+      {business && user.trialDaysLeft !== 0 ? <LunchAlerts userId={user.id} /> : null}
+      <BottomNav unread={unread} businessAccess={business} />
     </AppViewport>
   );
 }

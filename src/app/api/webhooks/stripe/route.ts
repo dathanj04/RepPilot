@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { validStripeSignature } from "@/lib/stripe-webhook";
 import { customerSubscriptions } from "@/lib/stripe";
-import { isPaidSubscription } from "@/lib/domain/paid-access";
+import { isPaidSubscription,tierForPriceId } from "@/lib/domain/paid-access";
 import { completeTrialCardSetup } from "@/lib/billing-flow";
 
 export async function POST(request: Request) {
@@ -25,16 +25,18 @@ export async function POST(request: Request) {
   if (await prisma.auditLog.findUnique({where:{id:receiptId},select:{id:true}})) return Response.json({received:true});
   // Re-read current Stripe state: delayed/reordered events cannot restore a canceled subscription.
   let paid = false;
+  let tier:"individual"|"business"|null=null;
   try {
     if (event.type === "checkout.session.completed" && event.data.object.mode === "setup" && event.data.object.id) await completeTrialCardSetup(subscription.organizationId,event.data.object.id);
     const current = await customerSubscriptions(customer);
-    paid = current.data.some(item => isPaidSubscription(item,customer,subscription.organizationId));
+    const verified=current.data.find(item=>isPaidSubscription(item,customer,subscription.organizationId));
+    paid=Boolean(verified);tier=verified?tierForPriceId(verified.items.data[0].price.id):null;
   } catch { return Response.json({error:"Payment verification unavailable"},{status:503}); }
   const trial = subscription.trialEndsAt != null && subscription.trialEndsAt > new Date();
   try {
     await prisma.$transaction(async tx => {
       await tx.auditLog.create({data:{id:receiptId,organizationId:subscription.organizationId,action:"billing.webhook",entityType:"StripeEvent",entityId:event.id,metadata:{type:event.type,paidVerified:paid}}});
-      await tx.subscription.update({where:{id:subscription.id},data:{status:paid ? "active" : trial ? "trialing" : "payment_required"}});
+      await tx.subscription.update({where:{id:subscription.id},data:{status:paid ? "active" : trial ? "trialing" : "payment_required",...(tier?{plan:tier}:{})}});
     });
   } catch (error) {
     if (!(error && typeof error === "object" && "code" in error && error.code === "P2002")) throw error;

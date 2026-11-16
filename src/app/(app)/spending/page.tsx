@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import { requireAppUser } from "@/lib/auth";
+import { requireBusinessUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatCents, summarizeSpending } from "@/lib/domain/spending";
 import { formatDay } from "@/lib/format";
@@ -10,7 +10,7 @@ export const metadata = { title: "Spending" };
 
 export default async function SpendingPage({ searchParams }: { searchParams: Promise<{ account?: string }> }) {
   await connection();
-  const user = await requireAppUser();
+  const user = await requireBusinessUser();
   const { account: accountId } = await searchParams;
   const year = new Date().getUTCFullYear();
   const rows = await prisma.officeSpendingEntry.findMany({

@@ -49,5 +49,5 @@ export async function findActiveLink(db: Db, token: string, purpose: string) {
   const link = await db.secureLinkToken.findFirst({
     where: { tokenHash, purpose, revokedAt: null },
   });
-  return link && await workspaceAccess(db, link.organizationId) ? link : null;
+  return link && await workspaceAccess(db, link.organizationId,purpose!=="office") ? link : null;
 }

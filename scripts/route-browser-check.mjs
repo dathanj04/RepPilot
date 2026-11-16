@@ -80,9 +80,10 @@ try{
  await reopened.goto("http://localhost:43123/billing");
  await reopened.getByRole("heading",{name:"Subscriptions",exact:true}).waitFor();
  assert.equal(await reopened.getByRole("heading",{name:/Business (monthly|annual)/}).count(),2);
- assert.equal(await reopened.getByRole("button",{name:"Save preference without a card",exact:true}).count(),2);
- assert.equal(await reopened.locator("input[name=billingConsent][required]").count(),2);
+ assert.equal(await reopened.getByRole("button",{name:"Save preference without a card",exact:true}).count(),4);
+ assert.equal(await reopened.locator("input[name=billingConsent][required]").count(),4);
  assert.equal(await reopened.getByText("Purchases and subscription changes are not enabled",{exact:false}).count(),0);
+ assert.equal(await reopened.getByRole("heading",{name:/Individual (monthly|annual)/}).count(),2);
  assert.deepEqual(errors,[]);
  console.log("PASS: mobile 16-office create, optimize, manual reorder, duration edit, save, reload, separate-session reopen, numbered map, road polyline, Go link, route/More scrolling.");
 }catch(e){await writeFile("route-browser-results/server.log",serverOutput);console.error(serverOutput.slice(-6000));throw e;}

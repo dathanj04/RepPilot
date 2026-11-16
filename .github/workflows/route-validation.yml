@@ -4,6 +4,8 @@ on:
     branches: [development]
     paths:
       - 'src/**'
+      - 'tests/**'
+      - 'scripts/route-browser*'
       - 'prisma/**'
       - '.github/workflows/route-validation.yml'
   workflow_dispatch:
@@ -29,6 +31,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://route_test:route_test_only@localhost:5432/route_test
       ROUTE_DB_INTEGRATION: 'true'
+      TOKEN_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       SESSION_PASSWORD: route-ci-session-password-at-least-32-characters
       NEXT_PUBLIC_TOMTOM_API_KEY: route-ci-placeholder-key-not-a-real-key
     steps:
@@ -41,7 +44,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma migrate deploy --config prisma7.config.ts
-      - run: npx vitest run src
+      - run: npx vitest run --no-file-parallelism
       - run: npx tsc --noEmit
       - run: npm run build
       - run: npm install --prefix /tmp/route-browser-tools --no-package-lock --ignore-scripts playwright@1.56.1

@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import { requireAppUser } from "@/lib/auth";
+import { requireBusinessUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createInvitationAction } from "@/lib/actions";
 import { InvitationForm } from "@/components/lunches/invitation-form";
@@ -9,7 +9,7 @@ export const metadata = { title: "Schedule lunch" };
 
 export default async function NewLunchPage({ searchParams }: { searchParams: Promise<{ account?: string }> }) {
   await connection();
-  const user = await requireAppUser();
+  const user = await requireBusinessUser();
   const { account } = await searchParams;
   const accounts = await prisma.account.findMany({
     where: { organizationId: user.organizationId },

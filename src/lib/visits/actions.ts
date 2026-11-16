@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "../auth";
+import { getBusinessUser } from "../business-access";
 import { prisma } from "../db";
 import { prepareVisitBrief, recordReferralSyncAttempt, saveMonthlyTheme } from "../services/visit-intelligence";
 
@@ -45,7 +46,7 @@ export async function syncReferralAction(formData: FormData) {
 }
 
 export async function saveThemeAction(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await getBusinessUser();
   const status = String(formData.get("status") || "DRAFT");
   const result = await saveMonthlyTheme(prisma, {
     organizationId: user.organizationId,

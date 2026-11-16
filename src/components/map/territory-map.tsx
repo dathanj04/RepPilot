@@ -4,6 +4,7 @@ import type { SavedPlanning } from "@/lib/domain/route-planning";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import {BusinessFeatureLink} from "@/components/billing/feature-link";
 import { useRouter } from "next/navigation";
 import { CountyLayer } from "./county-layer";
 import { LassoLayer } from "./lasso-layer";
@@ -42,6 +43,7 @@ export type MapAccount = {
 };
 
 type Props = {
+  businessAccess?:boolean;
   activeRoute?: { id: string; planning: SavedPlanning } | null;
   accounts: MapAccount[];
   boundary: [number, number][] | null;
@@ -95,7 +97,7 @@ function Recenter({ center, accuracy }: { center: [number, number] | null; accur
   return null;
 }
 
-export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey, center, activeRoute }: Props) {
+export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey, center, activeRoute,businessAccess=true }: Props) {
   const [discoveryQuery, setDiscoveryQuery] = useState("");
   const [savedDiscoveries, setSavedDiscoveries] = useState<Record<string,string>>({});
   const markSaved = useCallback((place: PlaceCandidate, id: string) => { setSavedDiscoveries(prev => ({ ...prev, [discoveryKey(place)]: id })); }, []);
@@ -393,7 +395,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
               <a className="grid h-11 place-items-center rounded-xl bg-[#10263E] text-sm font-medium text-white" href={directionsUrl({ lat: selected.lat, lng: selected.lng })} target="_blank" rel="noreferrer">Directions</a>
             ) : <span className="grid h-11 place-items-center rounded-xl bg-slate-100 text-sm">No coordinates</span>}
             <Link href={`/accounts/${selected.id}`} className="grid h-11 place-items-center rounded-xl ring-1 ring-slate-200 text-sm font-medium">View Account</Link>
-            <Link href={`/lunches/new?account=${selected.id}`} className="col-span-2 grid h-11 place-items-center rounded-xl ring-1 ring-slate-200 text-sm font-medium">Schedule Lunch</Link>
+            <BusinessFeatureLink locked={!businessAccess} href={`/lunches/new?account=${selected.id}`} className="col-span-2 grid h-11 place-items-center rounded-xl ring-1 ring-slate-200 text-sm font-medium">Schedule Lunch</BusinessFeatureLink>
           </div>
         </div>
       ) : null}

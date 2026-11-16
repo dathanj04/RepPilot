@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import {BusinessFeatureLink} from "@/components/billing/feature-link";
 import { Plus, GripVertical, LockKeyhole, Trash2, Copy, Navigation, Sparkles, Map as MapIcon, Pencil } from "lucide-react";
 import { evaluatePlanningAction, savePlanningAction, deletePlanningAction, geocodeRoutePointAction, planningToCalendarAction } from "@/lib/route-planning-actions";
 import { planningSchema, type RoutePlanning, type RoutePoint, type PlannedStop, type RoadResult, type SavedPlanning } from "@/lib/domain/route-planning";
@@ -25,7 +26,7 @@ function toPlan(d:Draft):RoutePlanning {
   return planningSchema.parse({version:1,name:d.name,departure:new Date(d.departure).toISOString(),workEnd:new Date(d.workEnd).toISOString(),breakStart:d.breakStart?new Date(d.breakStart).toISOString():null,breakEnd:d.breakEnd?new Date(d.breakEnd).toISOString():null,start:d.start,end:d.end,stops:d.stops});
 }
 
-export function RoutePlanner({userId,timezone,workStart,workEnd,offices,routes,requestedRoute,addAccountId}:{userId:string;timezone:string;workStart:string;workEnd:string;offices:PlannerOffice[];routes:Saved[];requestedRoute:string|null;addAccountId:string|null}) {
+export function RoutePlanner({userId,timezone,workStart,workEnd,offices,routes,requestedRoute,addAccountId,businessAccess=true}:{businessAccess?:boolean;userId:string;timezone:string;workStart:string;workEnd:string;offices:PlannerOffice[];routes:Saved[];requestedRoute:string|null;addAccountId:string|null}) {
   const today=local(new Date().toISOString()).slice(0,10);
   const blank=():Draft=>({id:null,updatedAt:null,name:"My route",departure:today+"T"+workStart,workEnd:today+"T"+workEnd,breakStart:"",breakEnd:"",start:null,end:null,stops:[]});
   const [draft,setDraft]=useState<Draft>(blank);
@@ -164,7 +165,7 @@ export function RoutePlanner({userId,timezone,workStart,workEnd,offices,routes,r
           {editing===s.key?<div className="mt-3 grid gap-2"><label className="text-xs">Visit duration (minutes)<input className={field} type="number" min={5} max={480} value={s.minutes} onChange={e=>update({...draft,stops:draft.stops.map(t=>t.key===s.key?{...t,minutes:Number(e.target.value)}:t)})}/></label><label className="text-xs">Fixed appointment (optional)<input className={field} type="datetime-local" value={s.appointment?local(s.appointment):""} onChange={e=>update({...draft,stops:draft.stops.map(t=>t.key===s.key?{...t,appointment:e.target.value?new Date(e.target.value).toISOString():null}:t)})}/></label></div>:null}
           <details className="mt-2"><summary className="min-h-11 cursor-pointer py-3 text-sm">Address & visit preparation</summary><p className="text-sm">{s.address}</p>{o?<div className="mt-3 space-y-2 text-xs text-slate-600">
             <p>Last visit: {o.lastVisit?new Date(o.lastVisit).toLocaleDateString():"Not recorded"}</p><p>Last referral: {o.lastReferral?new Date(o.lastReferral).toLocaleDateString():"Not available"}</p><p>CRM: {o.crm}</p><p>Follow-ups: {o.tasks.length?o.tasks.join(" · "):"None recorded"}</p><p>Suggested conversation: {o.topic??"No recorded suggestion yet. Open the account’s visit brief."}</p>
-            <Link className={button} href={"/accounts/"+o.id}>Open account</Link><Link className={button} href={"/accounts/"+o.id+"/check-in"}>Check in</Link><Link className={button} href={"/lunches/new?account="+o.id}>Schedule lunch</Link>
+            <Link className={button} href={"/accounts/"+o.id}>Open account</Link><Link className={button} href={"/accounts/"+o.id+"/check-in"}>Check in</Link><BusinessFeatureLink locked={!businessAccess} className={button} href={"/lunches/new?account="+o.id}>Schedule lunch</BusinessFeatureLink>
           </div>:null}</details>
         </li>;
       })}</ol>

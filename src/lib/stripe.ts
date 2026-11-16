@@ -1,5 +1,5 @@
 import "server-only";
-import { BILLING_PLANS, isPaidSubscription, type StripeSubscription } from "./domain/paid-access";
+import { BILLING_PLANS, isPaidSubscription, type StripeSubscription, tierForPriceId, type PlanTier } from "./domain/paid-access";
 
 export { BILLING_PLANS };
 export function stripeConfigured() { return Boolean(process.env.STRIPE_SECRET_KEY?.trim()); }
@@ -18,10 +18,14 @@ export async function stripeRequest<T>(path: string, body?: URLSearchParams, ide
 export async function customerSubscriptions(customer: string) {
   return stripeRequest<{ data: StripeSubscription[] }>(`subscriptions?customer=${encodeURIComponent(customer)}&status=all&limit=100&expand[]=data.latest_invoice`);
 }
-export async function hasPaidAccess(customer: string | null | undefined, organizationId: string) {
-  if (!customer || !stripeConfigured()) return false;
-  try {
-    const subscriptions = await customerSubscriptions(customer);
-    return subscriptions.data.some(s => isPaidSubscription(s, customer, organizationId));
-  } catch { return false; } // Failed verification never grants workspace access.
+export async function getPaidTier(customer:string|null|undefined,organizationId:string):Promise<PlanTier|null>{
+ if(!customer||!stripeConfigured())return null;
+ try{
+  const current=await customerSubscriptions(customer);
+  const paid=current.data.find(s=>isPaidSubscription(s,customer,organizationId));
+  return paid?tierForPriceId(paid.items.data[0].price.id):null;
+ }catch{return null;}
+}
+export async function hasPaidAccess(customer:string|null|undefined,organizationId:string){
+ return (await getPaidTier(customer,organizationId))!==null;
 }

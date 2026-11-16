@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BILLING_PLANS, isPaidSubscription, type StripeSubscription } from "./paid-access";
+import { BILLING_PLANS, isPaidSubscription, type StripeSubscription,tierForPriceId,hasBusinessFeatures } from "./paid-access";
 const now = 1794535200000;
 const paid = (): StripeSubscription => ({ id: "sub_a", customer: "cus_a", status: "active", livemode: true, metadata: { organizationId: "org_a" }, latest_invoice: { status: "paid" }, items: { data: [{ price: { id: BILLING_PLANS.monthly.price }, quantity: 1, current_period_end: now / 1000 + 3600 }] } });
 describe("Stripe payment entitlement", () => {
@@ -11,3 +11,6 @@ describe("Stripe payment entitlement", () => {
   it("denies exactly at the paid period boundary", () => { const s = paid(); s.items.data[0].current_period_end = now / 1000; expect(isPaidSubscription(s, "cus_a", "org_a", now)).toBe(false); });
   it("rejects an unrelated price", () => { const s = paid(); s.items.data[0].price.id = "price_other"; expect(isPaidSubscription(s, "cus_a", "org_a", now)).toBe(false); });
 });
+
+it("uses the approved Business and Individual prices and keeps legacy Business entitlements",()=>{expect(BILLING_PLANS.monthly.cents).toBe(4800);expect(BILLING_PLANS.annual.cents).toBe(48000);expect(BILLING_PLANS.individual_monthly.cents).toBe(2900);expect(BILLING_PLANS.individual_annual.cents).toBe(29000);expect(tierForPriceId(BILLING_PLANS.individual_monthly.price)).toBe("individual");expect(tierForPriceId("price_1UZwGIAJxC2GoXaR1BvbNtJc")).toBe("business");expect(tierForPriceId("price_unknown")).toBeNull();});
+it("recognizes paid Individual access without granting Business features",()=>{const sub=paid();sub.items.data[0].price.id=BILLING_PLANS.individual_monthly.price;expect(isPaidSubscription(sub,"cus_a","org_a",now)).toBe(true);expect(hasBusinessFeatures({planTier:"individual"})).toBe(false);expect(hasBusinessFeatures({planTier:"business"})).toBe(true);});
