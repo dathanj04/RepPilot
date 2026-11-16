@@ -7,7 +7,7 @@ import { CountyLayer } from "./county-layer";
 import { LassoLayer } from "./lasso-layer";
 import { insideLasso, type MapPoint } from "@/lib/maps/lasso";
 import { optimizeRouteAction } from "@/lib/maps/route-actions";
-import { ArrowUpRight, MapPin, Route, SlidersHorizontal } from "lucide-react";
+import { ArrowUpRight, Grid2X2, Lasso, LocateFixed, LoaderCircle, Map as MapOutline, MapPin, Route, SlidersHorizontal } from "lucide-react";
 import { MapContainer, TileLayer, CircleMarker, Circle, Polygon, Tooltip, Popup, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { MARKER_TONES, type MarkerTone } from "@/lib/domain/catalog";
@@ -355,19 +355,19 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
 
       {mode === "list" && !accountsMinimized ? <div className="relative z-0 h-full bg-white pt-28 md:hidden">{list}</div> : <div className="relative z-0 h-full isolate">{canvas}</div>}
 
-      <div className="territory-map-tools absolute right-3 bottom-24 z-20 flex flex-col gap-2 md:bottom-3">
-        <button type="button" aria-pressed={zipcodesShown} title="U.S. Census ZIP Code Tabulation Areas (ZCTAs)" className={`min-h-11 rounded-xl px-3 text-sm font-medium shadow-sm ring-1 ring-slate-200 ${zipcodesShown ? "bg-blue-700 text-white" : "bg-white text-[#10263E]"}`} onClick={() => { setZipcodesShown(value => !value); setZipcodeError(false); setMode("map"); }}>Zipcode outlines {zipcodesShown ? "on" : "off"}</button>
+      <div className="territory-map-tools absolute right-3 bottom-24 z-20 flex flex-col items-end gap-2 md:bottom-3">
+        <button type="button" aria-pressed={zipcodesShown} aria-label="Toggle ZIP-code outlines" title="ZIP-code outlines (Census ZCTAs)" className={`grid size-11 shrink-0 place-items-center rounded-xl shadow-md ring-1 ring-slate-200 transition-colors ${zipcodesShown ? "bg-blue-700 text-white" : "bg-white text-[#10263E]"}`} onClick={() => { setZipcodesShown(value => !value); setZipcodeError(false); setMode("map"); }}><Grid2X2 className="size-5" aria-hidden="true" /></button>
         {zipcodesShown && zoom < 8 ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">Zoom in to see ZIP-code boundaries.</p> : null}
         {zipcodesShown && zipcodeError ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">Some ZIP-area outlines could not load. Toggle off and on to retry.</p> : null}
-        <button type="button" aria-pressed={countiesShown} className={`min-h-11 rounded-xl px-3 text-sm font-medium shadow-sm ring-1 ring-slate-200 ${countiesShown ? "bg-violet-700 text-white" : "bg-white text-[#10263E]"}`} onClick={() => { setCountiesShown(value => !value); setCountyError(false); setMode("map"); }}>County outlines {countiesShown ? "on" : "off"}</button>
+        <button type="button" aria-pressed={countiesShown} aria-label="Toggle county outlines" title="County outlines" className={`grid size-11 shrink-0 place-items-center rounded-xl shadow-md ring-1 ring-slate-200 transition-colors ${countiesShown ? "bg-violet-700 text-white" : "bg-white text-[#10263E]"}`} onClick={() => { setCountiesShown(value => !value); setCountyError(false); setMode("map"); }}><MapOutline className="size-5" aria-hidden="true" /></button>
         {countiesShown && countyError ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">Some Census county outlines could not load. Toggle off and on to retry.</p> : null}
-        <button type="button" disabled={routing} aria-pressed={lasso} className="h-11 rounded-xl bg-[#10263E] px-3 text-sm font-medium text-white shadow-sm disabled:opacity-60" onClick={() => { setMode("map"); setLasso(!lasso); setRouteNote(""); }}>
-          {routing ? "Creating route…" : lasso ? "Cancel lasso" : "Lasso route"}
+        <button type="button" disabled={routing} aria-pressed={lasso} aria-label={routing ? "Creating route" : lasso ? "Cancel lasso route" : "Lasso route"} title={lasso ? "Cancel lasso route" : "Draw a lasso route"} className={`grid size-11 shrink-0 place-items-center rounded-xl shadow-md ring-1 transition-colors disabled:opacity-60 ${lasso ? "bg-[#19B78A] text-[#06281f] ring-[#19B78A]" : "bg-[#10263E] text-white ring-[#10263E]"}`} onClick={() => { setMode("map"); setLasso(!lasso); setRouteNote(""); }}>
+          {routing ? <LoaderCircle className="size-5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Lasso className="size-5" aria-hidden="true" />}
         </button>
         {lasso ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">Draw around 2–12 saved account dots, then release to create and optimize your route. First and last selected stops stay fixed; adjust them in Route Planner.</p> : null}
         {routeNote ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">{routeNote}</p> : null}
-        <button type="button" className="h-11 rounded-xl bg-white px-3 text-sm font-medium shadow-sm ring-1 ring-slate-200" disabled={locating} onClick={locate}>
-          {locating ? "Finding location…" : "My location"}
+        <button type="button" className="grid size-11 shrink-0 place-items-center rounded-xl bg-white text-[#10263E] shadow-md ring-1 ring-slate-200 disabled:opacity-60" aria-label={locating ? "Finding location" : "My location"} title="My location" aria-busy={locating} disabled={locating} onClick={locate}>
+          {locating ? <LoaderCircle className="size-5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <LocateFixed className="size-5" aria-hidden="true" />}
         </button>
         {locationNote ? <p role="status" className="max-w-[240px] rounded-xl bg-white/95 p-3 text-xs text-[#10263E] shadow-sm">{locationNote}</p> : null}
       </div>
