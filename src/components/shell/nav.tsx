@@ -90,7 +90,13 @@ export function BottomNav({ unread }: { unread: number }) {
         {items.map(item => {
           const Icon = ICONS[item.icon];
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-          return <li key={item.href}><Link href={item.href} aria-label={item.label} title={item.label} aria-current={active ? "page" : undefined} onClick={() => setExpanded(false)} className={cn("relative flex h-11 items-center gap-3 rounded-xl px-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-[#b5f4dd]", active ? "bg-[#b5f4dd] text-[#10263E]" : "text-slate-300 hover:bg-white/10")}>
+          return <li key={item.href}><Link href={item.href} aria-label={pathname === "/map" && item.href === "/accounts" ? "Saved accounts" : item.label} title={pathname === "/map" && item.href === "/accounts" ? "Saved accounts" : item.label} aria-current={active ? "page" : undefined} onClick={event => {
+              setExpanded(false);
+              if (pathname === "/map" && item.href === "/accounts") {
+                event.preventDefault();
+                window.dispatchEvent(new Event("reppilot:toggle-saved-accounts"));
+              }
+            }} className={cn("relative flex h-11 items-center gap-3 rounded-xl px-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-[#b5f4dd]", active ? "bg-[#b5f4dd] text-[#10263E]" : "text-slate-300 hover:bg-white/10")}>
             <Icon className="size-5 shrink-0" aria-hidden="true" />
             {expanded ? <span>{item.label}</span> : null}
             {item.href === "/more" && unread > 0 ? <span className="absolute right-0 top-0 rounded-full bg-[#D94B4B] px-1 text-[10px] text-white">{unread}</span> : null}
