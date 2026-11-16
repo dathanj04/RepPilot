@@ -1,4 +1,5 @@
 import Link from "next/link";
+import {redirect} from "next/navigation";
 import { connection } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { logoutAction } from "@/lib/actions";
@@ -12,6 +13,7 @@ export default async function TrialPage() {
   await connection();
   const user = await getCurrentUser({ allowExpiredTrial: true });
   const expired = user.trialDaysLeft === 0;
+  if(expired)redirect("/billing?trial=ended");
   return <PublicPage title={expired ? "Your free trial has ended" : "Your RepPilot trial"}>
     <p>{user.organizationName}</p>
     <p>{expired ? "Your 14 days of free workspace access are complete. Choose a paid subscription in Billing to restore access. You have not been charged." : user.trialEndsAt ? `Your free access ends ${new Date(user.trialEndsAt).toISOString().replace("T", " at ").slice(0, 23)} UTC. No credit card is required and there is no automatic charge.` : "Your organization has an active subscription."}</p>

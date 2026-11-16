@@ -4,6 +4,7 @@ vi.mock("server-only",()=>({}));
 const mocks = vi.hoisted(()=>({ subscription:vi.fn(),receipt:vi.fn(),transaction:vi.fn(),stripe:vi.fn() }));
 vi.mock("@/lib/db",()=>({prisma:{subscription:{findUnique:mocks.subscription},auditLog:{findUnique:mocks.receipt},$transaction:mocks.transaction}}));
 vi.mock("@/lib/stripe",()=>({customerSubscriptions:mocks.stripe}));
+vi.mock("@/lib/billing-flow",()=>({completeTrialCardSetup:vi.fn()}));
 import { POST } from "./route";
 function request(customer="cus_example", valid=true) {
  const body=JSON.stringify({id:"evt_example",type:"invoice.paid",livemode:true,data:{object:{customer}}}),t=Math.floor(Date.now()/1000);

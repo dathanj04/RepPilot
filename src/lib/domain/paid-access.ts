@@ -7,6 +7,7 @@ export const BILLING_PLANS = {
 export type StripeSubscription = {
   id: string; customer: string; status: string; livemode: boolean;
   metadata?: Record<string, string>; pause_collection?: unknown;
+  trial_end?: number|null; cancel_at_period_end?: boolean; default_payment_method?: string|null;
   latest_invoice?: { status?: string; paid?: boolean } | string | null;
   items: { data: Array<{ current_period_end?: number; price: { id: string }; quantity?: number }> };
 };

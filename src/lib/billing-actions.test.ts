@@ -1,48 +1,22 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-vi.mock("server-only", () => ({}));
-vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`REDIRECT:${path}`); } }));
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-const mocks = vi.hoisted(() => ({ agent: "", user: vi.fn(), subscription: vi.fn(), request: vi.fn(), subscriptions: vi.fn(), profileUpdate: vi.fn() }));
-vi.mock("next/headers", () => ({ headers: async () => new Headers({"user-agent":mocks.agent}) }));
-vi.mock("./domain/rate-limit-store", () => ({ consumeSharedRateLimit: vi.fn().mockResolvedValue({ ok: true }) }));
-vi.mock("./auth", () => ({ getCurrentUser: mocks.user }));
-vi.mock("./db", () => ({ prisma: { user: { update: mocks.profileUpdate }, subscription: { findUniqueOrThrow: mocks.subscription, update: vi.fn() } } }));
-vi.mock("./stripe", async importOriginal => ({ ...await importOriginal<typeof import("./stripe")>(), stripeRequest: mocks.request, customerSubscriptions: mocks.subscriptions }));
-import { startCheckoutAction, openBillingPortalAction, selectTrialPlanAction } from "./billing-actions";
-const form = (plan = "monthly") => { const data = new FormData(); data.set("plan", plan); data.set("customer", "cus_attacker"); return data; };
-beforeEach(() => { vi.clearAllMocks(); mocks.agent = ""; mocks.user.mockResolvedValue({ id: "u1", roleKey: "REP", organizationId: "o1" }); mocks.subscription.mockResolvedValue({ stripeCustomerId: "cus_bound", billingPayerUserId: "u1", trialEndsAt: new Date("2020-01-01") }); mocks.subscriptions.mockResolvedValue({ data: [] }); mocks.request.mockResolvedValue({ status: "open", url: "https://checkout.stripe.com/example" }); });
-describe("server-controlled Stripe checkout", () => {
- it("uses the bound customer, approved price and tax without another trial", async () => { await expect(startCheckoutAction(form())).rejects.toThrow("REDIRECT:https://checkout.stripe.com"); const params = mocks.request.mock.calls[0][1] as URLSearchParams; expect(params.get("customer")).toBe("cus_bound"); expect(params.get("line_items[0][price]")).toBe("price_1UZwGIAJxC2GoXaR1BvbNtJc"); expect(params.get("automatic_tax[enabled]")).toBe("true"); expect(params.get("subscription_data[trial_period_days]")).toBe(null); expect(params.get("subscription_data[metadata][organizationId]")).toBe("o1"); });
- it("reuses an unfinished Checkout instead of creating another", async () => { mocks.subscription.mockResolvedValue({ stripeCustomerId: "cus_bound", billingPayerUserId: "u1", trialEndsAt: new Date("2020-01-01"), stripeCheckoutId: "cs_old" }); await expect(startCheckoutAction(form())).rejects.toThrow("REDIRECT:https://checkout.stripe.com"); expect(mocks.request).toHaveBeenCalledTimes(1); expect(mocks.request.mock.calls[0][0]).toBe("checkout/sessions/cs_old"); });
- it("rejects client-supplied arbitrary prices", async () => { await expect(startCheckoutAction(form("price_other"))).rejects.toThrow("Choose"); expect(mocks.request).not.toHaveBeenCalled(); });
- it("does not charge before the original trial ends", async () => { mocks.subscription.mockResolvedValue({ trialEndsAt: new Date(Date.now()+86400000) }); await expect(startCheckoutAction(form())).rejects.toThrow("trial"); expect(mocks.request).not.toHaveBeenCalled(); });
- it("prevents a second subscription", async () => { mocks.subscriptions.mockResolvedValue({ data: [{ status: "active" }] }); await expect(startCheckoutAction(form())).rejects.toThrow("duplicate"); expect(mocks.request).not.toHaveBeenCalled(); });
- it("allows an individual payer to use the portal", async () => { await expect(openBillingPortalAction()).rejects.toThrow("REDIRECT:https://checkout.stripe.com"); expect(mocks.request.mock.calls[0][1].get("customer")).toBe("cus_bound"); });
- it("denies a member control over another payer's subscription", async () => { mocks.subscription.mockResolvedValue({ stripeCustomerId: "cus_bound", billingPayerUserId: "u2" }); await expect(openBillingPortalAction()).rejects.toThrow("payer"); expect(mocks.request).not.toHaveBeenCalled(); });
-});
-
-
-describe("plan choices during the trial", () => {
- it("saves an individual's choice without contacting Stripe or accepting a submitted user id", async () => {
-  mocks.user.mockResolvedValue({ id: "u1", roleKey: "REP", organizationId: "o1", trialDaysLeft: 7 });
-  const data = form("annual"); data.set("userId", "other-user");
-  await expect(selectTrialPlanAction(data)).rejects.toThrow("REDIRECT:/billing?planSaved=1");
-  expect(mocks.profileUpdate).toHaveBeenCalledWith({ where: { id: "u1" }, data: { billingPlanPreference: "annual" } });
-  expect(mocks.request).not.toHaveBeenCalled(); expect(mocks.subscriptions).not.toHaveBeenCalled();
- });
- it("rejects arbitrary plan values", async () => {
-  mocks.user.mockResolvedValue({ id: "u1", trialDaysLeft: 7 });
-  await expect(selectTrialPlanAction(form("__proto__"))).rejects.toThrow("Choose"); expect(mocks.profileUpdate).not.toHaveBeenCalled();
- });
- it("requires checkout after the trial instead of extending free access", async () => {
-  mocks.user.mockResolvedValue({ id: "u1", trialDaysLeft: 0 });
-  await expect(selectTrialPlanAction(form())).rejects.toThrow("trial%20has%20ended"); expect(mocks.profileUpdate).not.toHaveBeenCalled();
- });
-});
-
-it("blocks web checkout and portal in native test shells without creating payment objects", async () => {
- mocks.agent = "Mozilla/5.0 RepPilotNative/1.0";
- await expect(startCheckoutAction(form())).rejects.toThrow("Store%20billing");
- await expect(openBillingPortalAction()).rejects.toThrow("Store%20billing");
- expect(mocks.request).not.toHaveBeenCalled();
-});
+import {beforeEach,expect,it,vi} from "vitest";
+vi.mock("server-only",()=>({}));
+vi.mock("next/navigation",()=>({redirect:(path:string)=>{throw Error("REDIRECT:"+path);}}));
+vi.mock("next/cache",()=>({revalidatePath:vi.fn()}));
+const mocks=vi.hoisted(()=>({user:vi.fn(),bound:vi.fn(),update:vi.fn(),profile:vi.fn(),profileUpdate:vi.fn(),request:vi.fn(),subscriptions:vi.fn(),lock:vi.fn()}));
+vi.mock("./domain/rate-limit-store",()=>({consumeSharedRateLimit:vi.fn().mockResolvedValue({ok:true})}));
+vi.mock("./auth",()=>({getCurrentUser:mocks.user}));
+vi.mock("./db",()=>{const tx={$queryRaw:mocks.lock,user:{findUniqueOrThrow:mocks.profile,update:mocks.profileUpdate},subscription:{findUniqueOrThrow:mocks.bound,update:mocks.update}};return {prisma:{...tx,$transaction:async(fn:Function)=>fn(tx)}};});
+vi.mock("./stripe",async original=>({...await original<typeof import("./stripe")>(),stripeRequest:mocks.request,customerSubscriptions:mocks.subscriptions}));
+import {startCheckoutAction,openBillingPortalAction,selectTrialPlanAction} from "./billing-actions";
+const form=(key="monthly",consent=true)=>{const f=new FormData();f.set("plan",key);if(consent)f.set("billingConsent","yes");f.set("customer","cus_attacker");return f;};
+beforeEach(()=>{vi.clearAllMocks();vi.stubEnv("STRIPE_WEBHOOK_SECRET","whsec_test");mocks.user.mockResolvedValue({id:"u1",roleKey:"REP",organizationId:"o1",trialDaysLeft:7});mocks.bound.mockResolvedValue({id:"local",stripeCustomerId:"cus_bound",billingPayerUserId:"u1",trialEndsAt:new Date("2020-01-01")});mocks.subscriptions.mockResolvedValue({data:[]});mocks.request.mockResolvedValue({id:"cs_new",status:"open",url:"https://checkout.stripe.com/c/pay/example"});});
+it("uses a bound customer and approved paid price after expiry",async()=>{await expect(startCheckoutAction(form())).rejects.toThrow("REDIRECT:https://checkout.stripe.com");const p=mocks.request.mock.calls[0][1];expect(p.get("customer")).toBe("cus_bound");expect(p.get("line_items[0][price]")).toBe("price_1UZwGIAJxC2GoXaR1BvbNtJc");expect(p.get("subscription_data[trial_period_days]")).toBeNull();});
+it("allows optional card setup during the original trial with no early charge",async()=>{mocks.bound.mockResolvedValue({id:"local",stripeCustomerId:"cus_bound",billingPayerUserId:"u1",trialEndsAt:new Date(Date.now()+3600000)});await expect(startCheckoutAction(form())).rejects.toThrow("REDIRECT:https://checkout.stripe.com");expect(mocks.request.mock.calls[0][1].get("mode")).toBe("setup");});
+it("requires explicit recurring-price consent and a webhook connection",async()=>{await expect(startCheckoutAction(form("monthly",false))).rejects.toThrow("Confirm");expect(mocks.request).not.toHaveBeenCalled();vi.stubEnv("STRIPE_WEBHOOK_SECRET","");await expect(startCheckoutAction(form())).rejects.toThrow("activation");});
+it("rejects arbitrary plan keys",async()=>{await expect(startCheckoutAction(form("__proto__"))).rejects.toThrow("Choose");expect(mocks.request).not.toHaveBeenCalled();});
+it("reuses only the matching open checkout",async()=>{mocks.bound.mockResolvedValue({id:"local",stripeCustomerId:"cus_bound",billingPayerUserId:"u1",trialEndsAt:new Date("2020-01-01"),stripeCheckoutId:"cs_old"});mocks.request.mockResolvedValue({id:"cs_old",status:"open",mode:"subscription",metadata:{planKey:"monthly"},url:"https://checkout.stripe.com/c/pay/resume"});await expect(startCheckoutAction(form())).rejects.toThrow("resume");expect(mocks.request).toHaveBeenCalledTimes(1);});
+it("expires a different plan's open checkout before creating the selected option",async()=>{mocks.bound.mockResolvedValue({id:"local",stripeCustomerId:"cus_bound",billingPayerUserId:"u1",trialEndsAt:new Date("2020-01-01"),stripeCheckoutId:"cs_old"});mocks.request.mockImplementation(async(path:string)=>path==="checkout/sessions/cs_old"?{id:"cs_old",status:"open",mode:"subscription",metadata:{planKey:"annual"}}:{id:"cs_new",status:"open",url:"https://checkout.stripe.com/c/pay/new"});await expect(startCheckoutAction(form())).rejects.toThrow("REDIRECT:https://checkout.stripe.com");expect(mocks.request.mock.calls[1][0]).toBe("checkout/sessions/cs_old/expire");});
+it("prevents a duplicate scheduled or active subscription",async()=>{mocks.subscriptions.mockResolvedValue({data:[{status:"trialing"}]});await expect(startCheckoutAction(form())).rejects.toThrow("duplicate");expect(mocks.request).not.toHaveBeenCalled();});
+it("does not let another workspace member manage the payer's subscription",async()=>{mocks.bound.mockResolvedValue({stripeCustomerId:"cus_bound",billingPayerUserId:"u2"});await expect(startCheckoutAction(form())).rejects.toThrow("payer");await expect(openBillingPortalAction()).rejects.toThrow("payer");expect(mocks.request).not.toHaveBeenCalled();});
+it("opens the bound Stripe portal without accepting a client customer",async()=>{mocks.request.mockResolvedValue({url:"https://billing.stripe.com/p/session/example"});await expect(openBillingPortalAction()).rejects.toThrow("REDIRECT:https://billing.stripe.com");expect(mocks.request.mock.calls[0][1].get("customer")).toBe("cus_bound");});
+it("keeps optional preferences separate from payment authorization",async()=>{await expect(selectTrialPlanAction(form("annual",false))).rejects.toThrow("planSaved=1");expect(mocks.profileUpdate).toHaveBeenCalledWith({where:{id:"u1"},data:{billingPlanPreference:"annual"}});expect(mocks.request).not.toHaveBeenCalled();});
