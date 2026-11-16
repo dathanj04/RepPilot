@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, MapPin, Route, SlidersHorizontal } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { MapContainer, TileLayer, CircleMarker, Circle, Polygon, Tooltip, Popup, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { MARKER_TONES, type MarkerTone } from "@/lib/domain/catalog";
@@ -11,7 +10,9 @@ import { findAccurateLocation, locationAccuracy } from "@/lib/maps/location";
 import type { PlaceCandidate } from "@/lib/maps/provider";
 import type { SearchArea } from "@/lib/maps/search-area";
 import { directionsUrl, formatStraightLine, straightLineMiles } from "@/lib/domain/distance";
-import { addDiscoveredAccountAction, searchPlacesAction } from "@/lib/maps/actions";
+import { DiscoveredOfficeForm } from "./discovered-office-form";
+import { discoveryKey } from "@/lib/maps/discovery";
+import { searchPlacesAction } from "@/lib/maps/actions";
 
 export type MapAccount = {
   id: string;
@@ -87,6 +88,9 @@ function Recenter({ center, accuracy }: { center: [number, number] | null; accur
 }
 
 export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey, center }: Props) {
+  const [discoveryQuery, setDiscoveryQuery] = useState("");
+  const [savedDiscoveries, setSavedDiscoveries] = useState<Record<string,string>>({});
+  const markSaved = useCallback((place: PlaceCandidate, id: string) => { setSavedDiscoveries(prev => ({ ...prev, [discoveryKey(place)]: id })); }, []);
   const [discovered, setDiscovered] = useState<PlaceCandidate[]>([]);
   const [searchArea, setSearchArea] = useState<SearchArea | null>(null);
   const [mode, setMode] = useState<"map" | "list">("map");
@@ -105,7 +109,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
   const cancelLocation = useRef<(() => void) | null>(null);
   useEffect(() => () => cancelLocation.current?.(), []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const receivePlaces = useCallback((places: PlaceCandidate[]) => { setDiscovered(places); setMode("map"); setSelectedId(null); }, []);
+  const receivePlaces = useCallback((places: PlaceCandidate[], searchQuery = "") => { setDiscoveryQuery(searchQuery); setDiscovered(places); setMode("map"); setSelectedId(null); }, []);
   const [zoom, setZoom] = useState(10);
   const [focus, setFocus] = useState<[number, number] | null>(null);
   const [locationNote, setLocationNote] = useState<string | null>(null);
@@ -162,8 +166,8 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
   }
 
   const list = (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="max-h-[55%] shrink-0 space-y-4 overflow-y-auto border-b border-slate-200/80 p-5">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto">
+      <div className="shrink-0 space-y-4 border-b border-slate-200/80 p-5">
         <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] font-semibold tracking-[0.18em] text-[#66758B]">FIELD WORKSPACE</p><h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#10263E]">My territory</h1></div><Link href="/route" aria-label="Open route planner" className="grid size-11 place-items-center rounded-xl bg-[#10263E] text-white"><Route className="size-5" aria-hidden="true" /></Link></div>
         <input
           value={query}
@@ -198,10 +202,10 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
           <SelectFilter label="Status" value={status} onChange={setStatus} options={statuses} />
         </div>
         </details>
-        <PlacesSearch here={here} area={searchArea} onResults={receivePlaces} />
+        <PlacesSearch here={here} area={searchArea} onResults={receivePlaces} saved={savedDiscoveries} onSaved={markSaved} />
       </div>
-      <p aria-live="polite" className="border-b border-slate-100 px-5 py-3 text-xs font-medium text-[#66758B]">{filtered.length} of {accounts.length} practices</p>
-      <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-slate-50/50 p-3">
+      <p aria-live="polite" className="border-b border-slate-100 px-5 py-3 text-xs font-medium text-[#66758B]">Saved accounts: {filtered.length} of {accounts.length} practices</p>
+      <ul className="shrink-0 space-y-2 bg-slate-50/50 p-3">
         {filtered.length === 0 ? <li className="rounded-2xl bg-[#F5F7FA] p-4 text-sm">No offices match these filters.</li> : null}
         {filtered.map((account) => (
           <li key={account.id}>
@@ -231,9 +235,9 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
       {tomtomMapsKey && !tomtomFailed && showTraffic ? <TileLayer attribution="Traffic &copy; TomTom" maxZoom={22} opacity={0.8} url={`https://api.tomtom.com/maps/orbis/traffic/flow/raster/tile/{z}/{x}/{y}?apiVersion=2&style=light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} /> : null}
       <MapEvents onZoom={setZoom} onArea={setSearchArea} />
       <Recenter center={focus} accuracy={here && focus?.[0] === here.lat && focus?.[1] === here.lng ? here.accuracy : undefined} />
-      {discovered.map((place, index) => <CircleMarker key={`discovered-${place.lat}-${place.lng}-${index}`} center={[place.lat, place.lng]} radius={10} pathOptions={{ color: "white", weight: 2, fillColor: "#7c3aed", fillOpacity: 1 }}>
+      {discovered.map((place, index) => <CircleMarker key={`discovered-${place.lat}-${place.lng}-${index}`} center={[place.lat, place.lng]} radius={10} pathOptions={{ color: "white", weight: 2, fillColor: savedDiscoveries[discoveryKey(place)] ? "#087f5b" : "#7c3aed", fillOpacity: 1 }}>
         <Tooltip>{place.name} · Search result</Tooltip>
-        <Popup><strong>{place.name}</strong><br />{place.street}<br />{place.city}, {place.state} {place.zip}<br /><span>Not saved. Use Add in Find offices to save this account.</span></Popup>
+        <Popup><strong>{place.name}</strong><br />{place.street}<br />{place.city}, {place.state} {place.zip}<br /><DiscoveredOfficeForm place={place} query={discoveryQuery} savedId={savedDiscoveries[discoveryKey(place)]} onSaved={markSaved} /></Popup>
       </CircleMarker>)}
       {boundary ? <Polygon positions={boundary} pathOptions={{ color: "#19B78A", weight: 2, fillOpacity: 0.05 }} /> : null}
       {here ? <Circle center={[here.lat, here.lng]} radius={Math.max(1, here.accuracy)} interactive={false} pathOptions={{ color: "#2563eb", fillColor: "#60a5fa", weight: 1, fillOpacity: 0.12 }} /> : null}
@@ -364,8 +368,7 @@ function SelectFilter({ label, value, onChange, options }: { label: string; valu
   );
 }
 
-function PlacesSearch({ here, area, onResults }: { here: { lat: number; lng: number } | null; area: SearchArea | null; onResults: (places: PlaceCandidate[]) => void }) {
-  const router = useRouter();
+function PlacesSearch({ here, area, onResults, saved, onSaved }: { here: { lat: number; lng: number } | null; area: SearchArea | null; onResults: (places: PlaceCandidate[], query?: string) => void; saved: Record<string,string>; onSaved: (place: PlaceCandidate, id: string) => void }) {
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [places, setPlaces] = useState<Awaited<ReturnType<typeof searchPlacesAction>>["places"]>([]);
@@ -375,11 +378,11 @@ function PlacesSearch({ here, area, onResults }: { here: { lat: number; lng: num
     setPending(true);
     setMessage(null);
     setPlaces([]);
-    onResults([]);
+    onResults([], query);
     try {
       const result = await searchPlacesAction(query, here, area);
       setPlaces(result.places);
-      onResults(result.places);
+      onResults(result.places, query);
       setMessage(result.message);
     } catch { setMessage("Office search could not finish. Please try again."); }
     finally { setPending(false); }
@@ -404,38 +407,12 @@ function PlacesSearch({ here, area, onResults }: { here: { lat: number; lng: num
       </div>
       {message ? <p role="status" className="mt-2 text-xs text-[#66758B]">{message}</p> : null}
       {places.length ? <button type="button" className="mt-2 min-h-11 text-xs underline" onClick={() => { setPlaces([]); onResults([]); setMessage(null); }}>Clear search results</button> : null}
-      <ul className="mt-2 space-y-2">
+      <ul aria-label="Discovered offices" className="mt-2 space-y-3">
         {places.map((place) => (
           <li key={`${place.name}-${place.zip}-${place.street}`} className="rounded-lg bg-white p-2 text-sm ring-1 ring-slate-200">
             <p className="font-medium">{place.name}</p>
             <p className="text-xs text-[#66758B]">{place.street}, {place.city}, {place.state} {place.zip}</p>
-            <form
-              className="mt-2 flex gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const formData = new FormData(event.currentTarget);
-                setPending(true);
-                void addDiscoveredAccountAction(formData).then((result) => {
-                  setPending(false);
-                  if ("error" in result && result.error) {
-                    setMessage(result.error);
-                    return;
-                  }
-                  router.push(`/accounts/${result.accountId}`);
-                  router.refresh();
-                });
-              }}
-            >
-              <input type="hidden" name="name" value={place.name} />
-              <input type="hidden" name="street" value={place.street} />
-              <input type="hidden" name="city" value={place.city} />
-              <input type="hidden" name="state" value={place.state} />
-              <input type="hidden" name="zip" value={place.zip} />
-              <input type="hidden" name="latitude" value={place.lat} />
-              <input type="hidden" name="longitude" value={place.lng} />
-              <input name="specialty" required aria-label={`Specialty for ${place.name}`} placeholder="Specialty" className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 px-2 text-xs" />
-              <button type="submit" className="h-9 rounded-lg bg-[#19B78A] px-2 text-xs font-semibold text-[#06281f]">Add</button>
-            </form>
+            <DiscoveredOfficeForm place={place} query={query} savedId={saved[discoveryKey(place)]} onSaved={onSaved} />
           </li>
         ))}
       </ul>

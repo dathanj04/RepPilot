@@ -13,3 +13,14 @@ describe("TomTom integration", () => {
  it("keeps routing coordinates in lat/lng order and enables live traffic", async () => { vi.stubEnv("NEXT_PUBLIC_TOMTOM_API_KEY", "a-public-test-key-of-valid-length"); const fetch=vi.fn().mockResolvedValue({ ok: true, json: async () => ({ routes: [{ summary: { lengthInMeters: 10, travelTimeInSeconds: 2 }, legs: [{ summary: { lengthInMeters: 10, travelTimeInSeconds: 2 } }] }] }) }); const result=await computeDrive([{lat:33,lng:-96},{lat:34,lng:-97}],fetch); expect(result.status).toBe("ok"); expect(fetch.mock.calls[0][0]).toContain("33,-96:34,-97/json?traffic=live"); expect(fetch.mock.calls[0][0]).not.toContain("a-public-test-key"); });
  it("blocks invalid coordinates before consuming quota", async () => { const fetch=vi.fn(); expect((await computeDrive([{lat:999,lng:0},{lat:0,lng:0}],fetch)).status).toBe("error"); expect(fetch).not.toHaveBeenCalled(); });
 });
+
+it("sends a broad pediatric specialty query and viewport constraint to TomTom before ranking", async () => {
+ vi.stubEnv("NEXT_PUBLIC_TOMTOM_API_KEY", "a-public-test-key-of-valid-length");
+ const fetch = vi.fn().mockResolvedValue({ok:true,json:async()=>({results:[]})});
+ await searchPlaces({query:"Pediatrician",bias:{lat:33,lng:-96},area:{west:-97,east:-95,south:32,north:34}},fetch);
+ const body = JSON.parse(fetch.mock.calls[0][1].body);
+ expect(body.query).toBe("pediatrics"); expect(body.maxResults).toBe(100);
+ expect(body.filters.geometry).toEqual({type:"rectangle",coordinates:[-97,32,-95,34]});
+ expect(body.filters.countryCodesIso2).toEqual(["US"]);
+ vi.unstubAllEnvs();
+});

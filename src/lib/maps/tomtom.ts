@@ -2,6 +2,8 @@ import "server-only";
 import { tomtomMapsKey } from "../maps-config";
 import type { MapsCallResult } from "./google";
 import type { DrivePlan, PlaceCandidate } from "./provider";
+import { discoveryQuery, discoveryKey } from "./discovery";
+import { validSearchArea, type SearchArea } from "./search-area";
 import type { LatLng } from "../domain/distance";
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -13,14 +15,15 @@ function point(result: Result): LatLng | null {
 export function parseTomtomPlaces(body: unknown): PlaceCandidate[] {
   const results = (body as { results?: Result[] } | null)?.results;
   if (!Array.isArray(results)) return [];
-  return results.flatMap(result => {
+  const candidates = results.flatMap(result => {
     if (!result || result.type !== "poi") return [];
     const p = point(result), a = result.address;
     if (!p || !a || a.countryCodeIso2 !== "US" || !result.title || !a.houseNumber || !a.street || !a.municipality || !a.postalCode || !a.countrySubdivisionCodeIso) return [];
     const state = a.countrySubdivisionCodeIso.replace(/^US-/, "");
     if (!/^[A-Z]{2}$/.test(state)) return [];
     return [{ name: result.title, street: `${a.houseNumber} ${a.street}`, city: a.municipality, state, zip: a.postalCode, ...p }];
-  }).slice(0, 100);
+  });
+  return [...new Map(candidates.map(place => [discoveryKey(place), place])).values()].slice(0, 100);
 }
 type Summary = { lengthInMeters?: number; travelTimeInSeconds?: number; trafficDelayInSeconds?: number };
 export function parseTomtomDrive(body: unknown): DrivePlan | null {
@@ -51,8 +54,8 @@ export async function geocodeAddress(address: string, fetchImpl: FetchLike = fet
   const location = first?.type === "address" ? point(first) : null;
   return location ? { status: "ok", value: location } : { status: "not_found" };
 }
-export async function searchPlaces(input: { query: string; bias: LatLng | null }, fetchImpl: FetchLike = fetch): Promise<MapsCallResult<PlaceCandidate[]>> {
-  const result = await call("maps/orbis/places/discover", "3", fetchImpl, { query: input.query, maxResults: 100, ...(input.bias ? { origin: { type: "point", coordinates: [input.bias.lng, input.bias.lat] }, preferences: { geometry: { type: "point", coordinates: [input.bias.lng, input.bias.lat] } } } : {}) }, "results(type,title,position,address)");
+export async function searchPlaces(input: { query: string; bias: LatLng | null; area?: SearchArea | null }, fetchImpl: FetchLike = fetch): Promise<MapsCallResult<PlaceCandidate[]>> {
+  const result = await call("maps/orbis/places/discover", "3", fetchImpl, { query: discoveryQuery(input.query), maxResults: 100, filters: { types: ["poi"], countryCodesIso2: ["US"], ...(validSearchArea(input.area) ? { geometry: { type: "rectangle", coordinates: [input.area.west, input.area.south, input.area.east, input.area.north] } } : {}) }, ...(input.bias ? { origin: { type: "point", coordinates: [input.bias.lng, input.bias.lat] }, preferences: { geometry: { type: "point", coordinates: [input.bias.lng, input.bias.lat] } } } : {}) }, "results(type,title,position,address)");
   return result.status === "ok" ? { status: "ok", value: parseTomtomPlaces(result.value) } : result;
 }
 export async function computeDrive(points: LatLng[], fetchImpl: FetchLike = fetch): Promise<MapsCallResult<DrivePlan>> {
