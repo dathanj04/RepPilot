@@ -181,3 +181,12 @@
   }
   .mobile-menu { bottom: calc(1rem + env(safe-area-inset-bottom)); }
 }
+
+/* Route planning has separate scroll and navigation surfaces on phones. */
+@media (max-width:767px) {
+  .territory-map-search { left:.75rem; right:.75rem; }
+  .territory-map-tools { bottom:calc(5rem + env(safe-area-inset-bottom)); }
+  .app-viewport[data-map-view="true"] .mobile-workspace { padding-bottom:calc(3.75rem + env(safe-area-inset-bottom)); }
+  .route-action-bar { bottom:calc(3.75rem + env(safe-area-inset-bottom)); padding-bottom:.5rem; }
+  .route-workspace { padding-bottom:11rem; }
+}

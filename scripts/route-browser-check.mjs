@@ -1,0 +1,78 @@
+import assert from "node:assert/strict";
+import {readFile,mkdir,writeFile} from "node:fs/promises";
+import {spawn} from "node:child_process";
+const {chromium}=await import("/tmp/route-browser-tools/node_modules/playwright/index.mjs");
+if(process.env.CI!=="true"||!process.env.DATABASE_URL?.includes("@localhost:5432/route_test"))throw Error("Use the isolated CI database.");
+await mkdir("route-browser-results",{recursive:true});
+let serverOutput="";
+const server=spawn(process.execPath,["--require","./scripts/route-browser-network.cjs","node_modules/next/dist/bin/next","start","-p","43123"],{env:{...process.env,ROUTE_BROWSER_TEST:"true"},stdio:["ignore","pipe","pipe"]});
+server.stdout.on("data",v=>{serverOutput+=v;});server.stderr.on("data",v=>{serverOutput+=v;});
+let browser;
+try{
+ for(let i=0;i<60;i++){try{await fetch("http://localhost:43123/login");break;}catch{if(i===59)throw Error("Server did not start");await new Promise(r=>setTimeout(r,1000));}}
+ const session=JSON.parse(await readFile("/tmp/route-browser-session.json","utf8"));
+ browser=await chromium.launch();
+ const config={viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1,timezoneId:"America/Chicago"};
+ const context=await browser.newContext(config);
+ const cookie={name:session.name,value:session.cookie,url:"http://localhost:43123",httpOnly:true,sameSite:"Lax"};
+ await context.addCookies([cookie]);
+ const page=await context.newPage();page.setDefaultTimeout(25000);
+ const errors=[];page.on("pageerror",e=>errors.push(e.message));
+ await page.route(/https:\/\/(api.tomtom.com\/maps|tile.openstreetmap.org)/,r=>r.fulfill({status:200,contentType:"image/png",body:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==","base64")}));
+ await page.goto("http://localhost:43123/route");
+ await page.getByRole("button",{name:"Add Location",exact:true}).waitFor();
+ await page.getByLabel("Route name",{exact:true}).fill("16 offices browser acceptance");
+ await page.getByLabel("Date & departure",{exact:true}).fill("2026-12-20T08:00");
+ await page.getByLabel("Working hours end",{exact:true}).fill("2026-12-20T23:00");
+ for(let i=1;i<=16;i++){
+  await page.getByRole("button",{name:"Add Location",exact:true}).click();
+  await page.getByRole("button",{name:"Office "+String(i).padStart(2,"0"),exact:true}).click();
+ }
+ const rows=page.locator("[data-stop-index]");
+ assert.equal(await rows.count(),16);
+ await page.getByRole("button",{name:"OPTIMIZE",exact:true}).click();
+ await page.getByText("Road order optimized around locked",{exact:false}).waitFor();
+ // The final office remains the endpoint when no explicit ending location is set.
+ assert.match(await rows.first().innerText(),/Office 15/);
+ await page.getByRole("button",{name:"Move Office 15 down",exact:true}).click();
+ assert.match(await rows.nth(1).innerText(),/Office 15/);
+ await rows.first().getByRole("button",{name:"Edit",exact:true}).click();
+ await rows.first().getByLabel("Visit duration (minutes)").fill("45");
+ await page.getByRole("button",{name:"SAVE",exact:true}).click();
+ await page.getByText("Route saved to your account.",{exact:true}).waitFor();
+ await page.reload();
+ await page.waitForFunction(()=>document.querySelectorAll("[data-stop-index]").length===16);
+ assert.equal(await rows.count(),16);
+ assert.match(await rows.first().innerText(),/45 min visit/);
+ const before=await page.locator(".mobile-workspace").evaluate(e=>e.scrollTop);
+ await rows.last().scrollIntoViewIfNeeded();
+ assert.ok(await page.locator(".mobile-workspace").evaluate(e=>e.scrollTop)>before,"Route list scrolls");
+ await page.screenshot({path:"route-browser-results/route-mobile.png",fullPage:true});
+ // Open from server data in a separate browser context with no device draft.
+ const fresh=await browser.newContext(config);await fresh.addCookies([cookie]);
+ const reopened=await fresh.newPage();reopened.setDefaultTimeout(25000);
+ await reopened.route(/https:\/\/(api.tomtom.com\/maps|tile.openstreetmap.org)/,r=>r.fulfill({status:204,body:""}));
+ await reopened.goto("http://localhost:43123/route");
+ await reopened.getByRole("tab",{name:"Saved Routes",exact:true}).click();
+ await reopened.getByRole("button",{name:"Open",exact:true}).click();
+ await reopened.waitForFunction(()=>document.querySelectorAll("[data-stop-index]").length===16);
+ assert.equal(await reopened.locator("[data-stop-index]").count(),16);
+ assert.match(await reopened.locator("[data-stop-index]").first().innerText(),/45 min visit/);
+ const go=reopened.getByRole("link",{name:"GO",exact:true});
+ assert.match(await go.getAttribute("href"),/google.com\/maps\/dir/);
+ await reopened.getByRole("link",{name:"View numbered route on map",exact:true}).click();
+ await reopened.locator(".leaflet-container").waitFor();
+ await reopened.waitForFunction(()=>document.querySelectorAll('path[fill="#16a34a"]').length===16);
+ assert.equal(await reopened.locator('path[stroke="#2563eb"]').count(),1);
+ const canvas=await reopened.locator(".leaflet-container").boundingBox();
+ assert.ok(canvas.height>680,"Map occupies most of the phone");
+ await reopened.screenshot({path:"route-browser-results/map-mobile.png",fullPage:true});
+ await reopened.getByRole("navigation",{name:"Mobile navigation"}).getByRole("link",{name:"Settings",exact:true}).click();
+ await reopened.getByRole("heading",{name:"More",exact:true}).waitFor();
+ const workspace=reopened.locator(".mobile-workspace");
+ await workspace.evaluate(e=>{e.scrollTop=500;});
+ assert.ok(await workspace.evaluate(e=>e.scrollTop)>0,"More screen scrolls after leaving map");
+ assert.deepEqual(errors,[]);
+ console.log("PASS: mobile 16-office create, optimize, manual reorder, duration edit, save, reload, separate-session reopen, numbered map, road polyline, Go link, route/More scrolling.");
+}catch(e){await writeFile("route-browser-results/server.log",serverOutput);console.error(serverOutput.slice(-6000));throw e;}
+finally{await browser?.close();server.kill("SIGTERM");}

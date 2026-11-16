@@ -1,5 +1,7 @@
 "use client";
 
+import type { SavedPlanning } from "@/lib/domain/route-planning";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -7,8 +9,8 @@ import { CountyLayer } from "./county-layer";
 import { LassoLayer } from "./lasso-layer";
 import { insideLasso, type MapPoint } from "@/lib/maps/lasso";
 import { optimizeRouteAction } from "@/lib/maps/route-actions";
-import { ArrowUpRight, Grid2X2, Lasso, LocateFixed, LoaderCircle, Map as MapOutline, MapPin, Route, SlidersHorizontal } from "lucide-react";
-import { MapContainer, TileLayer, CircleMarker, Circle, Polygon, Tooltip, Popup, useMap, useMapEvents } from "react-leaflet";
+import { ArrowUpRight, Layers, Search, Grid2X2, Lasso, LocateFixed, LoaderCircle, Map as MapOutline, MapPin, Route, SlidersHorizontal } from "lucide-react";
+import { MapContainer, TileLayer, CircleMarker, Circle, Polygon, Polyline, Tooltip, Popup, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { MARKER_TONES, type MarkerTone } from "@/lib/domain/catalog";
 import { findAccurateLocation, locationAccuracy } from "@/lib/maps/location";
@@ -40,6 +42,7 @@ export type MapAccount = {
 };
 
 type Props = {
+  activeRoute?: { id: string; planning: SavedPlanning } | null;
   accounts: MapAccount[];
   boundary: [number, number][] | null;
   googleMapsKey: string;
@@ -92,7 +95,7 @@ function Recenter({ center, accuracy }: { center: [number, number] | null; accur
   return null;
 }
 
-export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey, center }: Props) {
+export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey, center, activeRoute }: Props) {
   const [discoveryQuery, setDiscoveryQuery] = useState("");
   const [savedDiscoveries, setSavedDiscoveries] = useState<Record<string,string>>({});
   const markSaved = useCallback((place: PlaceCandidate, id: string) => { setSavedDiscoveries(prev => ({ ...prev, [discoveryKey(place)]: id })); }, []);
@@ -115,6 +118,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
   const countyFailed = useCallback(() => setCountyError(true), []);
   const [accountsMinimized, setAccountsMinimized] = useState(true);
   const [officeSearchOpen, setOfficeSearchOpen] = useState(false);
+  const [layersOpen, setLayersOpen] = useState(false);
   useEffect(() => {
     const toggle = () => { setAccountsMinimized(value => !value); setMode("map"); };
     window.addEventListener("reppilot:toggle-saved-accounts", toggle);
@@ -160,7 +164,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
     }
     return true;
   });
-  const groups = useMemo(() => cluster(filtered, zoom), [filtered, zoom]);
+  const groups = useMemo(() => cluster(filtered, 20), [filtered, zoom]);
   const selected = filtered.find((account) => account.id === selectedId) ?? null;
   const missingLocation = filtered.filter((account) => account.lat == null).length;
 
@@ -266,7 +270,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
     finally { setRouting(false); }
   }
 
-  const canvas = zipcodesShown || countiesShown || lasso || tomtomMapsKey || discovered.length > 0 || googleFailed || !googleMapsKey ? (
+  const canvas = activeRoute || zipcodesShown || countiesShown || lasso || tomtomMapsKey || discovered.length > 0 || googleFailed || !googleMapsKey ? (
     <MapContainer center={center} zoom={10} className="h-full w-full" zoomControl={false}>
       {tomtomMapsKey && !tomtomFailed ? <TileLayer attribution='<a href="https://www.tomtom.com/copyright/">&copy; TomTom</a> &copy; OpenStreetMap' maxZoom={22} url={`https://api.tomtom.com/maps/orbis/display/raster/tile/{z}/{x}/{y}?apiVersion=2&style=street-light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} eventHandlers={{ tileerror: () => setTomtomFailed(true) }} /> : <TileLayer attribution='&copy; OpenStreetMap' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />}
       {tomtomMapsKey && !tomtomFailed && showTraffic ? <TileLayer attribution="Traffic &copy; TomTom" maxZoom={22} opacity={0.8} url={`https://api.tomtom.com/maps/orbis/traffic/flow/raster/tile/{z}/{x}/{y}?apiVersion=2&style=light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} /> : null}
@@ -303,6 +307,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
           />
         ),
       )}
+      {activeRoute ? <ActiveRouteOverlay planning={activeRoute.planning} onSelect={setSelectedId} /> : null}
     </MapContainer>
   ) : (
     <GoogleCanvas accounts={filtered} selectedId={selectedId} onSelect={setSelectedId} apiKey={googleMapsKey} center={focus ?? center} onFail={failGoogle} />
@@ -316,7 +321,11 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
       </aside>
       <div className="territory-map-canvas relative min-w-0 flex-1 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
       <div className="territory-map-search absolute inset-x-3 top-3 z-20 max-h-[40%] overflow-y-auto space-y-2 md:hidden">
-        <button type="button" aria-expanded={officeSearchOpen} aria-controls="mobile-office-search" className="min-h-11 rounded-xl bg-white/95 px-3 text-sm font-semibold text-[#10263E] shadow-md ring-1 ring-slate-200" onClick={() => setOfficeSearchOpen(value => !value)}>Find new offices</button>
+        <div className="flex items-center justify-between gap-2 rounded-xl bg-white/95 p-1 shadow-md">
+          <div className="flex gap-1" role="group" aria-label="Territory view"><button type="button" aria-pressed={mode==="map"} className={"min-h-11 rounded-lg px-3 text-sm font-semibold "+(mode==="map"?"bg-[#10263E] text-white":"")} onClick={()=>{setMode("map");setAccountsMinimized(true);}}>Map</button><button type="button" aria-pressed={mode==="list"} className={"min-h-11 rounded-lg px-3 text-sm font-semibold "+(mode==="list"?"bg-[#10263E] text-white":"")} onClick={()=>{setMode("list");setAccountsMinimized(false);}}>List</button></div>
+          <Link href={activeRoute?"/route?route="+activeRoute.id:"/route"} className="flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold"><Route className="size-4"/>{activeRoute?"Edit route":"Create route"}</Link>
+        </div>
+                <button type="button" aria-expanded={officeSearchOpen} aria-controls="mobile-office-search" className="min-h-11 rounded-xl bg-white/95 px-3 text-sm font-semibold text-[#10263E] shadow-md ring-1 ring-slate-200" onClick={() => setOfficeSearchOpen(value => !value)}><Search className="mr-2 inline size-4" aria-hidden="true" />Find new offices</button>
         <div id="mobile-office-search" hidden={!officeSearchOpen}>
           <PlacesSearch here={here} area={searchArea} onResults={receivePlaces} saved={savedDiscoveries} onSaved={markSaved} compact />
         </div>
@@ -325,18 +334,22 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
           <ul className="max-h-40 overflow-y-auto space-y-2 p-2" aria-label="Mobile office results">{discovered.map(place => <li key={discoveryKey(place)} className="rounded-lg border border-slate-200 p-2 text-sm"><p className="font-medium">{place.name}</p><p className="text-xs text-slate-500">{place.street}, {place.city}</p><DiscoveredOfficeForm place={place} query={discoveryQuery} savedId={savedDiscoveries[discoveryKey(place)]} onSaved={markSaved} /></li>)}</ul>
         </details> : null}
       </div>
-      {!accountsMinimized ? <section aria-label="Saved accounts" className="absolute left-16 right-3 top-16 bottom-6 z-30 flex min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-slate-200 md:hidden">
+      {!accountsMinimized ? <section aria-label="Saved accounts" className="absolute left-3 right-3 top-32 bottom-24 z-30 flex min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-slate-200 md:hidden">
         <button type="button" className="min-h-11 shrink-0 border-b px-4 text-right text-sm font-semibold" onClick={() => setAccountsMinimized(true)}>Close saved accounts</button>
         <div className="min-h-0 flex-1 overflow-hidden">{list}</div>
       </section> : null}
       <div className="relative z-0 h-full isolate">{canvas}</div>
 
       <div className="territory-map-tools absolute right-3 bottom-24 z-20 flex flex-col items-end gap-2 md:bottom-3">
+        <button type="button" aria-label="Map layers" aria-expanded={layersOpen} title="Map layers" className="grid size-11 place-items-center rounded-xl bg-white shadow-md ring-1 ring-slate-200" onClick={()=>setLayersOpen(v=>!v)}><Layers className="size-5"/></button>
+        <button type="button" aria-label="Account filters" title="Account filters" className="grid size-11 place-items-center rounded-xl bg-white shadow-md ring-1 ring-slate-200" onClick={()=>{setAccountsMinimized(false);setMode("list");}}><SlidersHorizontal className="size-5"/></button>
+        <div hidden={!layersOpen} className="flex flex-col items-end gap-2">
         <button type="button" aria-pressed={zipcodesShown} aria-label="Toggle ZIP-code outlines" title="ZIP-code outlines (Census ZCTAs)" className={`grid size-11 shrink-0 place-items-center rounded-xl shadow-md ring-1 ring-slate-200 transition-colors ${zipcodesShown ? "bg-blue-700 text-white" : "bg-white text-[#10263E]"}`} onClick={() => { setZipcodesShown(value => !value); setZipcodeError(false); setMode("map"); }}><Grid2X2 className="size-5" aria-hidden="true" /></button>
         {zipcodesShown && zoom < 8 ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">Zoom in to see ZIP-code boundaries.</p> : null}
         {zipcodesShown && zipcodeError ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">Some ZIP-area outlines could not load. Toggle off and on to retry.</p> : null}
         <button type="button" aria-pressed={countiesShown} aria-label="Toggle county outlines" title="County outlines" className={`grid size-11 shrink-0 place-items-center rounded-xl shadow-md ring-1 ring-slate-200 transition-colors ${countiesShown ? "bg-violet-700 text-white" : "bg-white text-[#10263E]"}`} onClick={() => { setCountiesShown(value => !value); setCountyError(false); setMode("map"); }}><MapOutline className="size-5" aria-hidden="true" /></button>
         {countiesShown && countyError ? <p role="status" className="max-w-[240px] rounded-xl bg-white p-3 text-xs shadow-sm">Some Census county outlines could not load. Toggle off and on to retry.</p> : null}
+        </div>
         <button type="button" disabled={routing} aria-pressed={lasso} aria-label={routing ? "Creating route" : lasso ? "Cancel lasso route" : "Lasso route"} title={lasso ? "Cancel lasso route" : "Draw a lasso route"} className={`grid size-11 shrink-0 place-items-center rounded-xl shadow-md ring-1 transition-colors disabled:opacity-60 ${lasso ? "bg-[#19B78A] text-[#06281f] ring-[#19B78A]" : "bg-[#10263E] text-white ring-[#10263E]"}`} onClick={() => { setMode("map"); setLasso(!lasso); setRouteNote(""); }}>
           {routing ? <LoaderCircle className="size-5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Lasso className="size-5" aria-hidden="true" />}
         </button>
@@ -356,7 +369,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
       </p>
 
       {selected ? (
-        <div className="absolute inset-x-0 bottom-0 z-50 max-h-[70dvh] overflow-y-auto rounded-t-3xl bg-white p-4 pb-6 shadow-2xl ring-1 ring-slate-200 md:inset-x-auto md:right-4 md:bottom-4 md:max-h-[80dvh] md:w-[22rem] md:rounded-3xl">
+        <div className="absolute inset-x-0 bottom-0 z-50 max-h-[42dvh] overflow-y-auto rounded-t-3xl bg-white p-4 pb-6 shadow-2xl ring-1 ring-slate-200 md:inset-x-auto md:right-4 md:bottom-4 md:max-h-[80dvh] md:w-[22rem] md:rounded-3xl">
           <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-200" />
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -366,6 +379,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
             </div>
             <button type="button" className="min-h-11 rounded-xl px-3 text-sm text-[#66758B] hover:bg-slate-100" onClick={() => setSelectedId(null)} aria-label="Close office card">Close</button>
           </div>
+          <div className="mt-3"><Link href={"/route?add="+selected.id} className="col-span-2 grid min-h-12 place-items-center rounded-xl bg-blue-600 font-semibold text-white">Add to Route</Link></div>
           <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
             <div><dt className="text-[#66758B]">Last check-in</dt><dd>{selected.lastVisit ?? "Not yet visited"}</dd></div>
             <div><dt className="text-[#66758B]">Days since visit</dt><dd>{selected.daysSince ?? "—"}</dd></div>
@@ -527,4 +541,19 @@ function GoogleMapInner({ accounts, center, onSelect, selectedId }: { accounts: 
     }
   }, [accounts, center, onSelect, selectedId]);
   return <div ref={nodeRef} className="h-full w-full" />;
+}
+
+function ActiveRouteOverlay({ planning, onSelect }: { planning: SavedPlanning; onSelect: (id: string) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    const points: [number,number][] = planning.stops.map(s => [s.lat,s.lng]);
+    if (points.length) map.fitBounds(points, { padding:[48,100], maxZoom:14 });
+  }, [map, planning]);
+  return <>
+    {planning.road?.geometry.length ? <Polyline positions={planning.road.geometry} pathOptions={{color:"#2563eb",weight:5,opacity:0.9}} /> : null}
+    {planning.stops.map((s,i) => <CircleMarker key={"route-"+s.key} center={[s.lat,s.lng]} radius={14} pathOptions={{color:"#fff",weight:3,fillColor:"#16a34a",fillOpacity:1}} eventHandlers={{click:()=>{if(s.accountId)onSelect(s.accountId);}}}>
+      <Tooltip permanent direction="center" className="!border-0 !bg-transparent !p-0 !font-bold !text-white !shadow-none">{i+1}</Tooltip>
+      <Popup>{s.name}</Popup>
+    </CircleMarker>)}
+  </>;
 }

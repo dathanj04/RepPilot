@@ -324,6 +324,7 @@ model FollowUpTask {
 }
 
 model DailyRoute {
+  planning       Json?
   id             String   @id @default(cuid())
   organizationId String
   userId         String

@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { SavedPlanning } from "@/lib/domain/route-planning";
 import type { MapAccount } from "./territory-map";
 
 const TerritoryMap = dynamic(() => import("./territory-map").then((mod) => mod.TerritoryMap), {
@@ -9,6 +10,7 @@ const TerritoryMap = dynamic(() => import("./territory-map").then((mod) => mod.T
 });
 
 export function TerritoryMapLoader(props: {
+  activeRoute?: { id: string; planning: SavedPlanning } | null;
   accounts: MapAccount[];
   boundary: [number, number][] | null;
   googleMapsKey: string;
