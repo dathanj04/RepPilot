@@ -181,9 +181,9 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search offices"
+          placeholder="Filter saved accounts"
           className="h-11 w-full rounded-xl border border-slate-200 bg-[#F5F7FA] px-3 text-sm"
-          aria-label="Search offices"
+          aria-label="Filter saved accounts"
         />
         <div className="flex flex-wrap gap-2">
           <FilterChip active={tone === "all"} onClick={() => setTone("all")}>All</FilterChip>
@@ -299,19 +299,23 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
     <div className="flex h-full min-h-[32rem] gap-3 bg-[#f4f6f8] p-3 md:p-4">
       <aside className="hidden w-[20rem] shrink-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm md:flex md:flex-col xl:w-[22rem]">{list}</aside>
       <div className="relative min-w-0 flex-1 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
-      <div className="absolute inset-x-3 top-3 z-20 space-y-2 rounded-2xl bg-white/95 p-2 shadow-sm md:hidden">
+      <div className="absolute inset-x-3 top-3 z-20 max-h-[65%] overflow-y-auto space-y-2 rounded-2xl bg-white/95 p-2 shadow-sm md:hidden">
         <div className="flex gap-2">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search offices"
+            placeholder="Filter saved accounts"
             className="h-11 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm"
-            aria-label="Search offices"
+            aria-label="Filter saved accounts"
           />
           <button type="button" className="h-11 rounded-xl bg-white px-3 text-sm font-medium shadow-sm ring-1 ring-slate-200" onClick={() => setMode(mode === "map" ? "list" : "map")}>
             {mode === "map" ? "List" : "Map"}
           </button>
         </div>
+        <details className="rounded-xl border border-slate-200 bg-white">
+          <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-semibold text-[#10263E]">Find new offices</summary>
+          <PlacesSearch here={here} area={searchArea} onResults={receivePlaces} saved={savedDiscoveries} onSaved={markSaved} />
+        </details>
         <div className="flex gap-2 overflow-x-auto pb-1">
           <FilterChip active={tone === "all"} onClick={() => setTone("all")}>All</FilterChip>
           {MARKER_TONES.map((item) => (
@@ -407,6 +411,8 @@ function PlacesSearch({ here, area, onResults, saved, onSaved }: { here: { lat: 
   const [pending, setPending] = useState(false);
 
   async function search() {
+    if (pending || query.trim().length < 3) return;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     setPending(true);
     setMessage(null);
     setPlaces([]);
@@ -430,10 +436,12 @@ function PlacesSearch({ here, area, onResults, saved, onSaved }: { here: { lat: 
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Pediatric clinic, Frisco TX"
           aria-label="Places search"
+          enterKeyHint="search"
+          onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); void search(); } }}
           disabled={pending}
           className="h-10 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-sm"
         />
-        <button type="button" className="h-10 rounded-lg bg-[#10263E] px-3 text-xs font-medium text-white disabled:opacity-50" disabled={pending} onClick={() => void search()}>
+        <button type="button" className="h-10 rounded-lg bg-[#10263E] px-3 text-xs font-medium text-white disabled:opacity-50" disabled={pending || query.trim().length < 3} onClick={() => void search()}>
           {pending ? "Searching" : "Search"}
         </button>
       </div>
