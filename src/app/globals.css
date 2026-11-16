@@ -157,3 +157,5 @@
 
 /* Preserve Census tile transparency while giving county outlines a distinct color. */
 .county-boundary-tiles img { filter: brightness(0) saturate(100%) invert(28%) sepia(95%) saturate(4900%) hue-rotate(252deg) brightness(95%) contrast(95%); }
+
+.zipcode-boundary-tiles img { filter: brightness(0) saturate(100%) invert(30%) sepia(85%) saturate(2200%) hue-rotate(205deg) brightness(95%) contrast(95%); }
