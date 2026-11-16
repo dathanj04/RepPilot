@@ -12,6 +12,7 @@ export function InvitationForm({
   defaultAccountId?: string;
   action?: typeof createInvitationAction;
 }) {
+  const [pending, setPending] = useState(false);
   const [result, setResult] = useState<{ url?: string; emailStatus?: string; error?: string } | null>(null);
   const [accountId, setAccountId] = useState(defaultAccountId || accounts[0]?.id || "");
   const selected = accounts.find((account) => account.id === accountId);
@@ -20,9 +21,16 @@ export function InvitationForm({
       className="grid gap-3"
       onSubmit={async (event) => {
         event.preventDefault();
-        const response = await createInvitationAction(new FormData(event.currentTarget));
-        if (!response.ok) setResult({ error: "error" in response ? response.error : "Invitation was not created." });
-        else setResult({ url: response.url, emailStatus: response.emailStatus });
+        if (pending) return;
+        const data = new FormData(event.currentTarget);
+        setPending(true);
+        setResult(null);
+        try {
+          const response = await createInvitationAction(data);
+          if (!response.ok) setResult({ error: "error" in response ? response.error : "Invitation was not created." });
+          else setResult({ url: response.url, emailStatus: response.emailStatus });
+        } catch { setResult({ error: "The request could not finish. Check Lunch & Learns before retrying, or refresh and try again." }); }
+        finally { setPending(false); }
       }}
     >
       <label className="text-sm">Office
@@ -34,10 +42,10 @@ export function InvitationForm({
         <textarea name="purpose" required defaultValue="Educational program overview for office staff." className="mt-1 w-full rounded-xl border p-3" rows={3} />
       </label>
       <label className="text-sm">Recipient name
-        <input name="recipientName" defaultValue={selected?.contact} className="mt-1 h-11 w-full rounded-xl border px-3" />
+        <input key={`name-${accountId}`} name="recipientName" defaultValue={selected?.contact} className="mt-1 h-11 w-full rounded-xl border px-3" />
       </label>
       <label className="text-sm">Recipient email
-        <input name="recipientEmail" defaultValue={selected?.email} className="mt-1 h-11 w-full rounded-xl border px-3" />
+        <input key={`email-${accountId}`} type="email" name="recipientEmail" defaultValue={selected?.email} className="mt-1 h-11 w-full rounded-xl border px-3" />
       </label>
       <div className="grid grid-cols-2 gap-2">
         <label className="text-sm">Expected attendees<input name="expectedAttendees" type="number" min={1} defaultValue={8} className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
@@ -79,14 +87,14 @@ export function InvitationForm({
       ))}
       <label className="text-sm">Meal preferences<input name="mealPreferences" className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
       <label className="text-sm">Delivery instructions<input name="deliveryInstructions" className="mt-1 h-11 w-full rounded-xl border px-3" /></label>
-      {result?.error ? <p className="text-sm text-[#D94B4B]">{result.error}</p> : null}
+      {result?.error ? <p role="alert" className="text-sm text-[#D94B4B]">{result.error}</p> : null}
       {result?.url ? (
-        <div className="rounded-xl bg-[#E7F8F3] p-3 text-sm">
-          <p>{result.emailStatus === "sent" ? "Invitation email was sent." : "Email provider is not connected. The invitation was saved and the link is ready to copy."}</p>
+        <div role="status" className="rounded-xl bg-[#E7F8F3] p-3 text-sm">
+          <p>{result.emailStatus === "sent" ? "Invitation email was sent." : "Your private invitation was created. Email was not sent; copy and share the link below."}</p>
           <a className="mt-2 block break-all underline" href={result.url}>{result.url}</a>
         </div>
       ) : null}
-      <button className="h-12 rounded-xl bg-[#19B78A] font-semibold text-[#06281f]" type="submit">Create private invitation</button>
+      <button className="h-12 rounded-xl bg-[#19B78A] font-semibold text-[#06281f]" type="submit" disabled={pending || !accountId}>{pending ? "Creating invitation…" : "Create private invitation"}</button>
     </form>
   );
 }
