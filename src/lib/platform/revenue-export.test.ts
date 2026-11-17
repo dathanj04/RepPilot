@@ -1,0 +1,9 @@
+import {beforeEach,it,expect,vi} from "vitest";
+const m=vi.hoisted(()=>({auth:vi.fn(),load:vi.fn(),workbook:vi.fn(),limit:vi.fn(),audit:vi.fn()}));
+vi.mock("../auth",()=>({requirePlatformAdmin:m.auth}));vi.mock("./revenue-data",()=>({loadRevenueReport:m.load}));vi.mock("./revenue-excel",()=>({revenueWorkbook:m.workbook}));vi.mock("../domain/rate-limit-store",()=>({consumeSharedRateLimit:m.limit}));vi.mock("../db",()=>({prisma:{auditLog:{create:m.audit}}}));
+import {GET} from "../../app/platform/revenue/export/route";
+beforeEach(()=>{vi.resetAllMocks();m.auth.mockResolvedValue({id:"owner",organizationId:"owner-org"});m.limit.mockResolvedValue({ok:true});m.load.mockResolvedValue({generatedAt:"2026-11-17T12:00:00.000Z",payingCustomers:2,payingSubscriptions:2});m.workbook.mockResolvedValue(new Uint8Array([80,75]));});
+it("requires server-verified owner MFA before accessing customer data",async()=>{m.auth.mockRejectedValue(Error("MFA required"));await expect(GET()).rejects.toThrow("MFA required");expect(m.load).not.toHaveBeenCalled();});
+it("returns a private attachment and audits the export without customer details",async()=>{const r=await GET();expect(r.status).toBe(200);expect(r.headers.get("content-type")).toContain("spreadsheetml");expect(r.headers.get("cache-control")).toContain("no-store");expect(r.headers.get("content-disposition")).toContain(".xlsx");expect(m.audit.mock.calls[0][0].data.metadata).toEqual({generatedAt:"2026-11-17T12:00:00.000Z",customers:2,subscriptions:2});});
+it("does not download a partial or empty success report after provider failure",async()=>{m.load.mockRejectedValue(Error("Stripe failed"));const r=await GET();expect(r.status).toBe(503);expect(r.headers.get("content-disposition")).toBeNull();expect(m.workbook).not.toHaveBeenCalled();});
+it("rate limits repeated exports",async()=>{m.limit.mockResolvedValue({ok:false});expect((await GET()).status).toBe(429);expect(m.load).not.toHaveBeenCalled();});

@@ -10,7 +10,7 @@ import {credentialVersion,sessionOptions} from "../src/lib/session-options";
 async function main(){
  if(process.env.CI!=="true"||!process.env.DATABASE_URL?.includes("@localhost:5432/route_test"))throw Error("This seed only runs in the disposable route-test database.");
  const role=await prisma.role.upsert({where:{key:"ORG_ADMIN"},create:{key:"ORG_ADMIN",name:"Administrator",description:"Test role",scope:"organization"},update:{}});
- const org=await prisma.organization.create({data:{name:"Browser acceptance",slug:"browser-"+crypto.randomUUID(),subscription:{create:{plan:"business",status:"trialing",trialStartedAt:new Date(),trialEndsAt:new Date(Date.now()+86400000*14)}}}});
+ const org=await prisma.organization.create({data:{name:"Browser acceptance",slug:"browser-"+crypto.randomUUID(),subscription:{create:{stripeCustomerId:"cus_browser_business",plan:"business",status:"trialing",trialStartedAt:new Date(),trialEndsAt:new Date(Date.now()+86400000*14)}}}});
  const user=await prisma.user.create({data:{name:"Browser tester",email:crypto.randomUUID()+"@example.invalid",passwordHash:"browser-test-only",memberships:{create:{organizationId:org.id,roleId:role.id}}}});
  await prisma.account.createMany({data:Array.from({length:16},(_,i)=>({organizationId:org.id,name:"Office "+String(i+1).padStart(2,"0"),specialty:"Pediatrics",street:(i+1)+" Main St",city:"Plano",state:"TX",zip:"75024",latitude:33+i/100,longitude:-96}))});
  const account=await prisma.account.findFirstOrThrow({where:{organizationId:org.id,name:"Office 01"}});
