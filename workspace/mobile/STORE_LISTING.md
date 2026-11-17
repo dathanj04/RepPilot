@@ -14,7 +14,7 @@ RepPilot helps field representatives organize account visits and keep relationsh
 
 See practices on a map, plan a driving route, save visit notes, track follow-ups, and manage educational lunch requests. Provider offices can share attendance counts, meal preferences and dietary restrictions through private invitation links. Managers can organize shared accounts and assign them to representatives.
 
-RepPilot is for business outreach. Do not enter patient information. An authorized RepPilot workspace and internet connection are required. The mobile companion does not offer in-app subscription purchases. Automatic calendar sync and live CRM integrations depend on configured connections; do not list them as included until verified.
+RepPilot is for business outreach. Do not enter patient information. An authorized RepPilot workspace and internet connection are required. The mobile companion does not offer in-app subscription purchases. This release includes RepPilot’s internal calendar and conversation preparation from recorded activity. Google/Microsoft calendar sync, live Salesforce/HubSpot referral queries and generative AI are not included in launch claims.
 
 ## Review notes — not ready to submit
 

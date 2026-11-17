@@ -35,7 +35,7 @@ export async function reportError(_error: unknown, fields: Fields = {}) {
   await Promise.all([recordIncident("app.error",safe),sendSentry(message,undefined,safe),sendAlert("app.error",message,safe)]);
 }
 export async function reportOperationalAlert(event: string, _detail: string, fields: Fields = {}) {
-  const kind=event==="email.failed"?event:"operation.failed",safe=safeMonitoringFields(fields);
+  const kind=["email.failed","reminder.failed","ops.test"].includes(event)?event:"operation.failed",safe=safeMonitoringFields(fields);
   logEvent("error",kind,safe);
   await Promise.all([recordIncident(kind,safe),sendAlert(kind,"Operational failure; inspect the authenticated owner console.",safe)]);
 }
