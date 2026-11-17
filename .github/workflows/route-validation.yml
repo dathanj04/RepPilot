@@ -5,7 +5,7 @@ on:
     paths:
       - 'src/**'
       - 'tests/**'
-      - 'scripts/route-browser*'
+      - 'scripts/**'
       - 'prisma/**'
       - '.github/workflows/route-validation.yml'
   workflow_dispatch:
