@@ -26,3 +26,5 @@ it("rejects an already-authenticated disabled user",async()=>{const m={...member
 it("blocks a paused workspace even during its trial",async()=>{const m={...membership(),organization:{...membership().organization,suspendedAt:new Date()}};mocks.membership.mockResolvedValue(m);await expect(getCurrentUser({allowExpiredTrial:true})).rejects.toThrow("Workspace%20access%20is%20paused");});
 
 it("rejects an old cookie after a disabled account is re-enabled",async()=>{mocks.membership.mockResolvedValue({...membership(),user:{...membership().user,sessionVersion:1,disabledAt:null}});await expect(getCurrentUser({allowExpiredTrial:true})).rejects.toThrow("REDIRECT:/login");});
+
+it("never permits demo/reviewer platform accounts to operate real customers",async()=>{const m=membership();m.role.key="PLATFORM_ADMIN";m.organization.isDemo=true;mocks.membership.mockResolvedValue(m);await expect(requirePlatformAdmin()).rejects.toThrow("REDIRECT:/support");});

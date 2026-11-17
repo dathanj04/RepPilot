@@ -2,7 +2,7 @@
 Review date: November 16, 2026 (America/Chicago).
 
 ## Owner access
-The private console is /platform. Every page checks the server-side PLATFORM_ADMIN membership. A forged role in a browser cookie cannot grant access. Login prioritizes an existing platform membership.
+The private console is /platform. Every page checks the server-side PLATFORM_ADMIN membership. A forged role in a browser cookie cannot grant access. Demo/reviewer platform accounts are explicitly blocked from owner controls. Login prioritizes an existing platform membership.
 The operator must confirm the intended existing account email before provisioning. Do not infer that identity from a support address. Run scripts/provision-platform-owner.ts with CONFIRMED_PLATFORM_OWNER_EMAIL and --confirm-owner only after verifying the owner. This attaches a separate platform membership, preserves existing customer memberships and never changes the password. It was not run during this audit.
 No shared/default administrator password is introduced. Platform accounts cannot be disabled, demoted, paused or erased through these controls.
 

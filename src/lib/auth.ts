@@ -76,6 +76,7 @@ export async function requireAppUser(options: { allowExpiredTrial?: boolean } = 
 export async function requirePlatformAdmin() {
   const user = await getCurrentUser();
   if (user.roleKey !== "PLATFORM_ADMIN") redirect("/today");
+  if(user.isDemo||user.email.toLowerCase().endsWith(".demo"))redirect("/support");
   return user;
 }
 

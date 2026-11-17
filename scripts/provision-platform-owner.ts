@@ -4,6 +4,7 @@ async function main(){
  const email=process.env.CONFIRMED_PLATFORM_OWNER_EMAIL?.trim().toLowerCase();
  if(!email||!process.argv.includes("--confirm-owner"))throw Error("Set CONFIRMED_PLATFORM_OWNER_EMAIL to the verified owner's existing account email and pass --confirm-owner. Never guess an owner identity.");
  const user=await prisma.user.findUniqueOrThrow({where:{email}});
+ if(user.email.toLowerCase().endsWith(".demo"))throw Error("Demo/reviewer accounts cannot be platform owners.");
  if(user.disabledAt)throw Error("Owner account is disabled. Investigate before provisioning.");
  await prisma.$transaction(async tx=>{
   const role=await tx.role.upsert({where:{key:"PLATFORM_ADMIN"},create:{key:"PLATFORM_ADMIN",name:"Platform administrator",description:"RepPilot owner operations",scope:"platform"},update:{}});
