@@ -44,7 +44,6 @@ export default async function BillingPage({searchParams}:{searchParams:Promise<{
  const scheduled=current?.status==="trialing"&&Boolean(current.default_payment_method)&&!current.cancel_at_period_end;
  const date=(d:Date)=>new Intl.DateTimeFormat("en-US",{dateStyle:"medium",timeStyle:"short",timeZone:user.timezone}).format(d);
  const days=trial?Math.ceil((subscription!.trialEndsAt!.getTime()-Date.now())/86400000):0;
- if(native)return <AppShell allowExpiredTrial><PageFrame title="Subscriptions" subtitle="Your plan. Your next move."><NativeSubscription days={days} trialEndsAt={subscription?.trialEndsAt??null} timezone={user.timezone} paid={paid} currentTier={current?current.items.data.map(i=>tierForPriceId(i.price.id)).find(Boolean)??null:null} unavailable={billingUnavailable} scheduledLabel={scheduled&&selected?`${selected.label} is scheduled to start ${date(subscription!.trialEndsAt!)} at ${selected.amount}, plus applicable tax.`:null}/></PageFrame></AppShell>;
  return <AppShell allowExpiredTrial><PageFrame title="Subscriptions" subtitle="Individual or Business. Keep your full 14-day free trial.">
   <div className="max-w-4xl space-y-5">
    <section className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">

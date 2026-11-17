@@ -31,7 +31,6 @@ export async function selectTrialPlanAction(form: FormData) {
 }
 
 export async function startCheckoutAction(form: FormData) {
- if(isNativeShell((await headers()).get("user-agent")))redirect("/billing?native=1");
  const user=await getCurrentUser({allowExpiredTrial:true});
  let destination="";
  try{
@@ -77,7 +76,6 @@ export async function startCheckoutAction(form: FormData) {
 }
 
 export async function openBillingPortalAction() {
-  if(isNativeShell((await headers()).get("user-agent")))redirect("/billing?native=1");
   const user = await getCurrentUser({ allowExpiredTrial: true });
   let destination = "";
   try {
