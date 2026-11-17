@@ -79,7 +79,9 @@ async function postJson(url: string, body: unknown, headers: Record<string, stri
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(3000),
     });
-    if(!response.ok)logEvent("error","monitor.delivery_failed",{status:response.status});
+    if(!response.ok){logEvent("error","monitor.delivery_failed",{status:response.status});return null;}
+    const result=await response.json().catch(()=>null) as {id?:string}|null;
+    return result?.id&&/^[a-zA-Z0-9-]{1,100}$/.test(result.id)?result.id:null;
   } catch {
     logEvent("error", "monitor.delivery_failed");
   }
@@ -95,8 +97,13 @@ async function sendOwnerEmail(event: string, fields: Fields) {
   const {createHash}=await import("node:crypto");
   const bucket=Math.floor(Date.now()/900000);
   const id=createHash("sha256").update(event+":"+String(fields.route)+":"+bucket).digest("hex");
-  await postJson("https://api.resend.com/emails",{
+  const receipt=await postJson("https://api.resend.com/emails",{
     from,to:[recipient],subject:"RepPilot operational alert",
     text:`RepPilot reported ${event}. Route: ${String(fields.route)}. Review the authenticated owner Operations console. No customer content is included in this alert.`
   },{"Content-Type":"application/json",Authorization:`Bearer ${key}`,"Idempotency-Key":"ops-"+id});
+  if(receipt)try{
+    const {prisma}=await import("./db");
+    const key="operational:alert-receipt:"+receipt;
+    await prisma.rateLimitBucket.upsert({where:{key},create:{key,count:1,resetAt:new Date(Date.now()+86400000)},update:{count:1}});
+  }catch{logEvent("error","monitor.receipt_persistence_failed");}
 }

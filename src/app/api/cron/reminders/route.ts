@@ -6,7 +6,6 @@ import { renderReminderEmail } from "@/lib/email/templates";
 import { appUrl } from "@/lib/permissions";
 import { reportOperationalAlert } from "@/lib/monitoring";
 
-export const runtime="nodejs";
 export const maxDuration=60;
 export const POST=run;
 export const GET=run;

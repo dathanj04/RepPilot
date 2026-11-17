@@ -22,8 +22,12 @@ async function main(){
   let providerStatus="unavailable";
   const id=deliveries[0]?.providerMessageId;
   if(id){const r=await fetch("https://api.resend.com/emails/"+encodeURIComponent(id),{headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`}});if(r.ok)providerStatus=(await r.json()).last_event||"accepted";}
+  const alert=await prisma.rateLimitBucket.findFirst({where:{key:{startsWith:"operational:alert-receipt:"}},orderBy:{updatedAt:"desc"}});
+  let alertStatus="unavailable";
+  if(alert){const ar=await fetch("https://api.resend.com/emails/"+encodeURIComponent(alert.key.split(":").at(-1)!),{headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`}});if(ar.ok)alertStatus=(await ar.json()).last_event||"accepted";}
+  console.log(JSON.stringify({event:"verification.alert",providerStatus:alertStatus}));
   console.log(JSON.stringify({event:"verification.result",reminderStatus:reminder.status,deliveryRecords:deliveries.length,deliveryStatus:deliveries[0]?.status||"none",providerStatus,heartbeatValid:Boolean(success&&success.resetAt>new Date())}));
-  if(reminder.status!=="SENT"||deliveries.length!==1||providerStatus!=="delivered")throw Error("Scheduled delivery not yet verified");
+  if(reminder.status!=="SENT"||deliveries.length!==1||providerStatus!=="delivered"||alertStatus!=="delivered")throw Error("Scheduled delivery not yet verified");
  }else throw Error("Choose prepare or verify");
 }
 main().catch(()=>{console.error("Production verification incomplete; no secrets or customer data logged.");process.exitCode=1;}).finally(()=>prisma.$disconnect());

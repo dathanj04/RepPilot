@@ -5,6 +5,10 @@ Native apps are sign-in companions. Web subscriptions remain available; native C
 
 Live Salesforce/HubSpot referral queries are unavailable. Google/Microsoft calendar sync and generative AI require configured credentials and end-to-end acceptance before being advertised. Internal calendar, notes, tasks and deterministic conversation preparation remain usable. Do not market these as verified live integrations.
 
+## Framework patch
+
+Next.js and eslint-config-next upgraded from 16.4.3 to 16.4.5 for the November security fixes. Rebuild and full acceptance are required before deployment.
+
 ## Operational release
 - Independent Render scheduler calls authenticated production reminders every five minutes, once provisioned and deployed.
 - Failed deliveries return HTTP 503 and do not refresh the last-success heartbeat.
