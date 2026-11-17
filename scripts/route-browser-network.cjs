@@ -8,7 +8,8 @@ globalThis.fetch=async function(input,init){
   if(url.pathname==="/v1/subscriptions"&&!url.searchParams.has("customer")){
    const fixture=JSON.parse(require("node:fs").readFileSync("/tmp/route-browser-session.json","utf8"));
    const make=(id,org,customer,price,amount,interval)=>({id,customer:{id:customer,name:"Billing fixture",email:"billing@example.invalid"},status:"active",livemode:true,metadata:{organizationId:org},latest_invoice:{id:"in_"+id,status:"paid",amount_paid:amount,currency:"usd",status_transitions:{paid_at:Math.floor(Date.now()/1000)-60}},items:{data:[{current_period_end:Math.floor(Date.now()/1000)+86400,quantity:1,price:{id:price,unit_amount:amount,currency:"usd",recurring:{interval,interval_count:1}}}]}});
-   return Response.json({has_more:false,data:[make("sub_business_report",fixture.organizationId,"cus_browser_business","price_1UcZG9AJxC2GoXaRLNovhZQD",48000,"year"),make("sub_individual_report",fixture.individualOrganizationId,"cus_browser_individual","price_1UcZGHAJxC2GoXaRGEfCcPME",2900,"month")]});
+   const trial=make("sub_browser_trial",fixture.trialOrganizationId,"cus_browser_trial","price_1UcZG5AJxC2GoXaReqGuyGpO",4800,"month");Object.assign(trial,{status:"trialing",trial_end:Math.floor(Date.parse(fixture.trialEndsAt)/1000),default_payment_method:"pm_fixture",collection_method:"charge_automatically"});trial.latest_invoice.amount_paid=0;
+   return Response.json({has_more:false,data:[trial,make("sub_business_report",fixture.organizationId,"cus_browser_business","price_1UcZG9AJxC2GoXaRLNovhZQD",48000,"year"),make("sub_individual_report",fixture.individualOrganizationId,"cus_browser_individual","price_1UcZGHAJxC2GoXaRGEfCcPME",2900,"month")]});
   }
 
   if(url.pathname==="/v1/subscriptions"&&url.searchParams.get("customer")==="cus_browser_individual"){

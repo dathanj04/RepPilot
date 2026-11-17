@@ -75,8 +75,9 @@ export async function auditApp({browser,config,cookie,session}){
   if(r.status()!==200||new URL(op.url()).pathname!==path)result.issues.push({path,status:r.status(),role:"platform"});
  }
  await op.goto(root+"/platform/revenue");await op.getByRole("heading",{name:"Paying customers",exact:true}).waitFor();await op.getByText("$69.00 / month",{exact:true}).waitFor();
+ await op.getByRole("heading",{name:"14-day trials",exact:true}).waitFor();await op.getByText("Trial without card",{exact:true}).waitFor();await op.getByText("Scheduled automatic conversion",{exact:true}).waitFor();await op.getByText("Payment setup required",{exact:true}).waitFor();
  const exportResponse=await owner.request.get(root+"/platform/revenue/export");assert.equal(exportResponse.status(),200);assert.match(exportResponse.headers()["content-disposition"],/\.xlsx/);assert.match(exportResponse.headers()["cache-control"],/no-store/);
- const {default:ExcelJS}=await import("exceljs");const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(await exportResponse.body());assert.equal(workbook.getWorksheet("Paying customers").rowCount,3);assert.equal(workbook.getWorksheet("Summary").getCell("B3").value,2);
+ const {default:ExcelJS}=await import("exceljs");const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(await exportResponse.body());assert.equal(workbook.getWorksheet("Paying customers").rowCount,3);assert.equal(workbook.getWorksheet("Summary").getCell("B3").value,2);assert.equal(workbook.getWorksheet("Trials").rowCount,4);assert.equal(workbook.getWorksheet("Summary").getCell("B5").value,2);
  const denied=await context.request.get(root+"/platform/revenue/export");assert.ok(!String(denied.headers()["content-type"]).includes("spreadsheetml"),"Customer role must not export billing data");
  console.log("PASS: owner paying-customer dashboard, annual/monthly totals, real Excel download and customer-role export denial.");
  await op.goto(root+"/platform/workspaces/"+session.organizationId);

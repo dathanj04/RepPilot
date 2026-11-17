@@ -1,12 +1,14 @@
+import {buildTrialRows,type TrialRow} from "./trials";
 import {tierForPriceId,isPaidSubscription,type StripeSubscription} from "../domain/paid-access";
 export type RevenueSubscription=Omit<StripeSubscription,"customer"|"latest_invoice"|"items">&{
+ collection_method?:string;cancel_at?:number|null;
  customer:string|{id:string;email?:string|null;name?:string|null;deleted?:boolean};
  latest_invoice:string|null|{id:string;status?:string;amount_paid?:number;currency?:string;status_transitions?:{paid_at?:number|null}};
  items:{data:Array<{quantity?:number;current_period_end?:number;price:{id:string;unit_amount?:number|null;unit_amount_decimal?:string|null;currency?:string;recurring?:{interval:string;interval_count:number}|null}}>};
 };
-export type BillingWorkspace={id:string;name:string;subscription:{stripeCustomerId:string|null}|null};
+export type BillingWorkspace={id:string;name:string;memberships?:{user:{email:string}}[];subscription:{stripeCustomerId:string|null;status?:string;plan?:string;trialStartedAt?:Date|string|null;trialEndsAt?:Date|string|null}|null};
 export type RevenueRow={workspaceId:string;workspace:string;customerId:string;customer:string;email:string;subscriptionId:string;tier:string;status:string;paying:boolean;currency:string;amount:number|null;interval:string;intervalCount:number;quantity:number;monthlyEquivalent:number|null;latestPaid:number|null;invoiceCurrency:string;paidAt:string|null;periodEnd:string|null;cancelAtPeriodEnd:boolean};
-export type RevenueReport={generatedAt:string;rows:RevenueRow[];payingCustomers:number;payingSubscriptions:number;trials:number;otherSubscriptions:number;monthlyTotals:Record<string,number>;unknownAmounts:number};
+export type RevenueReport={generatedAt:string;rows:RevenueRow[];trialRows:TrialRow[];activeTrials:number;scheduledConversions:number;expiringTrials:number;expiredTrials:number;payingCustomers:number;payingSubscriptions:number;trials:number;otherSubscriptions:number;monthlyTotals:Record<string,number>;unknownAmounts:number};
 export function minorUnitDivisor(currency:string){return 10**(new Intl.NumberFormat("en-US",{style:"currency",currency}).resolvedOptions().maximumFractionDigits??2);}
 export function money(amount:number|null,currency:string){return amount===null?"Unavailable":new Intl.NumberFormat("en-US",{style:"currency",currency}).format(amount/minorUnitDivisor(currency));}
 const date=(seconds:number|undefined|null)=>seconds?new Date(seconds*1000).toISOString():null;
@@ -30,7 +32,8 @@ export function buildRevenueReport(subscriptions:RevenueSubscription[],workspace
  rows.sort((a,b)=>a.workspace.localeCompare(b.workspace)||a.subscriptionId.localeCompare(b.subscriptionId));
  const paid=rows.filter(r=>r.paying),monthlyTotals:Record<string,number>={};
  for(const r of paid)if(r.monthlyEquivalent!==null)monthlyTotals[r.currency]=(monthlyTotals[r.currency]??0)+r.monthlyEquivalent;
- return {generatedAt:new Date(now).toISOString(),rows,payingCustomers:new Set(paid.map(r=>r.customerId)).size,payingSubscriptions:paid.length,trials:rows.filter(r=>r.status==="trialing").length,otherSubscriptions:rows.filter(r=>!r.paying&&r.status!=="trialing").length,monthlyTotals,unknownAmounts:paid.filter(r=>r.monthlyEquivalent===null).length};
+ const trialRows=buildTrialRows(subscriptions,workspaces,now);
+ return {trialRows,activeTrials:trialRows.filter(t=>t.active).length,scheduledConversions:trialRows.filter(t=>t.active&&t.conversionAt).length,expiringTrials:trialRows.filter(t=>t.active&&t.daysRemaining<=3).length,expiredTrials:trialRows.filter(t=>!t.active&&t.endsAt&&Date.parse(t.endsAt)<=now).length,generatedAt:new Date(now).toISOString(),rows,payingCustomers:new Set(paid.map(r=>r.customerId)).size,payingSubscriptions:paid.length,trials:rows.filter(r=>r.status==="trialing").length,otherSubscriptions:rows.filter(r=>!r.paying&&r.status!=="trialing").length,monthlyTotals,unknownAmounts:paid.filter(r=>r.monthlyEquivalent===null).length};
 }
 export async function listRevenueSubscriptions(request:<T>(path:string)=>Promise<T>):Promise<RevenueSubscription[]>{
  const all:RevenueSubscription[]=[];let cursor="";
