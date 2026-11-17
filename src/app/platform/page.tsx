@@ -6,6 +6,7 @@ import { logoutAction } from "@/lib/actions";
 import { formatCents } from "@/lib/domain/spending";
 import { integrationStatus } from "@/lib/integrations/status";
 import { DELETION_OPERATOR_EMAIL } from "@/lib/legal";
+import { trialDaysRemaining } from "@/lib/domain/subscription-trial";
 
 export const instant = false;
 export const metadata = { title: "Platform" };
@@ -58,7 +59,7 @@ export default async function PlatformPage() {
             </p>
             <p className="text-xs">{organization.isDemo ? "Demonstration data" : "Customer organization"} · {organization.subscription?.stripeSubscriptionId ? "Stripe subscription linked" : "No verified Stripe subscription"}</p>
             {organization.subscription?.trialStart ? <p className="text-xs">Trial began: {organization.subscription.trialStart.toISOString().slice(0, 10)} (UTC)</p> : null}
-            {organization.subscription?.trialEnd ? <p className="text-xs">Trial converts or ends: {organization.subscription.trialEnd.toISOString().slice(0, 10)} (UTC)</p> : null}
+            {organization.subscription?.trialEnd ? <p className="text-xs">Trial converts or ends: {organization.subscription.trialEnd.toISOString().slice(0, 10)} (UTC){organization.subscription.status === "trialing" ? ` · ${trialDaysRemaining(organization.subscription.trialEnd)} day(s) remaining` : ""}</p> : null}
           </li>
         ))}
       </ul>
