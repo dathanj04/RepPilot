@@ -39,8 +39,11 @@ export async function auditApp({browser,config,cookie,session}){
   if(r.status()>=400)result.issues.push({path,status:r.status()});
  }
  result.externalLinks=[...external];
- const denied=await page.goto(root+"/platform");
- assert.notEqual(new URL(page.url()).pathname,"/platform","Customer cannot enter platform console");
+ await writeFile("route-browser-results/link-audit.json",JSON.stringify(result,null,2));
+ console.log("CUSTOMER LINK AUDIT: "+result.pages.length+" pages, "+result.internalLinks.length+" links; issues="+JSON.stringify(result.issues));
+ await page.goto(root+"/platform");
+ await page.waitForURL(url=>url.pathname==="/today");
+ assert.equal(await page.getByRole("heading",{name:"Platform overview",exact:true}).count(),0,"Customer cannot see owner data");
  const owner=await browser.newContext({...config,viewport:{width:1280,height:900},isMobile:false});
  await owner.addCookies([{...cookie,value:session.platformCookie}]);const op=await owner.newPage();op.setDefaultTimeout(20000);
  for(const path of ["/platform","/platform/users","/platform/operations","/platform/audit","/platform/deletion-requests","/platform/workspaces/"+session.organizationId]){
