@@ -35,7 +35,7 @@ export async function getCurrentUser(options: { allowExpiredTrial?: boolean } = 
     },
     include: { user: true, role: true, organization: { include: { subscription: true } } },
   });
-  if (!membership || session.credentialVersion !== credentialVersion(membership.user.passwordHash)) {
+  if (!membership || session.credentialVersion !== credentialVersion(membership.user.passwordHash) || (session.sessionVersion??0)!==(membership.user.sessionVersion??0)) {
     session.destroy();
     await clearPreviewSession();
     redirect("/login");

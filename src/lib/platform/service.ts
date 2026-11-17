@@ -20,7 +20,7 @@ export async function changePlatformRecord(db:Db,actor:PlatformActor,input:Platf
    if(user.id===actor.id||user.memberships.some(m=>m.role.key==="PLATFORM_ADMIN"))throw Error("Platform administrator sign-ins are protected.");
    organizationId=user.memberships[0]?.organizationId??actor.organizationId;
    oldValue=user.disabledAt?"disabled":"enabled";newValue=input.value==="disable"?"disabled":"enabled";
-   await tx.user.update({where:{id:user.id},data:{disabledAt:newValue==="disabled"?new Date():null}});
+   await tx.user.update({where:{id:user.id},data:{disabledAt:newValue==="disabled"?new Date():null,...(newValue==="disabled"?{sessionVersion:{increment:1}}:{})}});
   }else if(input.kind==="role"){
    if(!["REP","MANAGER","COMPLIANCE_ADMIN","ORG_ADMIN"].includes(input.value))throw Error("Choose an organization role.");
    const member=await tx.organizationMembership.findUniqueOrThrow({where:{id:input.id},include:{role:true,user:{include:{memberships:{include:{role:true}}}}}});

@@ -8,7 +8,7 @@ No shared/default administrator password is introduced. Platform accounts cannot
 
 ## Console capabilities
 Overview and searchable, paginated workspaces; user search and enable/disable sign-in; workspace pause/resume; organization-role management with last-administrator protection; live Stripe subscription verification and links to Stripe customer management; connection configuration, scheduler heartbeat and overdue reminders; failed-delivery inspection and cancellation-notice retries; owner audit history and account-deletion queue.
-Changes require the operator's current password, confirmation and a reason. Database changes and audit entries commit together. Access checks immediately block already-signed-in disabled users and paused workspaces, including public clinic links. Pausing access does not cancel or refund Stripe billing.
+Changes require the operator's current password, confirmation and a reason. Database changes and audit entries commit together. Disabling a user increments a session version, so existing cookies stay revoked even after re-enabling. Access checks immediately block already-signed-in disabled users and paused workspaces, including public clinic links. Pausing access does not cancel or refund Stripe billing.
 Retries reconstruct the original cancellation from its immutable audit details and retain the delivery idempotency key. No real cancellation email is sent during testing.
 
 ## Verified production observations

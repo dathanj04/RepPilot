@@ -38,6 +38,7 @@ describe.skipIf(process.env.ROUTE_DB_INTEGRATION!=="true")("platform administrat
   expect((await prisma.user.findUniqueOrThrow({where:{id:user}})).disabledAt).not.toBeNull();
   await changePlatformRecord(prisma,actor(),{kind:"user",id:user,value:"enable",reason});
   expect((await prisma.user.findUniqueOrThrow({where:{id:user}})).disabledAt).toBeNull();
+  expect((await prisma.user.findUniqueOrThrow({where:{id:user}})).sessionVersion).toBe(1);
   const log=await prisma.auditLog.findFirstOrThrow({where:{actorId:owner,action:"platform.user.disabled"}});
   expect((log.metadata as {reason:string}).reason).toBe(reason);
  });
