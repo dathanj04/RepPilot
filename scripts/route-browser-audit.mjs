@@ -28,14 +28,12 @@ export async function auditApp({browser,config,cookie,session}){
  const native=await browser.newContext({...config,userAgent:"Mozilla/5.0 RepPilotNative/1.0"});
  await native.addCookies([cookie]);const np=await native.newPage();
  const nr=await np.goto(root+"/billing");assert.equal(nr.status(),200);
- await np.getByRole("heading",{name:"Individual",exact:true}).waitFor();await np.getByRole("heading",{name:"Business",exact:true}).waitFor();
- assert.equal(await np.getByText("$29",{exact:false}).count()>0,true);assert.equal(await np.getByText("$48",{exact:false}).count()>0,true);
- await np.getByText("Payments aren’t processed in this mobile companion.",{exact:false}).waitFor();
- assert.equal(await np.locator('.mobile-page form[action],a[href*="stripe.com"]').count(),0,"Native subscription page must not expose payment actions");
- assert.equal(await np.getByRole("button",{name:/Add card|Subscribe securely|Manage subscription|Change plan in Stripe/}).count(),0);
+ await np.getByRole("heading",{name:"Subscriptions",exact:true}).waitFor();
+ assert.equal(await np.locator("input[name=billingConsent][required]").count(),4);
+ assert.equal(await np.getByRole("button",{name:"Add card · pay after trial",exact:true}).count(),4);
  await np.screenshot({path:"route-browser-results/native-companion-billing.png",fullPage:true});
  await native.close();
- console.log("PASS: native companion billing has no checkout, card setup or Stripe portal controls; web plan page remains in the link audit.");
+ console.log("PASS: mobile Stripe card setup requires explicit consent; web billing remains available.");
  const officeContext=await browser.newContext(config);
  for(const path of session.publicPaths){
   const r=await officeContext.request.get(root+path);

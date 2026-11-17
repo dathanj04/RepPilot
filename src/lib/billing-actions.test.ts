@@ -30,4 +30,4 @@ it("does not create another paid Checkout when a completed session races with th
  expect(mocks.request.mock.calls.some(c=>c[0]==="checkout/sessions")).toBe(false);
 });
 
-it("blocks native checkout and billing portal before any Stripe operation",async()=>{nativeHeaders.ua="RepPilotNative/1.0";await expect(startCheckoutAction(form())).rejects.toThrow("native=1");await expect(openBillingPortalAction()).rejects.toThrow("native=1");expect(mocks.request).not.toHaveBeenCalled();expect(mocks.bound).not.toHaveBeenCalled();});
+it("allows native users to reach secure Stripe setup during their existing trial",async()=>{nativeHeaders.ua="RepPilotNative/1.0";mocks.bound.mockResolvedValue({id:"local",stripeCustomerId:"cus_bound",billingPayerUserId:"u1",trialEndsAt:new Date(Date.now()+3600000)});await expect(startCheckoutAction(form())).rejects.toThrow("REDIRECT:https://checkout.stripe.com");expect(mocks.request.mock.calls[0][1].get("mode")).toBe("setup");});
