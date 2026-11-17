@@ -56,9 +56,11 @@ export async function auditApp({browser,config,cookie,session}){
  await pause.getByLabel("Your current password").fill("incorrect-password");
  await pause.getByLabel("I confirm this change.").check();await pause.getByRole("button",{name:"Confirm change",exact:true}).click();
  await pause.getByRole("alert").filter({hasText:"password"}).waitFor();
+ assert.equal(await pause.getByLabel("Reason",{exact:true}).inputValue(),"Verified browser acceptance pause test.");
+ assert.equal(await pause.getByLabel("I confirm this change.").isChecked(),true);
  await pause.getByLabel("Your current password").fill("Owner-browser-fixture-only!");
  await pause.getByRole("button",{name:"Confirm change",exact:true}).click();
- await op.getByText("Change saved and recorded in the audit log.",{exact:true}).waitFor();
+ await op.getByText("Change saved and recorded in the audit log.",{exact:true}).waitFor().catch(async e=>{console.log("Owner form state: "+await op.locator("main").innerText());throw e;});
  await page.goto(root+"/accounts");
  await page.waitForURL(url=>url.pathname==="/support");
  assert.equal(new URL(page.url()).pathname,"/support","Existing customer session is blocked after pause");
