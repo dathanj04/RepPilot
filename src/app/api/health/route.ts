@@ -10,8 +10,8 @@ export async function GET() {
       service: "reppilot",
       database: "up",
       emailConfigured: Boolean(process.env.RESEND_API_KEY),
-      monitoringConfigured: Boolean(process.env.SENTRY_DSN),
-      scheduler: "vercel-cron:/api/cron/reminders",
+      monitoringConfigured: Boolean(process.env.SENTRY_DSN || process.env.ALERT_WEBHOOK_URL || (process.env.OPS_ALERT_EMAIL && process.env.RESEND_API_KEY)),
+      scheduler: process.env.SCHEDULER_SECRET ? "external:/api/cron/reminders" : "unconfigured",
       elapsedMs: Date.now() - started,
     });
   } catch (error) {

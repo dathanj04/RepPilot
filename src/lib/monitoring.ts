@@ -64,6 +64,7 @@ async function sendSentry(message: string, stack: string | undefined, fields: Fi
 
 async function sendAlert(event: string, detail: string, fields: Fields) {
   const webhook = process.env.ALERT_WEBHOOK_URL;
+  await sendOwnerEmail(event, fields);
   if (!webhook) return;
   await postJson(webhook, { service: "reppilot", event, detail, fields, at: new Date().toISOString() }, {
     "Content-Type": "application/json",
@@ -82,4 +83,20 @@ async function postJson(url: string, body: unknown, headers: Record<string, stri
   } catch {
     logEvent("error", "monitor.delivery_failed");
   }
+}
+
+async function sendOwnerEmail(event: string, fields: Fields) {
+  const recipient=process.env.OPS_ALERT_EMAIL;
+  const key=process.env.RESEND_API_KEY;
+  const from=process.env.EMAIL_FROM;
+  if(!recipient||!key||!from)return;
+  // Direct provider call avoids recursion through deliverEmail's own failure alerts.
+  // Stable body and key limit each failure/route to one email per 15-minute window.
+  const {createHash}=await import("node:crypto");
+  const bucket=Math.floor(Date.now()/900000);
+  const id=createHash("sha256").update(event+":"+String(fields.route)+":"+bucket).digest("hex");
+  await postJson("https://api.resend.com/emails",{
+    from,to:[recipient],subject:"RepPilot operational alert",
+    text:`RepPilot reported ${event}. Route: ${String(fields.route)}. Review the authenticated owner Operations console. No customer content is included in this alert.`
+  },{"Content-Type":"application/json",Authorization:`Bearer ${key}`,"Idempotency-Key":"ops-"+id});
 }

@@ -1,3 +1,5 @@
+import {headers} from "next/headers";
+import {isNativeShell} from "@/lib/native-shell";
 import Link from "next/link";
 import {connection} from "next/server";
 import {redirect} from "next/navigation";
@@ -18,6 +20,8 @@ export default async function BillingPage({searchParams}:{searchParams:Promise<{
  const user=await getCurrentUser({allowExpiredTrial:true});
  if(user.roleKey==="PLATFORM_ADMIN")redirect("/platform");
  const query=await searchParams;
+ const native=isNativeShell((await headers()).get("user-agent"));
+ if(native)return <AppShell allowExpiredTrial><PageFrame title="Subscription" subtitle="Your RepPilot workspace"><div className="max-w-2xl space-y-4"><p>{user.trialDaysLeft!==null&&user.trialDaysLeft>0?`${user.trialDaysLeft} days remain in your original 14-day trial.`:"Existing workspace access is verified securely."}</p><p>This app provides access to your existing RepPilot workspace. Purchases and payment changes are unavailable in the mobile app.</p><Link href="/support" className="underline">Help and support</Link><br/><Link href="/delete-account/confirm" className="underline">Request account deletion</Link></div></PageFrame></AppShell>;
  let subscription=await prisma.subscription.findUnique({where:{organizationId:user.organizationId}});
  const profile=await prisma.user.findUniqueOrThrow({where:{id:user.id},select:{billingName:true,billingEmail:true,billingPlanPreference:true}});
  const configured=stripeConfigured()&&Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim());

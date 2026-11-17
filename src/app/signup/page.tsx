@@ -41,7 +41,7 @@ export default function SignupPage() {
   }
 
   return (
-    <AuthLayout title="Create your workspace" description="Start your 14-day free trial. For individuals and teams. No credit card required and no automatic charge.">
+    <AuthLayout title="Create your workspace" description="Start your 14-day free trial. For individuals and teams. No credit card required. Optional recurring billing starts only after your trial with your authorization.">
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2"><Label htmlFor="name">Your name</Label><Input id="name" name="name" className="h-12" required /></div>
         <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" className="h-12" required /></div>

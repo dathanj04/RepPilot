@@ -1,27 +1,41 @@
+import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { processDueReminders } from "@/lib/services/reminders";
 import { deliverEmail } from "@/lib/email/send";
 import { renderReminderEmail } from "@/lib/email/templates";
 import { appUrl } from "@/lib/permissions";
+import { reportOperationalAlert } from "@/lib/monitoring";
 
-export async function POST(request: Request) {
-  return run(request);
+export const runtime="nodejs";
+export const maxDuration=60;
+export const POST=run;
+export const GET=run;
+function authorized(request:Request){
+ const supplied=Buffer.from(request.headers.get("authorization")||"");
+ return [process.env.SCHEDULER_SECRET,process.env.CRON_SECRET].some(secret=>{
+  if(!secret)return false;
+  const expected=Buffer.from(`Bearer ${secret}`);
+  return expected.length===supplied.length&&timingSafeEqual(expected,supplied);
+ });
 }
-
-export async function GET(request: Request) {
-  return run(request);
+async function heartbeat(name:string,count:number){
+ const key="operational:reminders:"+name;
+ await prisma.rateLimitBucket.upsert({where:{key},create:{key,count,resetAt:new Date(Date.now()+15*60000)},update:{count,resetAt:new Date(Date.now()+15*60000)}});
 }
-
-async function run(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+async function run(request:Request){
+ if(!authorized(request))return Response.json({error:"Unauthorized"},{status:401});
+ try{
+  const results=await processDueReminders(prisma,new Date(),{appUrl:appUrl(),render:renderReminderEmail,send:deliverEmail});
+  const failed=results.filter(r=>r.status==="failed").length;
+  await heartbeat("last-run",results.length);
+  if(failed){
+   await reportOperationalAlert("reminder.failed","Delivery failure",{route:"/api/cron/reminders",method:request.method});
+   return Response.json({processed:results.length,failed},{status:503});
   }
-  const results = await processDueReminders(prisma, new Date(), {
-    appUrl: appUrl(),
-    render: renderReminderEmail,
-    send: deliverEmail,
-  });
-  await prisma.rateLimitBucket.upsert({where:{key:"operational:reminders:last-success"},create:{key:"operational:reminders:last-success",count:results.length,resetAt:new Date(Date.now()+15*60000)},update:{count:results.length,resetAt:new Date(Date.now()+15*60000)}});
-  return Response.json({ processed: results.length, results });
+  await heartbeat("last-success",results.length);
+  return Response.json({processed:results.length,failed:0});
+ }catch{
+  await reportOperationalAlert("reminder.failed","Scheduler failure",{route:"/api/cron/reminders",method:request.method});
+  return Response.json({error:"Reminder processing failed"},{status:503});
+ }
 }
