@@ -56,6 +56,7 @@ export async function auditApp({browser,config,cookie,session}){
  await pause.getByLabel("Your current password").fill("incorrect-password");
  await pause.getByLabel("I confirm this change.").check();await pause.getByRole("button",{name:"Confirm change",exact:true}).click();
  await pause.getByRole("alert").filter({hasText:"password"}).waitFor();
+ console.log("Owner password check rejected; retained reason: "+await pause.getByLabel("Reason",{exact:true}).inputValue().catch(async e=>{console.log("Owner DOM: "+await op.locator("main").innerText());throw e;}));
  assert.equal(await pause.getByLabel("Reason",{exact:true}).inputValue(),"Verified browser acceptance pause test.");
  assert.equal(await pause.getByLabel("I confirm this change.").isChecked(),true);
  await pause.getByLabel("Your current password").fill("Owner-browser-fixture-only!");

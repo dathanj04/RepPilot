@@ -9,7 +9,7 @@ export function PlatformChangeForm({kind,id,value,label,roles=false}:{kind:strin
  <form action={action} className="mt-3 grid gap-3">
  <input type="hidden" name="kind" value={kind}/><input type="hidden" name="id" value={id}/>
  {roles?<label>Organization role<select name="value" defaultValue={value} className="block min-h-11 w-full rounded-lg border p-2">{["REP","MANAGER","COMPLIANCE_ADMIN","ORG_ADMIN"].map(r=><option key={r}>{r}</option>)}</select></label>:<input type="hidden" name="value" value={value}/>}
- <label>Reason<textarea value={reason} onChange={e=>setReason(e.target.value)} name="reason" minLength={10} maxLength={1000} required className="block w-full rounded-lg border p-2"/></label>
+ <label>Reason<textarea aria-label="Reason" value={reason} onChange={e=>setReason(e.target.value)} name="reason" minLength={10} maxLength={1000} required className="block w-full rounded-lg border p-2"/></label>
  <label>Your current password<input value={password} onChange={e=>setPassword(e.target.value)} name="password" type="password" required autoComplete="current-password" className="block min-h-11 w-full rounded-lg border p-2"/></label>
  <label className="flex items-start gap-2"><input checked={confirmed} onChange={e=>setConfirmed(e.target.checked)} type="checkbox" name="confirmed" value="yes" required className="mt-1"/>I confirm this change.</label>
  {state.error?<p role="alert" className="text-red-700">{state.error}</p>:null}{state.message?<p role="status" className="text-emerald-800">{state.message}</p>:null}
