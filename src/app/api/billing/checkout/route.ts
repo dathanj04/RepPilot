@@ -59,10 +59,9 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ url: session.url });
   } catch (error) {
-    await prisma.subscription.updateMany({
-      where: { organizationId: user.organizationId, checkoutSessionExpiresAt: reservedUntil, stripeSubscriptionId: null },
-      data: { checkoutSessionId: null, checkoutSessionExpiresAt: null },
-    }).catch(() => undefined);
+    // Keep the reservation until it expires: the request may have succeeded at
+    // Stripe even if our network call failed before receiving its response.
+    // Releasing early would allow two payable subscriptions.
     console.error("Stripe checkout failed", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Stripe checkout could not be started" }, { status: 502 });
   }
