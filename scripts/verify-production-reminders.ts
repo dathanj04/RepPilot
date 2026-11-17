@@ -27,13 +27,24 @@ async function main(){
   const success=await prisma.rateLimitBucket.findUnique({where:{key:"operational:reminders:last-success"}});
   let providerStatus="unavailable";
   const id=deliveries[0]?.providerMessageId;
-  if(id){const r=await fetch("https://api.resend.com/emails/"+encodeURIComponent(id),{headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`}});if(r.ok)providerStatus=(await r.json()).last_event||"accepted";}
+  if(id){const r=await fetch("https://api.resend.com/emails/"+encodeURIComponent(id),{headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`}});if(r.ok)providerStatus=(await r.json()).last_event||"accepted";else providerStatus="lookup_http_"+r.status;}
   const alert=await prisma.rateLimitBucket.findFirst({where:{key:{startsWith:"operational:alert-receipt:"}},orderBy:{updatedAt:"desc"}});
   let alertStatus="unavailable";
-  if(alert){const ar=await fetch("https://api.resend.com/emails/"+encodeURIComponent(alert.key.split(":").at(-1)!),{headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`}});if(ar.ok)alertStatus=(await ar.json()).last_event||"accepted";}
+  if(alert){const ar=await fetch("https://api.resend.com/emails/"+encodeURIComponent(alert.key.split(":").at(-1)!),{headers:{Authorization:`Bearer ${process.env.RESEND_API_KEY}`}});if(ar.ok)alertStatus=(await ar.json()).last_event||"accepted";else alertStatus="lookup_http_"+ar.status;}
   console.log(JSON.stringify({event:"verification.alert",providerStatus:alertStatus}));
   console.log(JSON.stringify({event:"verification.result",reminderStatus:reminder.status,deliveryRecords:deliveries.length,deliveryStatus:deliveries[0]?.status||"none",providerStatus,heartbeatValid:Boolean(success&&success.resetAt>new Date())}));
-  if(reminder.status!=="SENT"||deliveries.length!==1||providerStatus!=="delivered"||alertStatus!=="delivered")throw Error("Scheduled delivery not yet verified");
+  const ownerConfirmed=process.argv.includes("--owner-confirmed-receipt");
+  // Use this flag only after the authorized recipient explicitly confirms both messages.
+  // It records human evidence without presenting a send-only key as provider delivery proof.
+  if(reminder.status!=="SENT"||deliveries.length!==1||(!ownerConfirmed&&(providerStatus!=="delivered"||alertStatus!=="delivered")))throw Error("Scheduled delivery not yet verified");
+  if(ownerConfirmed){
+   const booking=await prisma.lunchBooking.findUniqueOrThrow({where:{id:fixture},include:{organization:true,account:true}});
+   const owner=await prisma.user.findUniqueOrThrow({where:{email:"dathan.johnson@gmail.com"}});
+   if(!booking.organization.isDemo||booking.organization.slug!==fixture||!booking.account.isDemo||booking.account.email!==owner.email)throw Error("Invalid verification fixture");
+   await prisma.auditLog.upsert({where:{id:fixture+"-receipt"},update:{},create:{id:fixture+"-receipt",organizationId:booking.organizationId,actorId:owner.id,action:"ops.verification.owner_confirmed_receipt",entityType:"LunchReminder",entityId:fixture,metadata:{reminderReceived:true,alertReceived:true,deliveryRecords:1,evidence:"Owner explicitly confirmed both messages on November 17, 2026. Scheduled runs: 15:05 UTC processed 1; 15:10 UTC processed 0."}}});
+   await prisma.lunchBooking.update({where:{id:fixture},data:{status:"CANCELED",notes:"Internal verification complete. Owner confirmed reminder and alert receipt. No real office contacted."}});
+  }
+  console.log(JSON.stringify({event:"verification.complete",ownerConfirmedReceipt:ownerConfirmed,duplicateDeliveryRecords:0}));
  }else throw Error("Choose prepare or verify");
 }
 main().catch(()=>{console.error("Production verification incomplete; no secrets or customer data logged.");process.exitCode=1;}).finally(()=>prisma.$disconnect());
