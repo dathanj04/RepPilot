@@ -48,7 +48,7 @@ export async function auditApp({browser,config,cookie,session}){
  // Real browser enrollment/challenge against isolated PostgreSQL, no production identities.
  const security=await browser.newContext(config);await security.addCookies([{...cookie,value:session.platformUnverifiedCookie}]);
  const sp=await security.newPage();sp.setDefaultTimeout(20000);
- await sp.goto(root+"/platform");assert.equal(new URL(sp.url()).pathname,"/owner-security");
+ await sp.goto(root+"/platform");await sp.waitForURL(url=>url.pathname==="/owner-security");assert.equal(new URL(sp.url()).pathname,"/owner-security");
  const code=authenticatorCode("JBSWY3DPEHPK3PXP");
  await sp.getByLabel("Authenticator or recovery code").fill(code);await sp.getByRole("button",{name:"Verify identity",exact:true}).click();
  await sp.getByRole("link",{name:"Open owner console",exact:true}).waitFor();
@@ -57,13 +57,13 @@ export async function auditApp({browser,config,cookie,session}){
  await rp.goto(root+"/platform");await rp.getByLabel("Authenticator or recovery code").fill(code);await rp.getByRole("button",{name:"Verify identity",exact:true}).click();await rp.getByRole("alert").filter({hasText:"already used"}).waitFor();
  await replay.close();await security.close();
  const enrollment=await browser.newContext(config);await enrollment.addCookies([{...cookie,value:session.enrollmentCookie}]);const ep=await enrollment.newPage();
- await ep.goto(root+"/platform");assert.equal(new URL(ep.url()).pathname,"/owner-security");
+ await ep.goto(root+"/platform");await ep.waitForURL(url=>url.pathname==="/owner-security");assert.equal(new URL(ep.url()).pathname,"/owner-security");
  await ep.getByLabel("Your current password",{exact:true}).fill("Owner-browser-fixture-only!");await ep.getByRole("button",{name:"Create authenticator setup key",exact:true}).click();
  const secret=await ep.getByTestId("mfa-setup-secret").innerText();await ep.getByLabel("New six-digit code").fill(authenticatorCode(secret));await ep.getByRole("button",{name:"Enable authenticator",exact:true}).click();
  await ep.getByRole("heading",{name:"Save your recovery codes",exact:true}).waitFor();
  const recovery=(await ep.locator("pre").innerText()).split("\n")[0];await ep.getByLabel("I saved my recovery codes.").check();await ep.getByRole("link",{name:"Open owner console",exact:true}).click();await ep.waitForURL(url=>url.pathname==="/platform");
  // Old enrollment cookie must be revoked after enabling MFA.
- const old=await browser.newContext(config);await old.addCookies([{...cookie,value:session.enrollmentCookie}]);const oldPage=await old.newPage();await oldPage.goto(root+"/platform");assert.equal(new URL(oldPage.url()).pathname,"/login");await old.close();
+ const old=await browser.newContext(config);await old.addCookies([{...cookie,value:session.enrollmentCookie}]);const oldPage=await old.newPage();await oldPage.goto(root+"/platform");await oldPage.waitForURL(url=>url.pathname==="/login");assert.equal(new URL(oldPage.url()).pathname,"/login");await old.close();
  assert.match(recovery,/^[A-F0-9]{4}(-[A-F0-9]{4}){5}$/);
  await enrollment.close();
  const recoveryUi=await browser.newContext(config);const pp=await recoveryUi.newPage();await pp.goto(root+"/login");await pp.getByRole("link",{name:"Forgot password?",exact:true}).click();await pp.getByLabel("Account email").fill("unknown@example.invalid");await pp.getByRole("button",{name:"Send reset link",exact:true}).click();await pp.getByRole("status").filter({hasText:"If that email has an account"}).waitFor();await recoveryUi.close();
