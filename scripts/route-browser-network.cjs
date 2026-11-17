@@ -5,6 +5,12 @@ globalThis.fetch=async function(input,init){
  const raw=typeof input==="string"?input:input instanceof URL?input.href:input.url;
  const url=new URL(raw);
  if(url.hostname==="api.stripe.com"){
+  if(url.pathname==="/v1/subscriptions"&&!url.searchParams.has("customer")){
+   const fixture=JSON.parse(require("node:fs").readFileSync("/tmp/route-browser-session.json","utf8"));
+   const make=(id,org,customer,price,amount,interval)=>({id,customer:{id:customer,name:"Billing fixture",email:"billing@example.invalid"},status:"active",livemode:true,metadata:{organizationId:org},latest_invoice:{id:"in_"+id,status:"paid",amount_paid:amount,currency:"usd",status_transitions:{paid_at:Math.floor(Date.now()/1000)-60}},items:{data:[{current_period_end:Math.floor(Date.now()/1000)+86400,quantity:1,price:{id:price,unit_amount:amount,currency:"usd",recurring:{interval,interval_count:1}}}]}});
+   return Response.json({has_more:false,data:[make("sub_business_report",fixture.organizationId,"cus_browser_business","price_1UcZG9AJxC2GoXaRLNovhZQD",48000,"year"),make("sub_individual_report",fixture.individualOrganizationId,"cus_browser_individual","price_1UcZGHAJxC2GoXaRGEfCcPME",2900,"month")]});
+  }
+
   if(url.pathname==="/v1/subscriptions"&&url.searchParams.get("customer")==="cus_browser_individual"){
    const fixture=JSON.parse(require("node:fs").readFileSync("/tmp/route-browser-session.json","utf8"));
    return new Response(JSON.stringify({data:[{id:"sub_browser_individual",customer:"cus_browser_individual",status:"active",livemode:true,metadata:{organizationId:fixture.individualOrganizationId},latest_invoice:{status:"paid"},items:{data:[{current_period_end:Math.floor(Date.now()/1000)+86400,quantity:1,price:{id:"price_1UcZGHAJxC2GoXaRGEfCcPME"}}]}}]}),{headers:{"content-type":"application/json"}});

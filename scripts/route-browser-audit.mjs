@@ -70,10 +70,16 @@ export async function auditApp({browser,config,cookie,session}){
  console.log("PASS: owner MFA enrollment, challenge, replay rejection, revoked pre-enrollment session and private password recovery response.");
  const owner=await browser.newContext({...config,viewport:{width:1280,height:900},isMobile:false});
  await owner.addCookies([{...cookie,value:session.platformCookie}]);const op=await owner.newPage();op.setDefaultTimeout(20000);
- for(const path of ["/platform","/platform/users","/platform/operations","/platform/audit","/platform/deletion-requests","/platform/workspaces/"+session.organizationId]){
+ for(const path of ["/platform","/platform/revenue","/platform/users","/platform/operations","/platform/audit","/platform/deletion-requests","/platform/workspaces/"+session.organizationId]){
   const r=await op.goto(root+path);result.pages.push({path,status:r.status(),role:"platform"});
   if(r.status()!==200||new URL(op.url()).pathname!==path)result.issues.push({path,status:r.status(),role:"platform"});
  }
+ await op.goto(root+"/platform/revenue");await op.getByRole("heading",{name:"Paying customers",exact:true}).waitFor();await op.getByText("$69.00 / month",{exact:true}).waitFor();
+ const exportResponse=await owner.request.get(root+"/platform/revenue/export");assert.equal(exportResponse.status(),200);assert.match(exportResponse.headers()["content-disposition"],/\.xlsx/);assert.match(exportResponse.headers()["cache-control"],/no-store/);
+ const {default:ExcelJS}=await import("exceljs");const workbook=new ExcelJS.Workbook();await workbook.xlsx.load(await exportResponse.body());assert.equal(workbook.getWorksheet("Paying customers").rowCount,3);assert.equal(workbook.getWorksheet("Summary").getCell("B3").value,2);
+ const denied=await context.request.get(root+"/platform/revenue/export");assert.ok(!String(denied.headers()["content-type"]).includes("spreadsheetml"),"Customer role must not export billing data");
+ console.log("PASS: owner paying-customer dashboard, annual/monthly totals, real Excel download and customer-role export denial.");
+ await op.goto(root+"/platform/workspaces/"+session.organizationId);
  const pause=op.locator("details").filter({has:op.locator("summary",{hasText:"Pause workspace access"})});
  await pause.locator("summary").click();
  await pause.getByLabel("Reason",{exact:true}).fill("Verified browser acceptance pause test.");
