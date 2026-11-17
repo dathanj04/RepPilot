@@ -1,0 +1,38 @@
+name: Billing PR checks
+
+on:
+  pull_request:
+    paths:
+      - 'src/app/api/billing/**'
+      - 'src/components/billing/**'
+      - 'src/lib/stripe.ts'
+      - 'src/lib/domain/subscription-trial.ts'
+      - 'src/app/platform/page.tsx'
+      - 'src/app/(app)/onboarding/page.tsx'
+      - 'prisma/schema.prisma'
+      - 'prisma/migrations/**'
+      - 'tests/stripe-signature.test.ts'
+      - 'tests/subscription-trial.test.ts'
+      - '.github/workflows/billing-pr.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  billing-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: TypeScript check
+        run: npx tsc --noEmit
+      - name: Billing unit tests
+        run: npx vitest run tests/stripe-signature.test.ts tests/subscription-trial.test.ts
