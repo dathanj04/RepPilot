@@ -14,6 +14,8 @@ model User {
   id                 String   @id @default(cuid())
   disabledAt         DateTime?
   sessionVersion     Int @default(0)
+  mfa                UserMfa?
+  passwordResets     PasswordResetToken[]
   email              String   @unique
   name               String
   passwordHash       String
@@ -1057,4 +1059,37 @@ model AccountDeletionRequest {
   completedAt DateTime?
 
   @@index([status, requestedAt])
+}
+
+model UserMfa {
+  userId String @id
+  secretCiphertext String?
+  pendingSecretCiphertext String?
+  pendingExpiresAt DateTime?
+  enabledAt DateTime?
+  lastUsedStep BigInt?
+  recoveryHashes Json @default("[]")
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+}
+
+model PasswordResetToken {
+  id String @id @default(cuid())
+  userId String
+  tokenHash String @unique
+  expiresAt DateTime
+  usedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([userId,expiresAt])
+}
+
+model OperationalEvent {
+  fingerprint String @id
+  kind String
+  route String
+  occurrences Int @default(1)
+  firstSeenAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  @@index([lastSeenAt])
 }

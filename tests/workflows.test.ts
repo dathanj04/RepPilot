@@ -232,6 +232,7 @@ describe("workflow persistence", () => {
         render: renderReminderEmail,
         send: async (email) => {
           sent.push(email.idempotencyKey);
+          return {status:"sent"};
         },
       });
     await run();
@@ -312,6 +313,7 @@ describe("workflow persistence", () => {
         render: renderReminderEmail,
         send: async (email) => {
           sent.push(email.idempotencyKey);
+          return {status:"sent"};
         },
       });
     await Promise.all([run(), run()]);
@@ -716,4 +718,17 @@ describe("workflow persistence", () => {
     expect(after.ok).toBe(true);
     if (after.ok) expect(after.brief.referralCount).toBe(3);
   });
+  it("does not mark an undelivered reminder sent and suppresses canceled bookings",async()=>{
+    const {orgA,user,accountA}=await fixture();
+    const booking=await prisma.lunchBooking.create({data:{organizationId:orgA.id,accountId:accountA.id,representativeId:user.id,slotStartsAt:new Date("2026-10-16T17:00:00Z"),slotEndsAt:new Date("2026-10-16T18:00:00Z"),status:"SCHEDULED",purpose:"Delivery check",expectedAttendees:3,timezone:"America/Chicago"}});
+    const reminder=await prisma.lunchReminder.create({data:{organizationId:orgA.id,bookingId:booking.id,kind:"SEVEN_DAY",scheduledFor:new Date("2026-10-01T17:00:00Z"),status:"SCHEDULED",idempotencyKey:"delivery-proof:"+booking.id}});
+    let calls=0;const deps={appUrl:"http://127.0.0.1:43123",render:renderReminderEmail,send:async()=>{calls++;return {status:"logged_demo"};}};
+    await processDueReminders(prisma,now,deps);
+    expect((await prisma.lunchReminder.findUniqueOrThrow({where:{id:reminder.id}})).status).toBe("SCHEDULED");
+    expect(calls).toBe(1);
+    await prisma.lunchBooking.update({where:{id:booking.id},data:{status:"CANCELED"}});
+    await processDueReminders(prisma,now,deps);
+    expect(calls).toBe(1);expect((await prisma.lunchReminder.findUniqueOrThrow({where:{id:reminder.id}})).status).toBe("SKIPPED");
+  });
+
 });

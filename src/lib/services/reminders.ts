@@ -136,7 +136,7 @@ export async function processDueReminders(
               },
       });
       const deliveryStatus = delivery && typeof delivery === "object" && "status" in delivery ? String(delivery.status) : "";
-      if (deliveryStatus === "failed") throw new Error("Email delivery failed");
+      if (deliveryStatus !== "sent" && deliveryStatus !== "sending") throw new Error("Email provider has not accepted this reminder");
       if (deliveryStatus === "sending") {
         results.push({ id: reminder.id, status: "in_progress" });
         continue;

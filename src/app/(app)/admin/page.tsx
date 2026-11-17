@@ -38,7 +38,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const integrations = [
     ["Map display", Boolean(process.env.NEXT_PUBLIC_TOMTOM_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY), "OpenStreetMap is the fallback."],
     ["Driving routes", Boolean(process.env.NEXT_PUBLIC_TOMTOM_API_KEY || process.env.GOOGLE_MAPS_API_KEY), "Route suggestions stay straight-line without it."],
-    ["Gemini", Boolean(process.env.GEMINI_API_KEY), "Check-in extraction uses a local parser without it."],
+    ["Generative AI", Boolean(process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY), "Briefs retain verified deterministic facts when the provider is unavailable. Check-ins use a local parser."],
     ["Email", Boolean(process.env.RESEND_API_KEY), "Messages are logged as demo deliveries without it."],
     ["Google Calendar", Boolean(process.env.GOOGLE_CLIENT_ID), `${calendars.filter((item) => item.provider === "google" && item.status === "connected").length} connected.`],
     ["Microsoft 365", Boolean(process.env.MICROSOFT_CLIENT_ID), "Not connected until OAuth is configured and tested."],

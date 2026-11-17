@@ -77,6 +77,7 @@ export async function loginAction(formData: FormData) {
   session.roleKey = membership.role.key;
   session.credentialVersion = version;
   session.sessionVersion = user.sessionVersion;
+  session.mfaVerifiedAt = undefined;
   await session.save();
   await clearPreviewSession();
   redirect(membership.role.key === "PLATFORM_ADMIN" ? "/platform" : "/today");

@@ -1,11 +1,12 @@
 import "server-only";
+import {mfaSessionFresh} from "./security/totp";
 import { getPaidTier } from "./stripe";
 import { trialAccess } from "./domain/trial";
 import {hasBusinessFeatures,type PlanTier} from "./domain/paid-access";
 import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { credentialVersion } from "./session-options";
-import { clearPreviewSession, getSession } from "./session";
+import { getSession } from "./session";
 
 export type CurrentUser = {
   id: string;
@@ -36,8 +37,8 @@ export async function getCurrentUser(options: { allowExpiredTrial?: boolean } = 
     include: { user: true, role: true, organization: { include: { subscription: true } } },
   });
   if (!membership || session.credentialVersion !== credentialVersion(membership.user.passwordHash) || (session.sessionVersion??0)!==(membership.user.sessionVersion??0)) {
-    session.destroy();
-    await clearPreviewSession();
+    // Rendering can read cookies but cannot mutate them. Login/logout actions
+    // replace or remove the cookie; every request still rejects this revoked proof.
     redirect("/login");
   }
 
@@ -73,11 +74,17 @@ export async function requireAppUser(options: { allowExpiredTrial?: boolean } = 
   return user;
 }
 
+export async function requireOwnerIdentity(){
+ const user=await getCurrentUser({allowExpiredTrial:true});
+ if(user.roleKey!=="PLATFORM_ADMIN")redirect("/today");
+ if(user.isDemo||user.email.toLowerCase().endsWith(".demo"))redirect("/support");
+ return user;
+}
 export async function requirePlatformAdmin() {
-  const user = await getCurrentUser();
-  if (user.roleKey !== "PLATFORM_ADMIN") redirect("/today");
-  if(user.isDemo||user.email.toLowerCase().endsWith(".demo"))redirect("/support");
-  return user;
+ const user=await requireOwnerIdentity();
+ const [session,mfa]=await Promise.all([getSession(),prisma.userMfa.findUnique({where:{userId:user.id},select:{enabledAt:true}})]);
+ if(!mfa?.enabledAt||!mfaSessionFresh(session.mfaVerifiedAt))redirect("/owner-security");
+ return user;
 }
 
 export async function requireBusinessUser(){

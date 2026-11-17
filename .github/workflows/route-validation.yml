@@ -5,7 +5,7 @@ on:
     paths:
       - 'src/**'
       - 'tests/**'
-      - 'scripts/route-browser*'
+      - 'scripts/**'
       - 'prisma/**'
       - '.github/workflows/route-validation.yml'
   workflow_dispatch:
@@ -51,6 +51,8 @@ jobs:
       - run: npm install --prefix /tmp/route-browser-tools --no-package-lock --ignore-scripts playwright@1.56.1
       - run: node /tmp/route-browser-tools/node_modules/playwright/cli.js install --with-deps chromium
       - run: NODE_OPTIONS=--conditions=react-server npx tsx scripts/route-browser-seed.ts
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-client-16
+      - run: npm run db:restore-drill
       - run: node scripts/route-browser-check.mjs
 
       - uses: actions/upload-artifact@v4

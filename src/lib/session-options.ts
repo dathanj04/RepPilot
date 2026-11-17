@@ -7,6 +7,7 @@ export type SessionData = {
   roleKey: string;
   credentialVersion: string;
   sessionVersion?: number;
+  mfaVerifiedAt?: number;
 };
 
 export function sessionPassword() {

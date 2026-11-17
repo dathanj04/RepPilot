@@ -8,7 +8,6 @@ export async function register() {
 
 export const onRequestError: Instrumentation.onRequestError = async (error, request, context) => {
   await reportError(error, {
-    path: request.path,
     method: request.method,
     route: context.routePath,
     routeType: context.routeType,

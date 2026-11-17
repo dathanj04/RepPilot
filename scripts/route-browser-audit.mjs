@@ -1,3 +1,4 @@
+import {createHmac} from "node:crypto";
 import assert from "node:assert/strict";
 import {writeFile} from "node:fs/promises";
 export async function auditApp({browser,config,cookie,session}){
@@ -44,6 +45,29 @@ export async function auditApp({browser,config,cookie,session}){
  await page.goto(root+"/platform");
  await page.waitForURL(url=>url.pathname==="/today");
  assert.equal(await page.getByRole("heading",{name:"Platform overview",exact:true}).count(),0,"Customer cannot see owner data");
+ // Real browser enrollment/challenge against isolated PostgreSQL, no production identities.
+ const security=await browser.newContext(config);await security.addCookies([{...cookie,value:session.platformUnverifiedCookie}]);
+ const sp=await security.newPage();sp.setDefaultTimeout(20000);
+ await sp.goto(root+"/platform");await sp.waitForURL(url=>url.pathname==="/owner-security");assert.equal(new URL(sp.url()).pathname,"/owner-security");
+ const code=authenticatorCode("JBSWY3DPEHPK3PXP");
+ await sp.getByLabel("Authenticator or recovery code").fill(code);await sp.getByRole("button",{name:"Verify identity",exact:true}).click();
+ await sp.getByRole("link",{name:"Open owner console",exact:true}).waitFor();
+ await sp.getByRole("link",{name:"Open owner console",exact:true}).click();await sp.waitForURL(url=>url.pathname==="/platform");
+ const replay=await browser.newContext(config);await replay.addCookies([{...cookie,value:session.platformUnverifiedCookie}]);const rp=await replay.newPage();
+ await rp.goto(root+"/platform");await rp.getByLabel("Authenticator or recovery code").fill(code);await rp.getByRole("button",{name:"Verify identity",exact:true}).click();await rp.getByRole("alert").filter({hasText:"already used"}).waitFor();
+ await replay.close();await security.close();
+ const enrollment=await browser.newContext(config);await enrollment.addCookies([{...cookie,value:session.enrollmentCookie}]);const ep=await enrollment.newPage();
+ await ep.goto(root+"/platform");await ep.waitForURL(url=>url.pathname==="/owner-security");assert.equal(new URL(ep.url()).pathname,"/owner-security");
+ await ep.getByLabel("Your current password",{exact:true}).fill("Owner-browser-fixture-only!");await ep.getByRole("button",{name:"Create authenticator setup key",exact:true}).click();
+ const secret=await ep.getByTestId("mfa-setup-secret").innerText();await ep.getByLabel("New six-digit code").fill(authenticatorCode(secret));await ep.getByRole("button",{name:"Enable authenticator",exact:true}).click();
+ await ep.getByRole("heading",{name:"Save your recovery codes",exact:true}).waitFor();
+ const recovery=(await ep.locator("pre").innerText()).split("\n")[0];await ep.getByLabel("I saved my recovery codes.").check();await ep.getByRole("link",{name:"Open owner console",exact:true}).click();await ep.waitForURL(url=>url.pathname==="/platform");
+ // Old enrollment cookie must be revoked after enabling MFA.
+ const old=await browser.newContext(config);await old.addCookies([{...cookie,value:session.enrollmentCookie}]);const oldPage=await old.newPage();await oldPage.goto(root+"/platform");await oldPage.waitForURL(url=>url.pathname==="/login");assert.equal(new URL(oldPage.url()).pathname,"/login");await old.close();
+ assert.match(recovery,/^[A-F0-9]{4}(-[A-F0-9]{4}){5}$/);
+ await enrollment.close();
+ const recoveryUi=await browser.newContext(config);const pp=await recoveryUi.newPage();await pp.goto(root+"/login");await pp.getByRole("link",{name:"Forgot password?",exact:true}).click();await pp.getByLabel("Account email").fill("unknown@example.invalid");await pp.getByRole("button",{name:"Send reset link",exact:true}).click();await pp.getByRole("status").filter({hasText:"If that email has an account"}).waitFor();await recoveryUi.close();
+ console.log("PASS: owner MFA enrollment, challenge, replay rejection, revoked pre-enrollment session and private password recovery response.");
  const owner=await browser.newContext({...config,viewport:{width:1280,height:900},isMobile:false});
  await owner.addCookies([{...cookie,value:session.platformCookie}]);const op=await owner.newPage();op.setDefaultTimeout(20000);
  for(const path of ["/platform","/platform/users","/platform/operations","/platform/audit","/platform/deletion-requests","/platform/workspaces/"+session.organizationId]){
@@ -82,3 +106,10 @@ export async function auditApp({browser,config,cookie,session}){
  console.log("PASS: platform role isolation, password step-up, audited pause/resume, existing-session revocation, cross-app internal link crawl.");
 }
 function CSSescape(value){return value.replace(/["\\]/g,"\\$&");}
+
+function authenticatorCode(secret){
+ const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";let bits=0,value=0;const bytes=[];
+ for(const c of secret){value=(value<<5)|alphabet.indexOf(c);bits+=5;if(bits>=8){bytes.push((value>>>(bits-8))&255);bits-=8;}}
+ const counter=Buffer.alloc(8);counter.writeBigUInt64BE(BigInt(Math.floor(Date.now()/30000)));const h=createHmac("sha1",Buffer.from(bytes)).update(counter).digest(),offset=h[h.length-1]&15;
+ return String((h.readUInt32BE(offset)&0x7fffffff)%1000000).padStart(6,"0");
+}

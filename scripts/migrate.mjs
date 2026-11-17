@@ -6,6 +6,10 @@ const pooled = process.env.DATABASE_URL?.trim() ?? "";
 const direct = process.env.DATABASE_URL_UNPOOLED?.trim() || process.env.DIRECT_URL?.trim() || pooled;
 
 if (!direct) {
+  if (["production", "preview"].includes(process.env.VERCEL_ENV || "") || ["production", "staging"].includes(process.env.APP_ENV || "")) {
+    console.error("migrate: hosted deployment requires its own database configuration. Deployment stopped.");
+    process.exit(1);
+  }
   console.log("migrate: DATABASE_URL is not set, skipping");
   process.exit(0);
 }

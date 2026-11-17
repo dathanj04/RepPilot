@@ -14,18 +14,30 @@ export function parseSentryDsn(dsn: string): { storeUrl: string; publicKey: stri
 
 type Fields = Record<string, string | number | boolean | null | undefined>;
 
-export async function reportError(error: unknown, fields: Fields = {}) {
-  const message = error instanceof Error ? error.message : "unknown error";
-  logEvent("error", "app.error", { message, ...fields });
-  await Promise.all([
-    sendSentry(message, error instanceof Error ? error.stack : undefined, fields),
-    sendAlert("app.error", message, fields),
-  ]);
+/** Deliberately exclude raw URLs, exception text, stack traces, email and tokens. */
+export function safeMonitoringFields(fields: Fields): Fields {
+  const route=typeof fields.route==="string"&&/^\/[a-zA-Z0-9_\/\[\]().-]{0,180}$/.test(fields.route)?fields.route:"unknown";
+  return {route,method:["GET","POST","PUT","DELETE","PATCH","HEAD","OPTIONS"].includes(String(fields.method))?fields.method:undefined,
+    routeType:["render","route","action","middleware"].includes(String(fields.routeType))?fields.routeType:undefined};
 }
-
-export async function reportOperationalAlert(event: string, detail: string, fields: Fields = {}) {
-  logEvent("error", event, { detail, ...fields });
-  await sendAlert(event, detail, fields);
+async function recordIncident(kind:string, fields:Fields){
+  try {
+    const {prisma}=await import("./db");
+    const {createHash}=await import("node:crypto");
+    const route=String(fields.route??"unknown");
+    const fingerprint=createHash("sha256").update(kind+":"+route).digest("hex");
+    await prisma.operationalEvent.upsert({where:{fingerprint},create:{fingerprint,kind,route},update:{occurrences:{increment:1},lastSeenAt:new Date()}});
+  } catch {logEvent("error","monitor.persistence_failed",{kind});}
+}
+export async function reportError(_error: unknown, fields: Fields = {}) {
+  const safe=safeMonitoringFields(fields),message="Unhandled application error";
+  logEvent("error", "app.error", safe);
+  await Promise.all([recordIncident("app.error",safe),sendSentry(message,undefined,safe),sendAlert("app.error",message,safe)]);
+}
+export async function reportOperationalAlert(event: string, _detail: string, fields: Fields = {}) {
+  const kind=event==="email.failed"?event:"operation.failed",safe=safeMonitoringFields(fields);
+  logEvent("error",kind,safe);
+  await Promise.all([recordIncident(kind,safe),sendAlert(kind,"Operational failure; inspect the authenticated owner console.",safe)]);
 }
 
 async function sendSentry(message: string, stack: string | undefined, fields: Fields) {
@@ -60,15 +72,14 @@ async function sendAlert(event: string, detail: string, fields: Fields) {
 
 async function postJson(url: string, body: unknown, headers: Record<string, string>) {
   try {
-    await fetch(url, {
+    const response=await fetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(3000),
     });
-  } catch (error) {
-    logEvent("error", "monitor.delivery_failed", {
-      message: error instanceof Error ? error.message : "unknown",
-    });
+    if(!response.ok)logEvent("error","monitor.delivery_failed",{status:response.status});
+  } catch {
+    logEvent("error", "monitor.delivery_failed");
   }
 }

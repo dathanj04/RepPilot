@@ -11,6 +11,7 @@ export function integrationStatus() {
     mapsServer: configured("NEXT_PUBLIC_TOMTOM_API_KEY") || configured("GOOGLE_MAPS_API_KEY"),
     mapsBrowser: configured("NEXT_PUBLIC_TOMTOM_API_KEY") || configured("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY"),
     gemini: configured("GEMINI_API_KEY"),
+    generativeAi: process.env.AI_PROVIDER==="gemini"?configured("GEMINI_API_KEY"):process.env.AI_PROVIDER==="openai"?configured("OPENAI_API_KEY"):configured("OPENAI_API_KEY")||configured("GEMINI_API_KEY"),
     crm: false,
     monitoring: configured("SENTRY_DSN") || configured("ALERT_WEBHOOK_URL"),
     scheduler: configured("CRON_SECRET"),
