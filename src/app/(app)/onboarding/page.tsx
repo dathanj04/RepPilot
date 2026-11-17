@@ -4,6 +4,7 @@ import { requireAppUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { stripeConfigured } from "@/lib/stripe";
 import { TrialCheckout } from "@/components/billing/trial-checkout";
+import { ManageBillingButton } from "@/components/billing/manage-billing-button";
 
 export const instant = false;
 export const metadata = { title: "Setup" };
@@ -37,6 +38,7 @@ export default async function OnboardingPage() {
           <h2 className="font-semibold">Your subscription</h2>
           <p className="mt-1 text-sm">Status: {subscription.status}. Plan: {subscription.plan}.</p>
           {subscription.trialEnd ? <p className="text-sm">Trial ends: {subscription.trialEnd.toLocaleDateString("en-US", { timeZone: "UTC", dateStyle: "long" })} (UTC)</p> : null}
+          {subscription.stripeCustomerId ? <ManageBillingButton /> : null}
         </section>
       ) : <div className="mt-4"><TrialCheckout enabled={stripeConfigured()} /></div>) : null}
       <ol className="mt-4 space-y-2">
