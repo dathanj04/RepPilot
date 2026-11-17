@@ -22,7 +22,7 @@ export default async function DeletionQueuePage({ searchParams }: { searchParams
   const now = new Date();
   const byId = new Map(users.map((user) => [user.id, user]));
   const pending = requests.filter((request) => request.status !== "COMPLETED");
-  return <main className="mx-auto max-w-4xl space-y-5 px-6 py-10">
+  return <section className="mx-auto max-w-4xl space-y-5 px-6 py-10">
     <Link className="underline" href="/platform">Back to platform</Link>
     <h1 className="text-3xl font-semibold">Account deletion requests</h1>
     <p className="text-sm text-slate-600">Assigned operator: <a className="underline" href={SUPPORT_MAILTO}>{DELETION_OPERATOR_EMAIL}</a>. Password-confirmed requests erase sign-in and personal records immediately. This queue is for retries and requests that arrive by email. Backup copies and data held by email or calendar providers still have to be cleared within {DELETION_PROCESSING_DAYS} days.</p>
@@ -38,6 +38,7 @@ export default async function DeletionQueuePage({ searchParams }: { searchParams
         <form action={fulfillDeletionRequestAction} className="mt-3 space-y-3">
           <input type="hidden" name="requestId" value={request.id} />
           <label className="flex items-start gap-3 text-sm"><input name="verified" type="checkbox" required className="mt-1" /><span>I verified that this person owns the account.</span></label>
+          <label className="block text-sm">Your current password<input name="password" type="password" required autoComplete="current-password" className="mt-1 block h-12 w-full rounded-xl border px-3"/></label>
           <button className="min-h-11 rounded-xl bg-red-700 px-4 font-semibold text-white" type="submit">Erase sign-in and personal records</button>
         </form>
       </li>;
@@ -49,7 +50,8 @@ export default async function DeletionQueuePage({ searchParams }: { searchParams
         <label className="block text-sm font-medium" htmlFor="deletion-email">Account email</label>
         <input id="deletion-email" name="email" type="email" required autoComplete="off" className="h-12 w-full rounded-xl border px-3" />
         <label className="flex items-start gap-3 text-sm"><input name="verified" type="checkbox" required className="mt-1" /><span>I verified that this person owns the account.</span></label>
-        <button className="min-h-11 rounded-xl bg-[#10263E] px-4 font-semibold text-white" type="submit">Erase this account</button>
+        <label className="block text-sm">Your current password<input name="password" type="password" required autoComplete="current-password" className="mt-1 block h-12 w-full rounded-xl border px-3"/></label>
+          <button className="min-h-11 rounded-xl bg-[#10263E] px-4 font-semibold text-white" type="submit">Erase this account</button>
       </form>
     </section>
     <section className="space-y-2">
@@ -58,5 +60,5 @@ export default async function DeletionQueuePage({ searchParams }: { searchParams
         {requests.filter((request) => request.status === "COMPLETED").map((request) => <li key={request.id}>{request.id} · completed {request.completedAt?.toISOString() ?? "time unavailable"}</li>)}
       </ul>
     </section>
-  </main>;
+  </section>;
 }

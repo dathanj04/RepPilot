@@ -24,6 +24,13 @@ export async function auditApp({browser,config,cookie,session}){
    u.hash="";seen.add(u.pathname+u.search);
   }
  }
+ const officeContext=await browser.newContext(config);
+ for(const path of session.publicPaths){
+  const r=await officeContext.request.get(root+path);
+  result.pages.push({path:path.split("/").slice(0,-1).join("/")+"/[token]",status:r.status(),role:"public"});
+  if(r.status()!==200)result.issues.push({path:"public invitation",status:r.status()});
+ }
+ await officeContext.close();
  for(const path of seen){
   // OAuth starts initiate a connection; these are checked by explicit provider tests, not a crawl.
   if(path.startsWith("/api/calendar/"))continue;
