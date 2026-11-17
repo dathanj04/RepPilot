@@ -105,10 +105,11 @@ export async function POST(request: Request) {
     });
     return Response.json({ received: true });
   } catch (error) {
-    // Stripe retries duplicate webhooks. Unique event ID means it was already committed.
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" &&
-        Array.isArray(error.meta?.target) && error.meta.target.includes("id")) {
-      return Response.json({ received: true, duplicate: true });
+    // Confirm a committed event receipt rather than treating any unique-key
+    // conflict (including customer/subscription identifiers) as success.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const receipt = await prisma.stripeWebhookEvent.findUnique({ where: { id: event.id } });
+      if (receipt) return Response.json({ received: true, duplicate: true });
     }
     console.error("Stripe webhook processing failed", error instanceof Error ? error.message : "unknown");
     return new Response("Retry later", { status: 500 });
