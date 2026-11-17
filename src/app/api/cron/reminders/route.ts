@@ -22,5 +22,6 @@ async function run(request: Request) {
     render: renderReminderEmail,
     send: deliverEmail,
   });
+  await prisma.rateLimitBucket.upsert({where:{key:"operational:reminders:last-success"},create:{key:"operational:reminders:last-success",count:results.length,resetAt:new Date(Date.now()+15*60000)},update:{count:results.length,resetAt:new Date(Date.now()+15*60000)}});
   return Response.json({ processed: results.length, results });
 }

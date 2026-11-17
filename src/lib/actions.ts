@@ -65,10 +65,10 @@ export async function loginAction(formData: FormData) {
     where: { email },
     include: { memberships: { include: { role: true } } },
   });
-  if (!user || !(await compare(password, user.passwordHash))) {
+  if (!user || user.disabledAt || !(await compare(password, user.passwordHash))) {
     return { error: "Email or password is incorrect." };
   }
-  const membership = user.memberships[0];
+  const membership = user.memberships.find(m=>m.role.key==="PLATFORM_ADMIN")??user.memberships[0];
   if (!membership) return { error: "This account is not in an organization." };
   const session = await getSession();
   const version = credentialVersion(user.passwordHash);
@@ -76,6 +76,7 @@ export async function loginAction(formData: FormData) {
   session.organizationId = membership.organizationId;
   session.roleKey = membership.role.key;
   session.credentialVersion = version;
+  session.sessionVersion = user.sessionVersion;
   await session.save();
   await clearPreviewSession();
   redirect(membership.role.key === "PLATFORM_ADMIN" ? "/platform" : "/today");

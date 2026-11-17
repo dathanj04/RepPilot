@@ -1,5 +1,9 @@
 import {writeFile} from "node:fs/promises";
+import {hash} from "bcryptjs";
 import {sealData} from "iron-session";
+import {createInvitation} from "../src/lib/services/lunches";
+import {createSchedulingInvitation} from "../src/lib/services/meetings";
+import {issueSecureLink} from "../src/lib/services/links";
 import {prisma} from "../src/lib/db";
 import {credentialVersion,sessionOptions} from "../src/lib/session-options";
 async function main(){
@@ -12,8 +16,20 @@ async function main(){
  const lunch=await prisma.lunchBooking.create({data:{organizationId:org.id,accountId:account.id,representativeId:user.id,slotStartsAt:new Date(Date.now()+86400000),slotEndsAt:new Date(Date.now()+90000000),status:"AWAITING_APPROVAL",purpose:"Browser cancellation",expectedAttendees:8,timezone:"America/Chicago"}});
  const personalOrg=await prisma.organization.create({data:{name:"Individual browser test",slug:"individual-browser-"+crypto.randomUUID(),subscription:{create:{plan:"individual",status:"active",stripeCustomerId:"cus_browser_individual",trialStartedAt:new Date(Date.now()-30*86400000),trialEndsAt:new Date(Date.now()-16*86400000)}}}});
  const personal=await prisma.user.create({data:{name:"Individual tester",email:crypto.randomUUID()+"@example.invalid",passwordHash:"browser-test-only",memberships:{create:{organizationId:personalOrg.id,roleId:role.id}}}});
+ const platformRole=await prisma.role.upsert({where:{key:"PLATFORM_ADMIN"},create:{key:"PLATFORM_ADMIN",name:"Owner",description:"Fixture only",scope:"platform"},update:{}});
+ const platformOrg=await prisma.organization.create({data:{name:"Owner browser fixture",slug:"owner-browser-"+crypto.randomUUID()}});
+ const platform=await prisma.user.create({data:{name:"Owner fixture",email:crypto.randomUUID()+"@example.invalid",passwordHash:await hash("Owner-browser-fixture-only!",10),memberships:{create:{organizationId:platformOrg.id,roleId:platformRole.id}}}});
+ const interaction=await prisma.accountInteraction.create({data:{organizationId:org.id,accountId:account.id,userId:user.id,type:"VISIT",summary:"Browser fixture visit",occurredAt:new Date()}});
+ const startsAt=new Date(Date.now()+7*86400000),endsAt=new Date(Date.now()+7*86400000+3600000),expiresAt=new Date(Date.now()+3*86400000);
+ const invitation=await createInvitation(prisma,{organizationId:org.id,userId:user.id,accountId:account.id,purpose:"An educational browser acceptance lunch invitation.",recipientName:"Office manager",recipientEmail:"office@example.invalid",expiresAt,expectedAttendees:8,estimatedBudgetCents:10000,mealPreferences:"",deliveryInstructions:"",slots:[{startsAt,endsAt}]});
+ if(!invitation.ok)throw Error("Could not create public invitation fixture");
+ const scheduling=await createSchedulingInvitation(prisma,{organizationId:org.id,userId:user.id,accountId:account.id,lifetimeHours:24,allowedHours:[24],slots:[{startsAt,endsAt}],publicContact:true,now:new Date()});
+ if(!scheduling.ok)throw Error("Could not create public scheduling fixture");
+ const officeLink=await issueSecureLink(prisma,{organizationId:org.id,purpose:"office",accountId:account.id,expiresAt});
+ const confirmBooking=await prisma.lunchBooking.create({data:{organizationId:org.id,accountId:account.id,representativeId:user.id,slotStartsAt:startsAt,slotEndsAt:endsAt,status:"SCHEDULED",purpose:"Confirmation browser fixture",expectedAttendees:8,timezone:"America/Chicago"}});
+ const confirmationLink=await issueSecureLink(prisma,{organizationId:org.id,purpose:"lunch_confirmation",bookingId:confirmBooking.id,accountId:account.id,expiresAt});
  const options=sessionOptions(),cookie=await sealData({userId:user.id,organizationId:org.id,roleKey:"ORG_ADMIN",credentialVersion:credentialVersion(user.passwordHash)},{password:options.password,ttl:options.ttl});
- await writeFile("/tmp/route-browser-session.json",JSON.stringify({cookie,name:options.cookieName,lunchId:lunch.id,individualOrganizationId:personalOrg.id,individualCookie:await sealData({userId:personal.id,organizationId:personalOrg.id,roleKey:"ORG_ADMIN",credentialVersion:credentialVersion(personal.passwordHash)},{password:options.password,ttl:options.ttl})}));
+ await writeFile("/tmp/route-browser-session.json",JSON.stringify({cookie,name:options.cookieName,publicPaths:["/i/"+invitation.token,"/m/"+scheduling.token,"/o/"+officeLink.token,"/l/c/"+confirmationLink.token],accountId:account.id,interactionId:interaction.id,organizationId:org.id,platformOrganizationId:platformOrg.id,platformCookie:await sealData({userId:platform.id,organizationId:platformOrg.id,roleKey:"PLATFORM_ADMIN",credentialVersion:credentialVersion(platform.passwordHash)},{password:options.password,ttl:options.ttl}),lunchId:lunch.id,individualOrganizationId:personalOrg.id,individualCookie:await sealData({userId:personal.id,organizationId:personalOrg.id,roleKey:"ORG_ADMIN",credentialVersion:credentialVersion(personal.passwordHash)},{password:options.password,ttl:options.ttl})}));
  await prisma.$disconnect();
 }
 main().catch(e=>{console.error(e);process.exit(1);});

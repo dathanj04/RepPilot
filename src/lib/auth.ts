@@ -35,12 +35,14 @@ export async function getCurrentUser(options: { allowExpiredTrial?: boolean } = 
     },
     include: { user: true, role: true, organization: { include: { subscription: true } } },
   });
-  if (!membership || session.credentialVersion !== credentialVersion(membership.user.passwordHash)) {
+  if (!membership || session.credentialVersion !== credentialVersion(membership.user.passwordHash) || (session.sessionVersion??0)!==(membership.user.sessionVersion??0)) {
     session.destroy();
     await clearPreviewSession();
     redirect("/login");
   }
 
+  if(membership.user.disabledAt)redirect("/login?error=Account%20access%20is%20disabled.%20Contact%20support.");
+  if(membership.organization.suspendedAt&&membership.role.key!=="PLATFORM_ADMIN")redirect("/support?notice=Workspace%20access%20is%20paused.%20Contact%20support.");
   let access = trialAccess(membership.organization.subscription);
   let planTier:PlanTier|null=access.allowed?"business":null;
   if(!access.allowed){
@@ -74,6 +76,7 @@ export async function requireAppUser(options: { allowExpiredTrial?: boolean } = 
 export async function requirePlatformAdmin() {
   const user = await getCurrentUser();
   if (user.roleKey !== "PLATFORM_ADMIN") redirect("/today");
+  if(user.isDemo||user.email.toLowerCase().endsWith(".demo"))redirect("/support");
   return user;
 }
 

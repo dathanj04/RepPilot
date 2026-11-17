@@ -6,6 +6,7 @@ export type SessionData = {
   organizationId: string;
   roleKey: string;
   credentialVersion: string;
+  sessionVersion?: number;
 };
 
 export function sessionPassword() {

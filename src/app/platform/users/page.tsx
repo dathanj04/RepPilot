@@ -1,0 +1,11 @@
+import {connection} from "next/server";
+import Link from "next/link";
+import {requirePlatformAdmin} from "@/lib/auth";
+import {prisma} from "@/lib/db";
+import {PlatformChangeForm} from "@/components/platform/change-form";
+export const instant=false;
+export default async function Users({searchParams}:{searchParams:Promise<{q?:string;p?:string}>}){
+ await connection();await requirePlatformAdmin();const query=await searchParams,q=(query.q??"").slice(0,100),page=Math.max(0,Math.min(10000,Number(query.p)||0));
+ const users=await prisma.user.findMany({where:q?{OR:[{name:{contains:q,mode:"insensitive"}},{email:{contains:q,mode:"insensitive"}}]}:{},select:{id:true,name:true,email:true,disabledAt:true,memberships:{include:{role:true,organization:{select:{id:true,name:true}}}}},orderBy:{id:"asc"},skip:page*50,take:51});
+ return <><h1 className="text-3xl font-bold">Users & access</h1><form action="/platform/users" className="flex gap-2"><label className="flex-1"><span className="sr-only">Search users</span><input name="q" defaultValue={q} placeholder="Search name or email" className="min-h-12 w-full rounded-xl border bg-white px-3"/></label><button className="rounded-xl bg-[#10263E] px-4 text-white">Search</button></form><div className="grid gap-4 md:grid-cols-2">{users.slice(0,50).map(user=><section key={user.id} className="rounded-2xl bg-white p-5 ring-1 ring-slate-200"><h2 className="font-semibold">{user.name}</h2><p className="break-all text-sm">{user.email}</p><p className="text-sm">{user.disabledAt?"Sign-in disabled":"Sign-in enabled"}</p>{user.memberships.map(m=><p key={m.id} className="mt-2 text-sm"><Link className="underline" href={"/platform/workspaces/"+m.organization.id}>{m.organization.name}</Link> · {m.role.key}</p>)}{user.memberships.some(m=>m.role.key==="PLATFORM_ADMIN")?<p className="mt-3 text-xs text-slate-500">Protected platform administrator</p>:<PlatformChangeForm kind="user" id={user.id} value={user.disabledAt?"enable":"disable"} label={user.disabledAt?"Enable sign-in":"Disable sign-in"}/>}</section>)}</div>{!users.length?<p>No matching users.</p>:null}<div className="flex gap-5">{page>0?<Link href={"/platform/users?q="+encodeURIComponent(q)+"&p="+(page-1)}>Previous</Link>:null}{users.length>50?<Link href={"/platform/users?q="+encodeURIComponent(q)+"&p="+(page+1)}>Next</Link>:null}</div></>;
+}

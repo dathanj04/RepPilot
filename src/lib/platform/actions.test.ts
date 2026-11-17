@@ -1,0 +1,16 @@
+import {beforeEach,it,expect,vi} from "vitest";
+vi.mock("server-only",()=>({}));
+const m=vi.hoisted(()=>({admin:vi.fn(),compare:vi.fn(),change:vi.fn()}));
+vi.mock("../auth",()=>({requirePlatformAdmin:m.admin}));
+vi.mock("bcryptjs",()=>({compare:m.compare}));
+vi.mock("next/cache",()=>({revalidatePath:vi.fn()}));
+vi.mock("../db",()=>({prisma:{user:{findUniqueOrThrow:async()=>({passwordHash:"not-exposed"})}}}));
+vi.mock("../domain/rate-limit-store",()=>({consumeSharedRateLimit:async()=>({ok:true})}));
+vi.mock("./service",()=>({changePlatformRecord:m.change}));
+vi.mock("../email/send",()=>({deliverEmail:vi.fn()}));
+import {platformChangeAction} from "./actions";
+beforeEach(()=>{vi.clearAllMocks();m.admin.mockResolvedValue({id:"owner",organizationId:"owner-org",roleKey:"PLATFORM_ADMIN"});m.compare.mockResolvedValue(true);});
+const form=()=>{const f=new FormData();for(const [k,v] of Object.entries({kind:"user",id:"customer",value:"disable",password:"fixture",reason:"Verified support request",confirmed:"yes"}))f.set(k,v);return f;};
+it("does not run a mutation without server authorization",async()=>{m.admin.mockRejectedValue(Error("Denied"));await expect(platformChangeAction({},form())).rejects.toThrow("Denied");expect(m.change).not.toHaveBeenCalled();});
+it("requires the current owner password and explicit confirmation",async()=>{m.compare.mockResolvedValue(false);expect((await platformChangeAction({},form())).error).toContain("password");expect(m.change).not.toHaveBeenCalled();m.compare.mockResolvedValue(true);const f=form();f.delete("confirmed");expect((await platformChangeAction({},f)).error).toContain("Confirm");expect(m.change).not.toHaveBeenCalled();});
+it("takes the administrative identity from the server",async()=>{const f=form();f.set("actorId","attacker");await platformChangeAction({},f);expect(m.change.mock.calls[0][1].id).toBe("owner");});

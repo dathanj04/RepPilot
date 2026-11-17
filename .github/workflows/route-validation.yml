@@ -50,5 +50,12 @@ jobs:
       - run: npm run build
       - run: npm install --prefix /tmp/route-browser-tools --no-package-lock --ignore-scripts playwright@1.56.1
       - run: node /tmp/route-browser-tools/node_modules/playwright/cli.js install --with-deps chromium
-      - run: npx tsx scripts/route-browser-seed.ts
+      - run: NODE_OPTIONS=--conditions=react-server npx tsx scripts/route-browser-seed.ts
       - run: node scripts/route-browser-check.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-browser-audit
+          path: route-browser-results/
+          retention-days: 7

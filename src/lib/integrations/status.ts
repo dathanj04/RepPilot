@@ -12,6 +12,8 @@ export function integrationStatus() {
     mapsBrowser: configured("NEXT_PUBLIC_TOMTOM_API_KEY") || configured("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY"),
     gemini: configured("GEMINI_API_KEY"),
     crm: false,
-    billing: false,
+    monitoring: configured("SENTRY_DSN") || configured("ALERT_WEBHOOK_URL"),
+    scheduler: configured("CRON_SECRET"),
+    billing: configured("STRIPE_SECRET_KEY") && configured("STRIPE_WEBHOOK_SECRET"),
   } as const;
 }

@@ -1,5 +1,7 @@
 "use server";
 
+import {compare} from "bcryptjs";
+import {consumeSharedRateLimit} from "../domain/rate-limit-store";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser, requirePlatformAdmin } from "../auth";
@@ -25,6 +27,9 @@ export async function requestAccountDeletionAction(formData: FormData) {
 
 export async function fulfillDeletionRequestAction(formData: FormData) {
   const admin = await requirePlatformAdmin();
+  if(!(await consumeSharedRateLimit(prisma,"platform-deletion:"+admin.id,5,60000)).ok)redirect("/platform/deletion-requests?notice=Wait%20a%20minute%20before%20trying%20again.");
+  const operator=await prisma.user.findUniqueOrThrow({where:{id:admin.id},select:{passwordHash:true}});
+  if(!await compare(String(formData.get("password")||""),operator.passwordHash))redirect("/platform/deletion-requests?notice=Your%20current%20password%20did%20not%20match.");
   if (formData.get("verified") !== "on") {
     redirect("/platform/deletion-requests?notice=Confirm that ownership was verified before erasing an account.");
   }
@@ -34,6 +39,8 @@ export async function fulfillDeletionRequestAction(formData: FormData) {
   const account = email ? await prisma.user.findUnique({ where: { email } }) : null;
   const userId = request?.userId || account?.id;
   if (!userId) redirect("/platform/deletion-requests?notice=No matching active account.");
+  const protectedUser=await prisma.organizationMembership.findFirst({where:{userId,role:{key:"PLATFORM_ADMIN"}}});
+  if(protectedUser||userId===admin.id)redirect("/platform/deletion-requests?notice=Platform%20administrator%20accounts%20are%20protected.%20Use%20the%20owner%20recovery%20process.");
   const result = await fulfillAccountDeletion(prisma, { userId, actorId: admin.id });
   if (!result.ok) redirect(`/platform/deletion-requests?notice=${encodeURIComponent(result.error)}`);
   revalidatePath("/platform/deletion-requests");
