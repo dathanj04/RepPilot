@@ -38,3 +38,10 @@ for(const scenario of ["missing","expired","future","fresh"]){
   else await expect(requirePlatformAdmin()).rejects.toThrow("REDIRECT:/owner-security");
  });
 }
+
+it("rejects revoked proof without attempting cookie writes during server rendering",async()=>{
+ const destroy=vi.fn(()=>{throw Error("Cookie writes forbidden during rendering");});
+ mocks.session.mockResolvedValue({userId:"user-1",organizationId:"org-1",credentialVersion:"valid",sessionVersion:0,destroy});
+ mocks.membership.mockResolvedValue({...membership(),user:{...membership().user,sessionVersion:1}});
+ await expect(getCurrentUser({allowExpiredTrial:true})).rejects.toThrow("REDIRECT:/login");expect(destroy).not.toHaveBeenCalled();
+});

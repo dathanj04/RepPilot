@@ -6,7 +6,7 @@ import {hasBusinessFeatures,type PlanTier} from "./domain/paid-access";
 import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { credentialVersion } from "./session-options";
-import { clearPreviewSession, getSession } from "./session";
+import { getSession } from "./session";
 
 export type CurrentUser = {
   id: string;
@@ -37,8 +37,8 @@ export async function getCurrentUser(options: { allowExpiredTrial?: boolean } = 
     include: { user: true, role: true, organization: { include: { subscription: true } } },
   });
   if (!membership || session.credentialVersion !== credentialVersion(membership.user.passwordHash) || (session.sessionVersion??0)!==(membership.user.sessionVersion??0)) {
-    session.destroy();
-    await clearPreviewSession();
+    // Rendering can read cookies but cannot mutate them. Login/logout actions
+    // replace or remove the cookie; every request still rejects this revoked proof.
     redirect("/login");
   }
 
