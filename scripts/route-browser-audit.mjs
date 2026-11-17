@@ -60,6 +60,7 @@ export async function auditApp({browser,config,cookie,session}){
  await pause.getByRole("button",{name:"Confirm change",exact:true}).click();
  await op.getByText("Change saved and recorded in the audit log.",{exact:true}).waitFor();
  await page.goto(root+"/accounts");
+ await page.waitForURL(url=>url.pathname==="/support");
  assert.equal(new URL(page.url()).pathname,"/support","Existing customer session is blocked after pause");
  await op.reload();
  const resume=op.locator("details").filter({has:op.locator("summary",{hasText:"Resume workspace access"})});
