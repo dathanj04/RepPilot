@@ -16,9 +16,22 @@ export async function POST(request: Request) {
   if (!record) return NextResponse.json({ error: "Subscription not found" }, { status: 404 });
   if (record.stripeSubscriptionId) return NextResponse.json({ error: "Manage your existing subscription instead of starting another trial" }, { status: 409 });
 
+  const now = new Date();
+  const reservedUntil = new Date(now.getTime() + 32 * 60_000);
+  const reservation = await prisma.subscription.updateMany({
+    where: {
+      organizationId: user.organizationId,
+      stripeSubscriptionId: null,
+      OR: [{ checkoutSessionExpiresAt: null }, { checkoutSessionExpiresAt: { lte: now } }],
+    },
+    data: { checkoutSessionId: null, checkoutSessionExpiresAt: reservedUntil },
+  });
+  if (reservation.count !== 1) return NextResponse.json({ error: "A checkout is already open. Complete or let it expire before retrying." }, { status: 409 });
+
   const price = plan === "individual" ? process.env.STRIPE_PRICE_INDIVIDUAL! : process.env.STRIPE_PRICE_BUSINESS!;
   const params = new URLSearchParams({
     mode: "subscription",
+    expires_at: String(Math.floor(now.getTime() / 1000) + 30 * 60),
     "line_items[0][price]": price,
     "line_items[0][quantity]": "1",
     "subscription_data[trial_period_days]": "14",
@@ -36,12 +49,20 @@ export async function POST(request: Request) {
   if (record.stripeCustomerId) params.set("customer", record.stripeCustomerId);
   else params.set("customer_email", user.email);
   try {
-    // A duplicate click for the same organization and plan within the same minute is idempotent.
+    // A database reservation prevents simultaneous checkouts across app instances.
     const session = await stripePost<{ id: string; url: string | null }>("/checkout/sessions", params,
-      `trial-checkout-${user.organizationId}-${plan}-${Math.floor(Date.now() / 60000)}`);
-    if (!session.url || !session.url.startsWith("https://checkout.stripe.com/")) throw new Error("Stripe checkout URL unavailable");
+      `trial-checkout-${user.organizationId}-${plan}-${now.getTime()}`);
+    if (!session.id || !session.url || !session.url.startsWith("https://checkout.stripe.com/")) throw new Error("Stripe checkout URL unavailable");
+    await prisma.subscription.updateMany({
+      where: { organizationId: user.organizationId, stripeSubscriptionId: null, checkoutSessionExpiresAt: reservedUntil },
+      data: { checkoutSessionId: session.id },
+    });
     return NextResponse.json({ url: session.url });
   } catch (error) {
+    await prisma.subscription.updateMany({
+      where: { organizationId: user.organizationId, checkoutSessionExpiresAt: reservedUntil, stripeSubscriptionId: null },
+      data: { checkoutSessionId: null, checkoutSessionExpiresAt: null },
+    }).catch(() => undefined);
     console.error("Stripe checkout failed", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Stripe checkout could not be started" }, { status: 502 });
   }
