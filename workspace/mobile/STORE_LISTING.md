@@ -1,31 +1,65 @@
-# RepPilot store listing draft
+# RepPilot store listing — launch candidate
 
-Name: RepPilot
-Subtitle / short description: Plan routes. Build relationships.
-Category: Business
-Support: https://reppilot-provider.dathanjohnson826.chatgpt.site/support
-Privacy: https://reppilot-provider.dathanjohnson826.chatgpt.site/privacy
-Account deletion: https://reppilot-provider.dathanjohnson826.chatgpt.site/delete-account
-Contact: dathan@abagrowth.com
+Prepared November 17, 2026. Copy is ready for entry; this is not submission approval.
 
-## Description
+| Field | Value |
+| --- | --- |
+| Apple name | RepPilot: Routes & Lunches |
+| Google Play name | RepPilot: Routes & Lunches |
+| Apple subtitle | Plan routes. Grow connections. |
+| Google short description | Plan account visits, save routes, track follow-ups, and coordinate lunches. |
+| Category | Business |
+| Support URL | https://reppilot.app/support |
+| Privacy policy | https://reppilot.app/privacy |
+| Account deletion | https://reppilot.app/delete-account |
+| Support email | dathan@abagrowth.com |
+| iOS bundle ID | app.reppilot.mobile |
+| Apple app ID | 6835507363 |
+| Android application ID | com.reppilot.app |
 
-RepPilot helps field representatives organize account visits and keep relationships moving.
+## Full description
 
-See practices on a map, plan a driving route, save visit notes, track follow-ups, and manage educational lunch requests. Provider offices can share attendance counts, meal preferences and dietary restrictions through private invitation links. Managers can organize shared accounts and assign them to representatives.
+Plan your territory. Prepare for every visit. Keep your next follow-up in sight.
 
-RepPilot is for business outreach. Do not enter patient information. An authorized RepPilot workspace and internet connection are required. The mobile companion does not offer in-app subscription purchases. This release includes RepPilot’s internal calendar and conversation preparation from recorded activity. Google/Microsoft calendar sync, live Salesforce/HubSpot referral queries and generative AI are not included in launch claims.
+RepPilot helps field representatives organize account visits, plan driving routes, and coordinate outreach from one workspace.
 
-## Review notes — not ready to submit
+MAP YOUR ACCOUNTS
+View saved accounts on a map, open account details, and add offices to a route.
 
-The site is currently owner-private. Provide deliberately authorized review-user access and tested sign-in steps before submission. Never share the owner's password or embed the site's bypass token. App ID com.reppilot.app is provisional until store ownership/availability is confirmed.
+PLAN YOUR DAY
+Create and save routes, optimize driving order, adjust visit durations, reorder stops, and open navigation to your next destination.
 
-Do not assert Apple/Google approval or HIPAA compliance. Remote-web-wrapper minimum functionality and applicable payment/login rules still need review. Test real native workflows and accessibility on both platforms.
+KEEP RELATIONSHIPS MOVING
+Record check-ins and visit notes, track tasks and follow-ups, and prepare for your next conversation using recorded activity.
 
-## Privacy disclosure draft — verify before answering store forms
+COORDINATE LUNCH & LEARNS
+Business workspaces can manage educational lunch requests, office confirmations, attendee information, meal preferences, and spending records. RepPilot coordinates the details; it does not place or pay for catering orders.
 
-Potential linked data: account identifiers/email, profile and organization, practice business contacts/addresses, visit notes, tasks/routes, aggregate referral counts, provider contact details, food preferences and dietary restrictions. Hosting and map/routing providers process operational data; map providers may receive device IP and viewport, routing provider receives selected coordinates. No advertising SDK has been added in this package. Native location/camera permissions were removed because no corresponding native features have been implemented. Map coordinates are not evidence of device-location collection. Confirm actual SDK/network behavior and all connected services before completing App Privacy or Data Safety.
+WORK TOGETHER
+Managers can organize shared accounts and assign them to representatives. Access depends on your workspace role and subscription.
 
-## Assets remaining
+RepPilot is for business outreach. Do not enter patient information. An authorized workspace and internet connection are required. The mobile app provides access to existing workspaces and does not process subscription purchases. The internal calendar is included; external calendar sync, live CRM referral queries, and generative AI are not advertised as available in this release.
 
-Capture actual iPhone, iPad (if supported) and Android screenshots from signed builds, including overview, map, routing, lunch requests and settings. Verify branding, icon and splash assets. Do not use browser mockups as device testing evidence.
+## Promotional text
+
+See your accounts, plan your next route, and keep follow-ups and lunch coordination together in RepPilot.
+
+## Apple keywords
+
+sales,territory,route,accounts,visits,followups,outreach,lunch,field,planning
+
+## Version 1.0 release notes
+
+Initial RepPilot mobile release: account maps, saved routes, visit notes, follow-ups, internal scheduling, and Lunch & Learn coordination for Business workspaces.
+
+## Review-access requirements
+
+Supply a dedicated, least-privilege review login with fictional records in the store's private App Review/App Access fields. Verify access immediately before submission and keep it available through review. Do not use owner credentials, real office records, deployment bypass tokens, or a trial that will expire during review. Review account provisioning and its access duration remain unverified.
+
+Review steps and remaining gates: ../../docs/app-launch-packet.md.
+
+## Privacy forms: verify actual behavior
+
+Native manifests currently declare location access. Reconcile the purpose strings, actual geolocation behavior, routing coordinates, third-party SDK traffic, and retained check-in data before answering App Privacy/Data Safety. Do not claim permissions were removed.
+
+Verify account/contact data, user-created business records, photos/receipts, location, identifiers, purchase/subscription status, interaction logs and diagnostics against the actual shipped build and providers. No ad SDK was identified in the current package. Do not label all data as tracking; verify purposes and linkage separately. Final console declarations are not yet signed off.
