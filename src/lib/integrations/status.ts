@@ -12,6 +12,6 @@ export function integrationStatus() {
     mapsBrowser: configured("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY"),
     gemini: configured("GEMINI_API_KEY"),
     crm: false,
-    billing: false,
+    billing: configured("STRIPE_SECRET_KEY") && configured("STRIPE_WEBHOOK_SECRET") && configured("STRIPE_PRICE_INDIVIDUAL") && configured("STRIPE_PRICE_BUSINESS"),
   } as const;
 }
