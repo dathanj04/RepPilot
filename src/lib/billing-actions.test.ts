@@ -2,6 +2,8 @@ import {beforeEach,expect,it,vi} from "vitest";
 vi.mock("server-only",()=>({}));
 vi.mock("next/navigation",()=>({redirect:(path:string)=>{throw Error("REDIRECT:"+path);}}));
 vi.mock("next/cache",()=>({revalidatePath:vi.fn()}));
+const nativeHeaders=vi.hoisted(()=>({ua:""}));
+vi.mock("next/headers",()=>({headers:async()=>new Headers({"user-agent":nativeHeaders.ua})}));
 const mocks=vi.hoisted(()=>({user:vi.fn(),bound:vi.fn(),update:vi.fn(),profile:vi.fn(),profileUpdate:vi.fn(),request:vi.fn(),subscriptions:vi.fn(),lock:vi.fn()}));
 vi.mock("./domain/rate-limit-store",()=>({consumeSharedRateLimit:vi.fn().mockResolvedValue({ok:true})}));
 vi.mock("./auth",()=>({getCurrentUser:mocks.user}));
@@ -9,7 +11,7 @@ vi.mock("./db",()=>{const tx={$queryRaw:mocks.lock,user:{findUniqueOrThrow:mocks
 vi.mock("./stripe",async original=>({...await original<typeof import("./stripe")>(),stripeRequest:mocks.request,customerSubscriptions:mocks.subscriptions}));
 import {startCheckoutAction,openBillingPortalAction,selectTrialPlanAction} from "./billing-actions";
 const form=(key="monthly",consent=true)=>{const f=new FormData();f.set("plan",key);if(consent)f.set("billingConsent","yes");f.set("customer","cus_attacker");return f;};
-beforeEach(()=>{vi.clearAllMocks();vi.stubEnv("STRIPE_WEBHOOK_SECRET","whsec_test");mocks.user.mockResolvedValue({id:"u1",roleKey:"REP",organizationId:"o1",trialDaysLeft:7});mocks.bound.mockResolvedValue({id:"local",stripeCustomerId:"cus_bound",billingPayerUserId:"u1",trialEndsAt:new Date("2020-01-01")});mocks.subscriptions.mockResolvedValue({data:[]});mocks.request.mockResolvedValue({id:"cs_new",status:"open",url:"https://checkout.stripe.com/c/pay/example"});});
+beforeEach(()=>{nativeHeaders.ua="";vi.clearAllMocks();vi.stubEnv("STRIPE_WEBHOOK_SECRET","whsec_test");mocks.user.mockResolvedValue({id:"u1",roleKey:"REP",organizationId:"o1",trialDaysLeft:7});mocks.bound.mockResolvedValue({id:"local",stripeCustomerId:"cus_bound",billingPayerUserId:"u1",trialEndsAt:new Date("2020-01-01")});mocks.subscriptions.mockResolvedValue({data:[]});mocks.request.mockResolvedValue({id:"cs_new",status:"open",url:"https://checkout.stripe.com/c/pay/example"});});
 it("uses a bound customer and approved paid price after expiry",async()=>{await expect(startCheckoutAction(form())).rejects.toThrow("REDIRECT:https://checkout.stripe.com");const p=mocks.request.mock.calls[0][1];expect(p.get("customer")).toBe("cus_bound");expect(p.get("line_items[0][price]")).toBe("price_1UcZG5AJxC2GoXaReqGuyGpO");expect(p.get("subscription_data[trial_period_days]")).toBeNull();});
 it("allows optional card setup during the original trial with no early charge",async()=>{mocks.bound.mockResolvedValue({id:"local",stripeCustomerId:"cus_bound",billingPayerUserId:"u1",trialEndsAt:new Date(Date.now()+3600000)});await expect(startCheckoutAction(form())).rejects.toThrow("REDIRECT:https://checkout.stripe.com");expect(mocks.request.mock.calls[0][1].get("mode")).toBe("setup");});
 it("requires explicit recurring-price consent and a webhook connection",async()=>{await expect(startCheckoutAction(form("monthly",false))).rejects.toThrow("Confirm");expect(mocks.request).not.toHaveBeenCalled();vi.stubEnv("STRIPE_WEBHOOK_SECRET","");await expect(startCheckoutAction(form())).rejects.toThrow("activation");});
@@ -27,3 +29,5 @@ it("does not create another paid Checkout when a completed session races with th
  await expect(startCheckoutAction(form())).rejects.toThrow("already%20exists");
  expect(mocks.request.mock.calls.some(c=>c[0]==="checkout/sessions")).toBe(false);
 });
+
+it("blocks native checkout and billing portal before any Stripe operation",async()=>{nativeHeaders.ua="RepPilotNative/1.0";await expect(startCheckoutAction(form())).rejects.toThrow("native=1");await expect(openBillingPortalAction()).rejects.toThrow("native=1");expect(mocks.request).not.toHaveBeenCalled();expect(mocks.bound).not.toHaveBeenCalled();});

@@ -40,6 +40,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   return (
     <PageFrame title="Calendar" subtitle="Your scheduled lunches and follow-ups.">
       {notice ? <p className="mb-3 rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-slate-200">{notice}</p> : null}
+      {!googleReady&&!microsoftReady?<p className="mb-4 rounded-xl bg-amber-50 p-3 text-sm">Google and Microsoft calendar sync are not available in this release. Your internal RepPilot schedule remains available.</p>:null}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.8fr)]">
         <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
           <div className="mb-3 flex items-center justify-between">

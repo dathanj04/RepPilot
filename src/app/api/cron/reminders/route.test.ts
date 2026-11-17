@@ -1,0 +1,15 @@
+import {beforeEach,it,expect,vi} from "vitest";
+const mocks=vi.hoisted(()=>({process:vi.fn(),upsert:vi.fn(),alert:vi.fn()}));
+vi.mock("@/lib/db",()=>({prisma:{rateLimitBucket:{upsert:mocks.upsert}}}));
+vi.mock("@/lib/services/reminders",()=>({processDueReminders:mocks.process}));
+vi.mock("@/lib/email/send",()=>({deliverEmail:vi.fn()}));
+vi.mock("@/lib/email/templates",()=>({renderReminderEmail:vi.fn()}));
+vi.mock("@/lib/permissions",()=>({appUrl:()=>"https://reppilot.app"}));
+vi.mock("@/lib/monitoring",()=>({reportOperationalAlert:mocks.alert}));
+import {POST} from "./route";
+const request=(token="scheduler-test")=>new Request("https://reppilot.app/api/cron/reminders",{method:"POST",headers:{authorization:"Bearer "+token}});
+beforeEach(()=>{vi.clearAllMocks();vi.stubEnv("SCHEDULER_SECRET","scheduler-test");vi.stubEnv("CRON_SECRET","");mocks.process.mockResolvedValue([]);mocks.upsert.mockResolvedValue({});mocks.alert.mockResolvedValue(undefined);});
+it("rejects missing and incorrect scheduler credentials before database processing",async()=>{expect((await POST(request("bad"))).status).toBe(401);expect(mocks.process).not.toHaveBeenCalled();});
+it("records success for a real successful run and exposes only counts",async()=>{mocks.process.mockResolvedValue([{id:"private-id",status:"sent"}]);const r=await POST(request());expect(r.status).toBe(200);expect(await r.json()).toEqual({processed:1,failed:0});expect(mocks.upsert.mock.calls.map(c=>c[0].where.key)).toEqual(["operational:reminders:last-run","operational:reminders:last-success"]);});
+it("does not mark a failed delivery as a successful heartbeat",async()=>{mocks.process.mockResolvedValue([{id:"private-id",status:"failed"}]);expect((await POST(request())).status).toBe(503);expect(mocks.upsert).toHaveBeenCalledTimes(1);expect(mocks.alert).toHaveBeenCalled();});
+it("returns a sanitized failure if processing throws",async()=>{mocks.process.mockRejectedValue(Error("private details"));const r=await POST(request());expect(r.status).toBe(503);expect(JSON.stringify(await r.json())).not.toContain("private details");});

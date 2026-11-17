@@ -13,8 +13,8 @@ export function integrationStatus() {
     gemini: configured("GEMINI_API_KEY"),
     generativeAi: process.env.AI_PROVIDER==="gemini"?configured("GEMINI_API_KEY"):process.env.AI_PROVIDER==="openai"?configured("OPENAI_API_KEY"):configured("OPENAI_API_KEY")||configured("GEMINI_API_KEY"),
     crm: false,
-    monitoring: configured("SENTRY_DSN") || configured("ALERT_WEBHOOK_URL"),
-    scheduler: configured("CRON_SECRET"),
+    monitoring: configured("SENTRY_DSN") || configured("ALERT_WEBHOOK_URL") || (configured("OPS_ALERT_EMAIL") && configured("RESEND_API_KEY") && configured("EMAIL_FROM")),
+    scheduler: configured("SCHEDULER_SECRET") || configured("CRON_SECRET"),
     billing: configured("STRIPE_SECRET_KEY") && configured("STRIPE_WEBHOOK_SECRET"),
   } as const;
 }

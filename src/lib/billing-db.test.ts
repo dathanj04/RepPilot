@@ -1,5 +1,6 @@
 import {beforeAll,afterAll,describe,expect,it,vi} from "vitest";
 vi.mock("server-only",()=>({}));
+vi.mock("next/headers",()=>({headers:async()=>new Headers({"user-agent":"RepPilot web billing test"})}));
 vi.mock("next/navigation",()=>({redirect:(path:string)=>{throw Error("REDIRECT:"+path);}}));
 vi.mock("next/cache",()=>({revalidatePath:vi.fn()}));
 const state=vi.hoisted(()=>({user:{id:"",organizationId:"",roleKey:"ORG_ADMIN",name:"Billing test",email:"billing@example.invalid",trialDaysLeft:1},customerCalls:0,checkoutCalls:0,subscriptionCalls:0,complete:false,created:false}));
