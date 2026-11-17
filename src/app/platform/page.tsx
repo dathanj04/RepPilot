@@ -42,11 +42,11 @@ export default async function PlatformPage() {
         <h2 className="font-semibold">Subscribers</h2>
         <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
           <p><strong className="block text-xl">{trials}</strong>Trials</p>
-          <p><strong className="block text-xl">{paying}</strong>Active paying subscriptions</p>
-          <p><strong className="block text-xl">{formatCents(monthlyRecurringCents)}</strong>Listed active monthly subscription value</p>
+          <p><strong className="block text-xl">{paying}</strong>Active Stripe subscriptions</p>
+          <p><strong className="block text-xl">{formatCents(monthlyRecurringCents)}</strong>Estimated monthly recurring value</p>
         </div>
         <Link href="/api/platform/subscribers/export" className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-[#10263E] px-4 text-sm font-medium text-white">Download subscriber CSV</Link>
-        <p className="mt-2 text-xs text-[#66758B]">Counts use last synchronized Stripe subscription status. Values do not equal collected revenue. CSV includes trials, start/end dates and recurring amounts.</p>
+        <p className="mt-2 text-xs text-[#66758B]">Counts use last synchronized Stripe subscription status. An active Stripe subscription does not prove a successful payment. Values are estimates, not collected revenue. CSV includes trials, start/end dates and recurring amounts.</p>
       </section>
       <IntegrationStatus />
       <ul className="mt-4 space-y-2">
