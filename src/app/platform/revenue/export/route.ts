@@ -3,7 +3,6 @@ import {loadRevenueReport} from "@/lib/platform/revenue-data";
 import {revenueWorkbook} from "@/lib/platform/revenue-excel";
 import {consumeSharedRateLimit} from "@/lib/domain/rate-limit-store";
 import {prisma} from "@/lib/db";
-export const runtime="nodejs";
 export const maxDuration=60;
 export async function GET(){
  const user=await requirePlatformAdmin();
