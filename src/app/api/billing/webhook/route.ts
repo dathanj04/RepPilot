@@ -57,7 +57,11 @@ export async function POST(request: Request) {
       // Fetch current Stripe state to avoid applying a stale event payload.
       const payload = event.data.object as { id?: string };
       if (!payload.id?.startsWith("sub_")) throw new Error("Invalid subscription ID");
-      sub = await stripeGet<StripeSubscription>(`/subscriptions/${encodeURIComponent(payload.id)}`);
+      // A deleted subscription may not be retrievable after cancellation.
+      // Stripe's signed deletion payload is sufficient to persist canceled status.
+      sub = event.type === "customer.subscription.deleted"
+        ? event.data.object as StripeSubscription
+        : await stripeGet<StripeSubscription>(`/subscriptions/${encodeURIComponent(payload.id)}`);
     }
 
     // The event receipt and subscription update commit or roll back together.
