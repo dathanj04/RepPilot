@@ -14,10 +14,10 @@ This branch implements a **hosted Stripe Checkout** card-collection path. No car
 
 ## Known remaining work
 
-- Production subscription gating and **self-service** cancellation and billing portal.
+- Production subscription gating and payment-failure notifications remain pending. A Stripe billing portal entry is implemented but not end-to-end verified.
 - A platform-operator overview and CSV export are implemented in this branch, but **have not yet been verified against live Stripe data or real subscriber records**.
-- Durable event-id replay protection beyond timestamp-based stale-event filtering; concurrent webhook retries must be tested.
-- Enforcement against multiple live Checkout sessions for the same organization before any completion callback.
+- Durable webhook event-ID receipts and checkout reservations are implemented; concurrency, outage and replay tests still need to run.
+- Checkout reservation now blocks overlapping requests. Recovery after lost responses, abandoned sessions and concurrent Stripe events needs validation.
 - Automated end-to-end tests of live Stripe sandbox and deployment webhook delivery.
 
 These are launch blockers, not optional polish.
