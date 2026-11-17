@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   if (record.stripeSubscriptionId) return NextResponse.json({ error: "Manage your existing subscription instead of starting another trial" }, { status: 409 });
 
   const now = new Date();
-  const reservedUntil = new Date(now.getTime() + 32 * 60_000);
+  const reservedUntil = new Date(now.getTime() + 34 * 60_000);
   const reservation = await prisma.subscription.updateMany({
     where: {
       organizationId: user.organizationId,
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   const price = plan === "individual" ? process.env.STRIPE_PRICE_INDIVIDUAL! : process.env.STRIPE_PRICE_BUSINESS!;
   const params = new URLSearchParams({
     mode: "subscription",
-    expires_at: String(Math.floor(now.getTime() / 1000) + 30 * 60),
+    expires_at: String(Math.floor(now.getTime() / 1000) + 31 * 60),
     "line_items[0][price]": price,
     "line_items[0][quantity]": "1",
     "subscription_data[trial_period_days]": "14",
