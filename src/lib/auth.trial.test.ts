@@ -6,7 +6,7 @@ vi.mock("./stripe", () => ({ getPaidTier: mocks.paid }));
 vi.mock("./db", () => ({ prisma: { organizationMembership: { findUnique: mocks.membership } } }));
 vi.mock("./session", () => ({ getSession: mocks.session, clearPreviewSession: vi.fn() }));
 vi.mock("./session-options", () => ({ credentialVersion: () => "valid" }));
-import { getCurrentUser, requireAppUser } from "./auth";
+import { getCurrentUser, requireAppUser,requirePlatformAdmin } from "./auth";
 const membership = () => ({ organizationId: "org-1", user: { id: "user-1", name: "Test", email: "test@example.test", passwordHash: "hash", timezone: "UTC" }, role: { key: "ORG_ADMIN" }, organization: { name: "Test Org", slug: "test", timezone: "UTC", isDemo: false, subscription: { status: "trialing", trialStartedAt: new Date("2020-01-01"), trialEndsAt: new Date("2020-01-15") } } });
 beforeEach(() => { vi.clearAllMocks(); mocks.paid.mockResolvedValue(null); mocks.session.mockResolvedValue({ userId: "user-1", organizationId: "org-1", credentialVersion: "valid", destroy: vi.fn() }); mocks.membership.mockResolvedValue(membership()); });
 describe("authenticated trial enforcement", () => {
@@ -20,3 +20,7 @@ describe("authenticated trial enforcement", () => {
  it("rejects an unverified local active status", async () => { const m = membership(); m.organization.subscription.status = "active"; mocks.membership.mockResolvedValue(m); await expect(getCurrentUser()).rejects.toThrow("REDIRECT:/trial-ended"); });
  it("preserves the verified Individual tier on server requests",async()=>{mocks.paid.mockResolvedValue("individual");expect((await getCurrentUser()).planTier).toBe("individual");});
 });
+
+it("rejects platform access when a signed session claims a role that the database does not grant",async()=>{mocks.session.mockResolvedValue({userId:"user-1",organizationId:"org-1",credentialVersion:"valid",roleKey:"PLATFORM_ADMIN",destroy:vi.fn()});mocks.paid.mockResolvedValue("business");await expect(requirePlatformAdmin()).rejects.toThrow("REDIRECT:/today");});
+it("rejects an already-authenticated disabled user",async()=>{const m={...membership(),user:{...membership().user,disabledAt:new Date()}};mocks.membership.mockResolvedValue(m);await expect(getCurrentUser({allowExpiredTrial:true})).rejects.toThrow("Account%20access%20is%20disabled");});
+it("blocks a paused workspace even during its trial",async()=>{const m={...membership(),organization:{...membership().organization,suspendedAt:new Date()}};mocks.membership.mockResolvedValue(m);await expect(getCurrentUser({allowExpiredTrial:true})).rejects.toThrow("Workspace%20access%20is%20paused");});

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {auditApp} from "./route-browser-audit.mjs";
 import {readFile,mkdir,writeFile} from "node:fs/promises";
 import {spawn} from "node:child_process";
 const {chromium}=await import("/tmp/route-browser-tools/node_modules/playwright/index.mjs");
@@ -107,6 +108,7 @@ try{
  await ip.waitForURL(url=>url.pathname==="/billing"&&url.searchParams.get("upgrade")==="business");
  await ip.getByRole("heading",{name:"Individual monthly",exact:true}).waitFor();
  await individual.close();
+ await auditApp({browser,config,cookie,session});
  assert.deepEqual(errors,[]);
  console.log("PASS: mobile 16-office create, optimize, manual reorder, duration edit, save, reload, separate-session reopen, numbered map, road polyline, Go link, route/More scrolling, four subscription options, persisted lunch cancellation, Individual upgrade locks and reports denial.");
 }catch(e){await writeFile("route-browser-results/server.log",serverOutput);console.error(serverOutput.slice(-6000));throw e;}

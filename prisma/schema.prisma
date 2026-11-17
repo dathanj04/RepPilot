@@ -12,6 +12,7 @@ datasource db {
 
 model User {
   id                 String   @id @default(cuid())
+  disabledAt         DateTime?
   email              String   @unique
   name               String
   passwordHash       String
@@ -58,6 +59,7 @@ model Role {
 }
 
 model Organization {
+  suspendedAt DateTime?
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
