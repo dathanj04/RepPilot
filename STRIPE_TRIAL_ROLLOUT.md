@@ -15,7 +15,7 @@ This branch implements a **hosted Stripe Checkout** card-collection path. No car
 ## Known remaining work
 
 - Production subscription gating and **self-service** cancellation and billing portal.
-- A platform-operator subscriber overview and downloadable CSV; CSV formatter is in place but is not yet connected to an admin page.
+- A platform-operator overview and CSV export are implemented in this branch, but **have not yet been verified against live Stripe data or real subscriber records**.
 - Durable event-id replay protection beyond timestamp-based stale-event filtering; concurrent webhook retries must be tested.
 - Enforcement against multiple live Checkout sessions for the same organization before any completion callback.
 - Automated end-to-end tests of live Stripe sandbox and deployment webhook delivery.
