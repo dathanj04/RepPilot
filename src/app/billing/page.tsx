@@ -1,3 +1,4 @@
+import {NativeSubscription} from "@/components/billing/native-subscription";
 import {headers} from "next/headers";
 import {isNativeShell} from "@/lib/native-shell";
 import Link from "next/link";
@@ -21,7 +22,6 @@ export default async function BillingPage({searchParams}:{searchParams:Promise<{
  if(user.roleKey==="PLATFORM_ADMIN")redirect("/platform");
  const query=await searchParams;
  const native=isNativeShell((await headers()).get("user-agent"));
- if(native)return <AppShell allowExpiredTrial><PageFrame title="Subscription" subtitle="Your RepPilot workspace"><div className="max-w-2xl space-y-4"><p>{user.trialDaysLeft!==null&&user.trialDaysLeft>0?`${user.trialDaysLeft} days remain in your original 14-day trial.`:"Existing workspace access is verified securely."}</p><p>This app provides access to your existing RepPilot workspace. Purchases and payment changes are unavailable in the mobile app.</p><Link href="/support" className="underline">Help and support</Link><br/><Link href="/delete-account/confirm" className="underline">Request account deletion</Link></div></PageFrame></AppShell>;
  let subscription=await prisma.subscription.findUnique({where:{organizationId:user.organizationId}});
  const profile=await prisma.user.findUniqueOrThrow({where:{id:user.id},select:{billingName:true,billingEmail:true,billingPlanPreference:true}});
  const configured=stripeConfigured()&&Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim());
@@ -31,7 +31,7 @@ export default async function BillingPage({searchParams}:{searchParams:Promise<{
   try{
    // Read Stripe's verified setup state as a recovery path for delayed webhooks.
    // The URL's checkout flag never proves payment or authorization.
-   if(subscription.stripeCheckoutId)await completeTrialCardSetup(user.organizationId,subscription.stripeCheckoutId);
+   if(!native&&subscription.stripeCheckoutId)await completeTrialCardSetup(user.organizationId,subscription.stripeCheckoutId);
    const live=await customerSubscriptions(subscription.stripeCustomerId);
    current=live.data.find(s=>s.livemode&&s.customer===subscription!.stripeCustomerId&&s.metadata?.organizationId===user.organizationId&&!["canceled","incomplete_expired"].includes(s.status)&&s.items.data.some(i=>tierForPriceId(i.price.id)!==null))??null;
    subscription=await prisma.subscription.findUnique({where:{organizationId:user.organizationId}});
@@ -44,6 +44,7 @@ export default async function BillingPage({searchParams}:{searchParams:Promise<{
  const scheduled=current?.status==="trialing"&&Boolean(current.default_payment_method)&&!current.cancel_at_period_end;
  const date=(d:Date)=>new Intl.DateTimeFormat("en-US",{dateStyle:"medium",timeStyle:"short",timeZone:user.timezone}).format(d);
  const days=trial?Math.ceil((subscription!.trialEndsAt!.getTime()-Date.now())/86400000):0;
+ if(native)return <AppShell allowExpiredTrial><PageFrame title="Subscriptions" subtitle="Your plan. Your next move."><NativeSubscription days={days} trialEndsAt={subscription?.trialEndsAt??null} timezone={user.timezone} paid={paid} currentTier={current?current.items.data.map(i=>tierForPriceId(i.price.id)).find(Boolean)??null:null} unavailable={billingUnavailable} scheduledLabel={scheduled&&selected?`${selected.label} is scheduled to start ${date(subscription!.trialEndsAt!)} at ${selected.amount}, plus applicable tax.`:null}/></PageFrame></AppShell>;
  return <AppShell allowExpiredTrial><PageFrame title="Subscriptions" subtitle="Individual or Business. Keep your full 14-day free trial.">
   <div className="max-w-4xl space-y-5">
    <section className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">

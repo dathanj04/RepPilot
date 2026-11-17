@@ -75,8 +75,8 @@ try{
  assert.ok(await workspace.evaluate(e=>e.scrollTop)>0,"More screen scrolls after leaving map");
  const native=await browser.newContext({...config,userAgent:"Mozilla/5.0 (iPhone) RepPilotNative/1.0"});await native.addCookies([cookie]);
  const nativePage=await native.newPage();await nativePage.goto("http://localhost:43123/billing");
- await nativePage.getByRole("heading",{name:"Subscription",exact:true}).waitFor();
- await nativePage.getByText("Purchases and payment changes are unavailable in the mobile app.",{exact:false}).waitFor();
+ await nativePage.getByRole("heading",{name:"Subscriptions",exact:true}).waitFor();
+ await nativePage.getByText("Payments aren’t processed in this mobile companion.",{exact:false}).waitFor();
  assert.equal(await nativePage.getByRole("button",{name:/Add card|Subscribe securely|Manage subscription/}).count(),0);
  await native.close();
  await reopened.goto("http://localhost:43123/billing");
