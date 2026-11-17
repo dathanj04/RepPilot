@@ -39,6 +39,9 @@ export async function fulfillAccountDeletion(db: Db, input: { userId: string; ac
   const passwordHash = await hash(randomBytes(32).toString("base64url"), 10);
   const completedAt = new Date();
   const requestId = await db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT id FROM "User" WHERE id=${user.id} FOR UPDATE`;
+    await tx.userMfa.deleteMany({ where: { userId: user.id } });
+    await tx.passwordResetToken.deleteMany({ where: { userId: user.id } });
     await tx.calendarConnection.deleteMany({ where: { userId: user.id } });
     await tx.calendarEventMapping.deleteMany({ where: { userId: user.id } });
     await tx.notification.deleteMany({ where: { userId: user.id } });

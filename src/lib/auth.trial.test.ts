@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`REDIRECT:${path}`); } }));
-const mocks = vi.hoisted(() => ({ membership: vi.fn(), session: vi.fn(), paid: vi.fn() }));
+const mocks = vi.hoisted(() => ({ membership: vi.fn(), session: vi.fn(), paid: vi.fn(), mfa: vi.fn() }));
 vi.mock("./stripe", () => ({ getPaidTier: mocks.paid }));
-vi.mock("./db", () => ({ prisma: { organizationMembership: { findUnique: mocks.membership } } }));
+vi.mock("./db", () => ({ prisma: { userMfa: {findUnique:mocks.mfa}, organizationMembership: { findUnique: mocks.membership } } }));
 vi.mock("./session", () => ({ getSession: mocks.session, clearPreviewSession: vi.fn() }));
 vi.mock("./session-options", () => ({ credentialVersion: () => "valid" }));
 import { getCurrentUser, requireAppUser,requirePlatformAdmin } from "./auth";
@@ -28,3 +28,13 @@ it("blocks a paused workspace even during its trial",async()=>{const m={...membe
 it("rejects an old cookie after a disabled account is re-enabled",async()=>{mocks.membership.mockResolvedValue({...membership(),user:{...membership().user,sessionVersion:1,disabledAt:null}});await expect(getCurrentUser({allowExpiredTrial:true})).rejects.toThrow("REDIRECT:/login");});
 
 it("never permits demo/reviewer platform accounts to operate real customers",async()=>{const m=membership();m.role.key="PLATFORM_ADMIN";m.organization.isDemo=true;mocks.membership.mockResolvedValue(m);await expect(requirePlatformAdmin()).rejects.toThrow("REDIRECT:/support");});
+
+for(const scenario of ["missing","expired","future","fresh"]){
+ it("enforces owner MFA: "+scenario,async()=>{
+  const m=membership();m.role.key="PLATFORM_ADMIN";mocks.membership.mockResolvedValue(m);
+  mocks.mfa.mockResolvedValue(scenario==="missing"?null:{enabledAt:new Date()});
+  mocks.session.mockResolvedValue({userId:"user-1",organizationId:"org-1",credentialVersion:"valid",mfaVerifiedAt:scenario==="expired"?Date.now()-1800001:scenario==="future"?Date.now()+60000:Date.now(),destroy:vi.fn()});
+  if(scenario==="fresh")expect((await requirePlatformAdmin()).roleKey).toBe("PLATFORM_ADMIN");
+  else await expect(requirePlatformAdmin()).rejects.toThrow("REDIRECT:/owner-security");
+ });
+}

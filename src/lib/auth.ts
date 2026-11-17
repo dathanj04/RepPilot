@@ -1,4 +1,5 @@
 import "server-only";
+import {mfaSessionFresh} from "./security/totp";
 import { getPaidTier } from "./stripe";
 import { trialAccess } from "./domain/trial";
 import {hasBusinessFeatures,type PlanTier} from "./domain/paid-access";
@@ -73,11 +74,17 @@ export async function requireAppUser(options: { allowExpiredTrial?: boolean } = 
   return user;
 }
 
+export async function requireOwnerIdentity(){
+ const user=await getCurrentUser({allowExpiredTrial:true});
+ if(user.roleKey!=="PLATFORM_ADMIN")redirect("/today");
+ if(user.isDemo||user.email.toLowerCase().endsWith(".demo"))redirect("/support");
+ return user;
+}
 export async function requirePlatformAdmin() {
-  const user = await getCurrentUser();
-  if (user.roleKey !== "PLATFORM_ADMIN") redirect("/today");
-  if(user.isDemo||user.email.toLowerCase().endsWith(".demo"))redirect("/support");
-  return user;
+ const user=await requireOwnerIdentity();
+ const [session,mfa]=await Promise.all([getSession(),prisma.userMfa.findUnique({where:{userId:user.id},select:{enabledAt:true}})]);
+ if(!mfa?.enabledAt||!mfaSessionFresh(session.mfaVerifiedAt))redirect("/owner-security");
+ return user;
 }
 
 export async function requireBusinessUser(){

@@ -29,6 +29,8 @@ beforeAll(async () => {
   userId = user.id;
   otherUserId = other.id;
   await db.organizationMembership.create({ data: { organizationId, userId, roleId: role.id } });
+  await db.userMfa.create({data:{userId,secretCiphertext:"fixture",enabledAt:new Date()}});
+  await db.passwordResetToken.create({data:{userId,tokenHash:"deletion-"+stamp,expiresAt:new Date(Date.now()+60000)}});
   await db.calendarConnection.create({
     data: { organizationId, userId, provider: "google", status: "connected", externalAccountEmail: user.email, credentialCiphertext: "fixture-ciphertext" },
   });
@@ -81,6 +83,8 @@ describe("verified account deletion", () => {
     expect(erased.name).toBe("Deleted user");
     expect(erased.email).toBe(`deleted-${userId}@deleted.invalid`);
     expect(erased.phone).toBeNull();
+    expect(await db.userMfa.count({where:{userId}})).toBe(0);
+    expect(await db.passwordResetToken.count({where:{userId}})).toBe(0);
     expect(await compare(password, erased.passwordHash)).toBe(false);
     expect(await db.organizationMembership.count({ where: { userId } })).toBe(0);
     expect(await db.calendarConnection.count({ where: { userId } })).toBe(0);
