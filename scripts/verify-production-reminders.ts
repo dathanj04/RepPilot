@@ -10,8 +10,14 @@ async function main(){
   if(existing&&!existing.isDemo)throw Error("Fixture collision");
   const now=new Date();
   const org=await prisma.organization.upsert({where:{slug:fixture},update:{},create:{slug:fixture,name:"RepPilot internal email verification — no office",isDemo:true,subscription:{create:{plan:"business",status:"trialing",trialStartedAt:now,trialEndsAt:new Date(now.getTime()+14*86400000)}}}});
+  const priorAccount=await prisma.account.findUnique({where:{id:fixture}});
+  if(priorAccount&&(!priorAccount.isDemo||priorAccount.organizationId!==org.id||priorAccount.email!==owner.email))throw Error("Account fixture collision");
   const account=await prisma.account.upsert({where:{id:fixture},update:{},create:{id:fixture,organizationId:org.id,name:"Owner inbox test — not a real office",isDemo:true,specialty:"Internal verification",street:"Internal verification",city:"Test",state:"TX",zip:"00000",email:owner.email}});
+  const priorBooking=await prisma.lunchBooking.findUnique({where:{id:fixture}});
+  if(priorBooking&&(priorBooking.organizationId!==org.id||priorBooking.accountId!==account.id||priorBooking.representativeId!==owner.id))throw Error("Booking fixture collision");
   await prisma.lunchBooking.upsert({where:{id:fixture},update:{},create:{id:fixture,organizationId:org.id,accountId:account.id,representativeId:owner.id,slotStartsAt:new Date(now.getTime()+7*86400000),slotEndsAt:new Date(now.getTime()+7*86400000+1800000),status:"SCHEDULED",purpose:"Owner-only scheduled-email verification",expectedAttendees:1,timezone:"America/Chicago"}});
+  const priorReminder=await prisma.lunchReminder.findUnique({where:{id:fixture}});
+  if(priorReminder&&(priorReminder.organizationId!==org.id||priorReminder.bookingId!==fixture||priorReminder.idempotencyKey!==fixture))throw Error("Reminder fixture collision");
   await prisma.lunchReminder.upsert({where:{id:fixture},update:{},create:{id:fixture,organizationId:org.id,bookingId:fixture,kind:"SEVEN_DAY",scheduledFor:new Date(now.getTime()+60000),idempotencyKey:fixture}});
   await reportOperationalAlert("ops.test","Owner-requested alert verification",{route:"/api/cron/reminders",method:"POST"});
   console.log(JSON.stringify({event:"verification.prepared",ownerInboxOnly:true,dueAfterSeconds:60}));
