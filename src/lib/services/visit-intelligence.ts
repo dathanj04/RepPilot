@@ -1,6 +1,6 @@
 import { formatInTimeZone } from "date-fns-tz";
 import type { Db } from "../db";
-import { geminiJson } from "../ai/gemini";
+import { modelJson } from "../ai/provider";
 import {
   acceptModelBrief,
   buildVisitBrief,
@@ -96,7 +96,7 @@ export async function loadReferralFact(db: Db, organizationId: string, accountId
 
 async function maybePolish(brief: VisitBrief, sourceNotes: string): Promise<VisitBrief> {
   const allowed = brief.referralCount == null ? [] : [brief.referralCount];
-  const model = await geminiJson(
+  const model = await modelJson(
     `Rewrite only the conversation opener. Return JSON {"opener":"..."}. Use the opener below. Do not add numbers, referrals, names, or commitments that are not already in it.\nOpener: ${brief.opener}`,
     "visit_brief",
   );
