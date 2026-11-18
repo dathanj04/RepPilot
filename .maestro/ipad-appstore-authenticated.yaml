@@ -1,0 +1,44 @@
+# Requires GitHub Actions repository secrets:
+# REPPILOT_REVIEW_EMAIL and REPPILOT_REVIEW_PASSWORD
+# These should belong to an isolated, non-admin, fictional, fully accessible
+# reviewer workspace; do not use the owner's real account.
+#
+# Run this flow ONLY on a trusted manual workflow_dispatch.
+# Secrets are referenced through the Maestro process environment, never committed.
+appId: ${REPPILOT_IOS_BUNDLE_ID}
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Sign in"
+    timeout: 45000
+- tapOn: "Email"
+- inputText: ${REPPILOT_REVIEW_EMAIL}
+- tapOn: "Password"
+- inputText: ${REPPILOT_REVIEW_PASSWORD}
+- hideKeyboard
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "Today"
+    timeout: 60000
+- takeScreenshot: RepPilot_iPad_13in_Dashboard
+- tapOn: "Territory"
+- extendedWaitUntil:
+    visible: "Saved accounts"
+    timeout: 40000
+- waitForAnimationToEnd
+- takeScreenshot: RepPilot_iPad_13in_Territory
+- tapOn: "Route Planner"
+- extendedWaitUntil:
+    visible: "Current Route"
+    timeout: 35000
+- takeScreenshot: RepPilot_iPad_13in_Route_Planner
+- tapOn: "Lunch & Learns"
+- extendedWaitUntil:
+    visible: "Lunches"
+    timeout: 35000
+- takeScreenshot: RepPilot_iPad_13in_Lunches
+- tapOn: "Calendar"
+- extendedWaitUntil:
+    visible: "Calendar"
+    timeout: 35000
+- takeScreenshot: RepPilot_iPad_13in_Calendar
