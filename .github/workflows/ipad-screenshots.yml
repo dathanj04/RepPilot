@@ -1,0 +1,96 @@
+name: Capture 13-inch iPad App Store screenshot
+
+on:
+  push:
+    branches:
+      - chore/ipad-13-simulator-screenshots-20261118
+    paths:
+      - '.github/workflows/ipad-screenshots.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture-ipad:
+    runs-on: macos-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install app dependencies
+        run: npm ci
+      - name: Generate mobile branding assets
+        run: |
+          python3 -m venv /tmp/reppilot-icons
+          /tmp/reppilot-icons/bin/python -m pip install Pillow==11.3.0
+          /tmp/reppilot-icons/bin/python scripts/mobile-icons.py
+      - name: Prepare Capacitor iOS project
+        run: |
+          node scripts/mobile-preflight.mjs --ios
+          npx --no-install cap sync ios
+      - name: Build the native iOS simulator application
+        run: |
+          xcodebuild -workspace ios/App/App.xcworkspace \
+            -scheme App -configuration Debug -sdk iphonesimulator \
+            -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO build
+      - name: Boot 13-inch iPad simulator
+        id: ipad
+        run: |
+          python3 - <<'PY'
+          import json, subprocess, os
+          x = lambda *args: json.loads(subprocess.check_output(['xcrun','simctl','list','-j',*args],text=True))
+          types=x('devicetypes')['devicetypes']
+          matches=[d for d in types if ('iPad Pro 13-inch' in d['name'] or 'iPad Air 13-inch' in d['name'])]
+          if not matches:
+              raise SystemExit('No 13-inch iPad simulator device type on runner')
+          selected=next((d for d in matches if 'iPad Pro 13-inch' in d['name']),matches[0])
+          runtimes=[r for r in x('runtimes')['runtimes'] if r.get('isAvailable') and r.get('platform')=='iOS']
+          if not runtimes:
+              raise SystemExit('No usable iOS simulator runtime')
+          runtime=runtimes[-1]['identifier']
+          device=subprocess.check_output(['xcrun','simctl','create','RepPilot App Store iPad',selected['identifier'],runtime],text=True).strip()
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('udid='+device+'\n')
+          print('iPad type:',selected['name'],'runtime:',runtime)
+          subprocess.check_call(['xcrun','simctl','boot',device])
+          subprocess.check_call(['xcrun','simctl','bootstatus',device,'-b'])
+          PY
+      - name: Launch RepPilot and capture real device screen
+        env:
+          IPAD_UDID: ${{ steps.ipad.outputs.udid }}
+        run: |
+          set -euo pipefail
+          APP="ios/DerivedData/Build/Products/Debug-iphonesimulator/App.app"
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Info.plist")
+          echo "Launching native bundle: $BUNDLE_ID"
+          xcrun simctl status_bar "$IPAD_UDID" override --time '9:41' --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState charged --batteryLevel 100
+          xcrun simctl install "$IPAD_UDID" "$APP"
+          xcrun simctl launch "$IPAD_UDID" "$BUNDLE_ID"
+          sleep 30
+          mkdir -p ipad-screenshots
+          xcrun simctl io "$IPAD_UDID" screenshot ipad-screenshots/RepPilot_iPad_13in_Login.png
+          sips -g pixelWidth -g pixelHeight ipad-screenshots/RepPilot_iPad_13in_Login.png
+      - name: Ensure screenshot is an accepted 13-inch iPad native resolution
+        run: |
+          python3 - <<'PY'
+          import subprocess
+          f='ipad-screenshots/RepPilot_iPad_13in_Login.png'
+          lines=subprocess.check_output(['sips','-g','pixelWidth','-g','pixelHeight',f],text=True).splitlines()
+          dims=[int(l.split(':',1)[1]) for l in lines if 'pixelWidth:' in l or 'pixelHeight:' in l]
+          accepted={(2064,2752),(2752,2064),(2048,2732),(2732,2048)}
+          if tuple(dims) not in accepted:
+              raise SystemExit(f'Unexpected simulator screenshot size {tuple(dims)}; no rescaling or stretching performed')
+          print('Verified native 13-inch screenshot:',dims)
+          PY
+      - name: Upload genuine simulator screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: RepPilot-iPad-13inch-AppStore-screenshot
+          path: ipad-screenshots/*.png
+          retention-days: 14
+          if-no-files-found: error
