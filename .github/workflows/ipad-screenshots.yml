@@ -1,0 +1,20 @@
+name: Capture 13-inch iPad App Store screenshot
+
+# Register the manual workflow in the repository's default branch.
+# Select the dedicated screenshot branch from the Actions "Run workflow"
+# branch dropdown to execute the native simulator capture.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  select-screenshot-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Select the screenshot automation branch
+        run: |
+          echo "This default-branch placeholder never accesses credentials."
+          echo "Use Run workflow > Branch: chore/ipad-13-simulator-screenshots-20261118"
+          echo "That branch contains the real iPad screenshot capture workflow."
