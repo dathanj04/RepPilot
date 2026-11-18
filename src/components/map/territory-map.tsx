@@ -143,6 +143,19 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
   const [locationNote, setLocationNote] = useState<string | null>(null);
   const [showTraffic, setShowTraffic] = useState(false);
   const [tomtomFailed, setTomtomFailed] = useState(false);
+  const failedTomtomTiles = useRef(0);
+  const onTomtomTileError = useCallback(() => {
+    // One transient tile failure should not switch the entire map provider.
+    failedTomtomTiles.current += 1;
+    if (failedTomtomTiles.current >= 3) setTomtomFailed(true);
+  }, []);
+  const onTomtomTileLoaded = useCallback(() => {
+    failedTomtomTiles.current = 0;
+  }, []);
+  const retryTomtom = useCallback(() => {
+    failedTomtomTiles.current = 0;
+    setTomtomFailed(false);
+  }, []);
   const [googleFailed, setGoogleFailed] = useState(false);
   const failGoogle = useCallback(() => setGoogleFailed(true), []);
 
@@ -274,7 +287,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
 
   const canvas = activeRoute || zipcodesShown || countiesShown || lasso || tomtomMapsKey || discovered.length > 0 || googleFailed || !googleMapsKey ? (
     <MapContainer center={center} zoom={10} className="h-full w-full" zoomControl={false}>
-      {tomtomMapsKey && !tomtomFailed ? <TileLayer attribution='<a href="https://www.tomtom.com/copyright/">&copy; TomTom</a> &copy; OpenStreetMap' maxZoom={22} url={`https://api.tomtom.com/maps/orbis/display/raster/tile/{z}/{x}/{y}?apiVersion=2&style=street-light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} eventHandlers={{ tileerror: () => setTomtomFailed(true) }} /> : <TileLayer attribution='&copy; OpenStreetMap' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />}
+      {tomtomMapsKey && !tomtomFailed ? <TileLayer attribution='<a href="https://www.tomtom.com/copyright/">&copy; TomTom</a> &copy; OpenStreetMap' maxZoom={22} url={`https://api.tomtom.com/maps/orbis/display/raster/tile/{z}/{x}/{y}?apiVersion=2&style=street-light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} eventHandlers={{ tileerror: onTomtomTileError, tileload: onTomtomTileLoaded }} /> : <TileLayer attribution='&copy; OpenStreetMap' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />}
       {tomtomMapsKey && !tomtomFailed && showTraffic ? <TileLayer attribution="Traffic &copy; TomTom" maxZoom={22} opacity={0.8} url={`https://api.tomtom.com/maps/orbis/traffic/flow/raster/tile/{z}/{x}/{y}?apiVersion=2&style=light&tileSize=256&key=${encodeURIComponent(tomtomMapsKey)}`} /> : null}
       {lasso ? <LassoLayer onComplete={finishLasso} onCancel={cancelLasso} /> : null}
       {zipcodesShown ? <CountyLayer zipcode onError={zipcodeFailed} /> : null}
@@ -328,6 +341,13 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
           <div className="flex gap-1" role="group" aria-label="Territory view"><button type="button" aria-pressed={mode==="map"} className={"min-h-11 rounded-lg px-3 text-sm font-semibold "+(mode==="map"?"bg-[#10263E] text-white":"")} onClick={()=>{setMode("map");setAccountsMinimized(true);}}>Map</button><button type="button" aria-pressed={mode==="list"} className={"min-h-11 rounded-lg px-3 text-sm font-semibold "+(mode==="list"?"bg-[#10263E] text-white":"")} onClick={()=>{setMode("list");setAccountsMinimized(false);}}>List</button></div>
           <Link href={activeRoute?"/route?route="+activeRoute.id:"/route"} className="flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold"><Route className="size-4"/>{activeRoute?"Edit route":"Create route"}</Link>
         </div>
+        {tomtomFailed ? (
+          <div role="status" className="flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-white/95 px-3 py-2 text-xs font-medium text-amber-900 shadow-md">
+            <span>TomTom unavailable. Showing backup map.</span>
+            <button type="button" onClick={retryTomtom} className="min-h-11 shrink-0 rounded-lg bg-[#10263E] px-3 text-white">Retry TomTom</button>
+          </div>
+        ) : null}
+        { !tomtomMapsKey ? <p role="status" className="rounded-xl bg-white/95 px-3 py-2 text-xs text-amber-800 shadow-sm">TomTom map key not configured for this build.</p> : null }
         <div id="mobile-office-search" hidden={!officeSearchOpen}>
           <PlacesSearch here={here} area={searchArea} onResults={receivePlaces} saved={savedDiscoveries} onSaved={markSaved} compact />
         </div>
@@ -364,7 +384,7 @@ export function TerritoryMap({ accounts, boundary, googleMapsKey, tomtomMapsKey,
       </div>
       <p className="pointer-events-none absolute top-3 left-3 z-20 hidden max-w-sm rounded-xl bg-white/95 px-3 py-2 text-[11px] text-[#66758B] shadow-sm md:block">
         {tomtomMapsKey ? <button type="button" disabled={tomtomFailed} aria-pressed={showTraffic} onClick={() => setShowTraffic(v => !v)} className="pointer-events-auto mr-3 min-h-11 rounded-lg border px-3 font-medium">Traffic {showTraffic ? "on" : "off"}</button> : null}
-        {tomtomFailed ? <span role="status">TomTom tiles could not load. Showing OpenStreetMap. </span> : null}
+        {tomtomFailed ? <span role="status">TomTom tiles could not load. Showing OpenStreetMap. <button type="button" onClick={retryTomtom} className="pointer-events-auto min-h-11 rounded-lg border px-2 font-semibold">Retry TomTom</button> </span> : null}
         {tomtomMapsKey && !tomtomFailed ? "TomTom" : !tomtomMapsKey && discovered.length === 0 && googleMapsKey && !googleFailed ? "Google Maps" : "OpenStreetMap"} · Purple dots: office search results ({discovered.length}) · pin distance is straight-line until Routes returns a drive time
         {locationNote ? ` · ${locationNote}` : ""}
         {missingLocation ? ` · ${missingLocation} offices have no coordinates` : ""}
