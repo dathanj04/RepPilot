@@ -79,6 +79,12 @@ jobs:
           mkdir -p ipad-screenshots
           xcrun simctl io "$IPAD_UDID" screenshot ipad-screenshots/RepPilot_iPad_13in_Login.png
           sips -g pixelWidth -g pixelHeight ipad-screenshots/RepPilot_iPad_13in_Login.png
+      - name: Set up Java for Maestro
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
       - name: Install Maestro mobile automation
         if: github.event_name == 'workflow_dispatch'
         run: |
