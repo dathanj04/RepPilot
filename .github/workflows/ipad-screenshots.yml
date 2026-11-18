@@ -6,6 +6,10 @@ on:
       - chore/ipad-13-simulator-screenshots-20261118
     paths:
       - '.github/workflows/ipad-screenshots.yml'
+  pull_request:
+    branches: [deploy/vercel-test]
+    paths:
+      - '.github/workflows/ipad-screenshots.yml'
   workflow_dispatch:
 
 permissions:
