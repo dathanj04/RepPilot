@@ -83,6 +83,39 @@ export async function processDueReminders(
       continue;
     }
 
+    // A missing recipient is not a transient email-provider failure. Keep the
+    // reminder visibly undelivered, notify the assigned rep once, and avoid
+    // retrying every five minutes until someone corrects/requeues it.
+    const recipient = reminder.kind === "NONRESPONSE_24H"
+      ? booking.representative.email?.trim()
+      : booking.account.email?.trim();
+    if (!recipient) {
+      await db.$transaction(async tx => {
+        const marked = await tx.lunchReminder.updateMany({
+          where: { id: reminder.id, status: "SENDING" },
+          data: { status: "NEEDS_ATTENTION", sentAt: null },
+        });
+        if (marked.count !== 1) return;
+        await tx.notification.create({
+          data: {
+            organizationId: booking.organizationId,
+            userId: booking.representativeId,
+            kind: "reminder_action_required",
+            title: "Lunch reminder needs an email address",
+            body: `No email was sent for ${booking.account.name}. Add the correct recipient address and reschedule this reminder.`,
+            href: `/lunches/${booking.id}`,
+          },
+        });
+      });
+      logEvent("info", "reminder.action_required", {
+        reminderId: reminder.id,
+        bookingId: booking.id,
+        reason: "missing_recipient",
+      });
+      results.push({ id: reminder.id, status: "needs_attention" });
+      continue;
+    }
+
     try {
       let confirmUrl: string | undefined;
       if (reminder.kind === "FORTY_EIGHT_HOUR" || reminder.kind === "TWENTY_FOUR_HOUR" || reminder.kind === "DELIVERY_DAY") {
@@ -100,10 +133,7 @@ export async function processDueReminders(
         attendees: booking.confirmedAttendees ?? booking.expectedAttendees,
         confirmUrl,
       });
-      const to =
-        reminder.kind === "NONRESPONSE_24H"
-          ? booking.representative.email
-          : booking.account.email;
+      const to = recipient;
       const officeReminder =
         reminder.kind === "SEVEN_DAY"
           ? { kind: "reminder_sent", title: "Seven-day reminder sent" }
