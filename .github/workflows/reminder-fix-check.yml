@@ -1,0 +1,23 @@
+name: Validate reminder missing-recipient fix
+on:
+  pull_request:
+    branches: [deploy/vercel-test]
+    paths:
+      - 'src/lib/services/reminders.ts'
+      - 'tests/reminder-missing-recipient.test.ts'
+      - '.github/workflows/reminder-fix-check.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run tests/reminder-missing-recipient.test.ts
+      - run: npx tsc --noEmit

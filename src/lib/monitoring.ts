@@ -14,6 +14,11 @@ export function parseSentryDsn(dsn: string): { storeUrl: string; publicKey: stri
 
 type Fields = Record<string, string | number | boolean | null | undefined>;
 
+async function hashEventKey(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
 /** Deliberately exclude raw URLs, exception text, stack traces, email and tokens. */
 export function safeMonitoringFields(fields: Fields): Fields {
   const route=typeof fields.route==="string"&&/^\/[a-zA-Z0-9_\/\[\]().-]{0,180}$/.test(fields.route)?fields.route:"unknown";
@@ -23,9 +28,8 @@ export function safeMonitoringFields(fields: Fields): Fields {
 async function recordIncident(kind:string, fields:Fields){
   try {
     const {prisma}=await import("./db");
-    const {createHash}=await import("node:crypto");
     const route=String(fields.route??"unknown");
-    const fingerprint=createHash("sha256").update(kind+":"+route).digest("hex");
+    const fingerprint=await hashEventKey(kind+":"+route);
     await prisma.operationalEvent.upsert({where:{fingerprint},create:{fingerprint,kind,route},update:{occurrences:{increment:1},lastSeenAt:new Date()}});
   } catch {logEvent("error","monitor.persistence_failed",{kind});}
 }
@@ -94,9 +98,8 @@ async function sendOwnerEmail(event: string, fields: Fields) {
   if(!recipient||!key||!from)return;
   // Direct provider call avoids recursion through deliverEmail's own failure alerts.
   // Stable body and key limit each failure/route to one email per 15-minute window.
-  const {createHash}=await import("node:crypto");
   const bucket=Math.floor(Date.now()/900000);
-  const id=createHash("sha256").update(event+":"+String(fields.route)+":"+bucket).digest("hex");
+  const id=await hashEventKey(event+":"+String(fields.route)+":"+bucket);
   const receipt=await postJson("https://api.resend.com/emails",{
     from,to:[recipient],subject:"RepPilot operational alert",
     text:`RepPilot reported ${event}. Route: ${String(fields.route)}. Review the authenticated owner Operations console. No customer content is included in this alert.`
